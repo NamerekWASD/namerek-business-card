@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import Grain from './shared/Grain';
 import useScrollY from './shared/useScrollY';
+import rustBrass from '../assets/textures/rust-brass.jpg';
 
 const vars = {
   '--bg': '#1a120e',
@@ -32,7 +33,9 @@ function Platform() {
       <div
         style={{
           position: 'absolute', top: 0, left: 0, right: 0, height: 26,
-          background: 'linear-gradient(180deg, #8a683d, #4a3520)',
+          backgroundImage: `linear-gradient(180deg, #8a683d, #4a3520), url(${rustBrass})`,
+          backgroundSize: 'auto, 180px 180px',
+          backgroundBlendMode: 'multiply',
           clipPath: 'polygon(4% 0, 96% 0, 100% 100%, 0 100%)',
           boxShadow: 'inset 0 2px 0 rgba(255,255,255,0.3)',
         }}
@@ -47,7 +50,9 @@ function Platform() {
       <div
         style={{
           position: 'absolute', top: 30, left: 0, right: 0, bottom: 0, borderRadius: '0 0 3px 3px', overflow: 'hidden',
-          background: 'linear-gradient(180deg, #2e2013, #1c130b)',
+          backgroundImage: `linear-gradient(180deg, #2e2013, #1c130b), url(${rustBrass})`,
+          backgroundSize: 'auto, 220px 220px',
+          backgroundBlendMode: 'multiply',
           boxShadow: '0 30px 44px -8px rgba(0,0,0,0.75), inset 0 1px 0 rgba(255,255,255,0.08)',
         }}
       >
@@ -265,6 +270,7 @@ function useScrub(totalMs) {
 
 function DoorPlate({ side, t, children }) {
   const isLeft = side === 'left';
+  const inner = isLeft ? 'right' : 'left';
   const { x, opacity } = computeDoor(t, isLeft);
   return (
     <div
@@ -276,26 +282,75 @@ function DoorPlate({ side, t, children }) {
         width: '55vw',
         transform: `translateX(${x}%)`,
         opacity,
-        background:
-          'radial-gradient(ellipse 30vw 40vh at ' + (isLeft ? '25% 30%' : '75% 30%') + ', rgba(130,64,20,0.35), transparent 70%),' +
-          'radial-gradient(ellipse 22vw 30vh at ' + (isLeft ? '70% 75%' : '30% 75%') + ', rgba(110,55,18,0.3), transparent 70%),' +
-          'repeating-linear-gradient(112deg, rgba(255,255,255,0.05) 0px, rgba(255,255,255,0.05) 1px, transparent 1px, transparent 13px),' +
-          'repeating-linear-gradient(24deg, rgba(0,0,0,0.25) 0px, rgba(0,0,0,0.25) 1px, transparent 1px, transparent 19px),' +
-          'linear-gradient(160deg, #3a2a18, #241a10)',
+        overflow: 'hidden',
         [isLeft ? 'borderRight' : 'borderLeft']: '2px solid var(--brass)',
         boxShadow: isLeft
           ? 'inset -6px 0 12px rgba(0,0,0,0.4), 10px 0 24px rgba(0,0,0,0.5)'
           : 'inset 6px 0 12px rgba(0,0,0,0.4), -10px 0 24px rgba(0,0,0,0.5)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 10,
         zIndex: 5,
       }}
     >
+      <div
+        style={{
+          position: 'absolute', inset: 0,
+          backgroundImage:
+            'radial-gradient(ellipse 30vw 40vh at ' + (isLeft ? '25% 30%' : '75% 30%') + ', rgba(130,64,20,0.35), transparent 70%),' +
+            'radial-gradient(ellipse 22vw 30vh at ' + (isLeft ? '70% 75%' : '30% 75%') + ', rgba(110,55,18,0.3), transparent 70%),' +
+            'repeating-linear-gradient(112deg, rgba(255,255,255,0.05) 0px, rgba(255,255,255,0.05) 1px, transparent 1px, transparent 13px),' +
+            'repeating-linear-gradient(24deg, rgba(0,0,0,0.25) 0px, rgba(0,0,0,0.25) 1px, transparent 1px, transparent 19px),' +
+            `linear-gradient(160deg, #3a2a18, #241a10), url(${rustBrass})`,
+          backgroundSize: 'auto, auto, auto, auto, auto, 340px 340px',
+          backgroundBlendMode: 'normal, normal, normal, normal, multiply, normal',
+        }}
+      />
+
+      <div
+        style={{
+          position: 'absolute', top: 0, left: 0, right: 0, height: 22,
+          backgroundImage: `linear-gradient(180deg, #1c130b, #100b06), url(${rustBrass})`,
+          backgroundSize: 'auto, 200px 200px',
+          backgroundBlendMode: 'multiply',
+          boxShadow: '0 1px 0 rgba(194,144,63,0.2), 0 2px 6px rgba(0,0,0,0.6)',
+        }}
+      />
+
+      <div
+        style={{
+          position: 'absolute', top: '44%', left: 0, right: 0, height: 18,
+          backgroundImage: 'repeating-linear-gradient(45deg, #d9a531 0px, #d9a531 10px, #241a10 10px, #241a10 20px)',
+          boxShadow: '0 1px 0 rgba(0,0,0,0.6), 0 -1px 0 rgba(0,0,0,0.6)',
+        }}
+      />
+
+      <div
+        style={{
+          position: 'absolute', bottom: 0, left: 0, right: 0, height: '14%',
+          backgroundImage: `linear-gradient(180deg, #4a3a28, #2c2015), url(${rustBrass})`,
+          backgroundSize: 'auto, 260px 260px',
+          backgroundBlendMode: 'multiply',
+          boxShadow: 'inset 0 2px 0 rgba(0,0,0,0.5)',
+        }}
+      />
+
+      <div
+        style={{
+          position: 'absolute', top: 'calc(44% + 18px)', [inner]: 0,
+          width: 32, height: 44,
+          background: 'linear-gradient(180deg, #8b6432, #4a3520)',
+          [isLeft ? 'borderTopLeftRadius' : 'borderTopRightRadius']: 4,
+          [isLeft ? 'borderBottomLeftRadius' : 'borderBottomRightRadius']: 4,
+          boxShadow: '0 3px 6px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.15)',
+        }}
+      >
+        <span style={{ position: 'absolute', top: 6, [inner]: 6, width: 7, height: 7, borderRadius: '50%', background: 'var(--rivet)', boxShadow: 'inset 0 1px 1px rgba(0,0,0,0.7)' }} />
+        <span style={{ position: 'absolute', bottom: 6, [inner]: 6, width: 7, height: 7, borderRadius: '50%', background: 'var(--rivet)', boxShadow: 'inset 0 1px 1px rgba(0,0,0,0.7)' }} />
+      </div>
+
       <Rivets />
-      {children}
+
+      <div style={{ position: 'relative', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+        {children}
+      </div>
     </div>
   );
 }
