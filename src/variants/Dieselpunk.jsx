@@ -39,6 +39,13 @@ const DECKS = [
 const WALL_PARALLAX = 1.28;
 const BG_PARALLAX = 0.42;
 
+// Dead shaft between two decks, as a fraction of the viewport. The decks used
+// to butt up against each other, which put a seam light exactly on the viewport
+// edge at rest — so the settling overshoot flashed it in and out on every
+// arrival. The buffer parks the seam safely off-screen instead; the ride gets
+// slightly longer, which is a fair price.
+const DECK_GAP = 0.4;
+
 const LIFT_BASE_MS = 760;
 const LIFT_PER_FLOOR_MS = 300;
 
@@ -714,14 +721,14 @@ function ValveWheel({ size = 60 }) {
 // A rivet seam running the full height of the shaft. Offsetting it modulo the
 // pitch makes it endless: the wall can travel any distance and the seam never
 // runs out or visibly restarts.
-function ShaftRivets({ offset, edge }) {
+function ShaftRivets({ offset, edge, inset }) {
   const PITCH = 46;
   const shift = ((offset % PITCH) + PITCH) % PITCH;
   return Array.from({ length: 34 }).map((_, i) => (
     <span
       key={i}
       style={{
-        position: 'absolute', top: i * PITCH - PITCH + shift, [edge]: 11,
+        position: 'absolute', top: i * PITCH - PITCH + shift, [edge]: inset,
         width: 6, height: 6, borderRadius: '50%',
         background: 'var(--rivet)',
         boxShadow: 'inset 0 1px 1px rgba(0,0,0,0.7), 0 1px 0 rgba(255,255,255,0.06)',
@@ -760,6 +767,7 @@ function ControlPanel({ side, width = 70, simple = false, roomP = 1, pos = 0, fl
   // to the wall as it animates and land exactly on the already-tuned 67px rest spot.
   const wallRightEdge = width;
   const INSTRUMENT_ANCHOR = wallRightEdge - 10;
+  const innerEdge = isLeft ? 'right' : 'left';
   return (
     <>
       <div style={{ position: 'absolute', top: 0, bottom: 0, [side]: 0, width, zIndex: 1, overflow: 'hidden', pointerEvents: 'none', filter: wallFilter }}>
@@ -853,8 +861,10 @@ function ControlPanel({ side, width = 70, simple = false, roomP = 1, pos = 0, fl
               style={{
                 position: 'absolute',
                 top: travelY - f * floorPx + floorPx * 0.46,
-                [isLeft ? 'right' : 'left']: 6,
-                width: width - 12,
+                // measured from the content-facing edge, like the rivet seams,
+                // so it doesn't drift while the wall opens up during the intro
+                [innerEdge]: 4,
+                width: 62,
                 textAlign: 'center',
                 fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 34, lineHeight: 1,
                 letterSpacing: 1,
@@ -867,8 +877,12 @@ function ControlPanel({ side, width = 70, simple = false, roomP = 1, pos = 0, fl
             </div>
           ))}
 
-          <ShaftRivets offset={travelY} edge={isLeft ? 'right' : 'left'} />
-          <ShaftRivets offset={travelY + 23} edge={isLeft ? 'left' : 'right'} />
+          {/* both seams straddle the brass insert and are measured from the
+              content-facing edge. Measuring the outer seam from the *outer*
+              edge made it roll across the wall while `width` animates open
+              during the intro, instead of staying bolted to the insert. */}
+          <ShaftRivets offset={travelY} edge={innerEdge} inset={wallInsertInset - 11} />
+          <ShaftRivets offset={travelY + 23} edge={innerEdge} inset={wallInsertInset + 9} />
         </div>
       </div>
 
@@ -882,6 +896,23 @@ function ControlPanel({ side, width = 70, simple = false, roomP = 1, pos = 0, fl
           {/* one instrument cluster per deck, so passing floor 02 means literally
               watching floor 02's own gauges slide by rather than a single set of
               props pretending to be all of them */}
+          {/* the pipe run gets its own layer underneath every cluster. Drawing
+              it inside each cluster meant the floor *above* rendered later and
+              punched its pipe straight through the gauge below it. */}
+          {nearFloors.map((f) => (
+            <div key={`pipe-${f}`}
+              style={{
+                position: 'absolute', top: travelY - f * floorPx, height: '100%', width: 0,
+                [isLeft ? 'left' : 'right']: INSTRUMENT_ANCHOR,
+                transform: `perspective(550px) rotateY(${isLeft ? 40 : -40}deg) scale(${instrumentScale.toFixed(3)})`,
+                transformOrigin: '0 20%',
+                filter: `brightness(${dim.toFixed(2)})`,
+              }}
+            >
+              <div style={{ ...pipe, top: -floorPx * 0.5, height: floorPx * 1.6 }} />
+            </div>
+          ))}
+
           {nearFloors.map((f) => (
             <div key={f} id={f === 0 ? 'instrument' : undefined}
               style={{
@@ -892,11 +923,6 @@ function ControlPanel({ side, width = 70, simple = false, roomP = 1, pos = 0, fl
                 filter: `brightness(${dim.toFixed(2)})`,
               }}
             >
-              {/* the pipe now runs the length of the shaft and the instruments
-                  tap into it, instead of being a stub between two gauges —
-                  otherwise the run would visibly break at every floor seam */}
-              <div style={{ ...pipe, top: -floorPx * 0.5, height: floorPx * 1.6 }} />
-
               <div style={{ position: 'absolute', top: gaugeTop, left: '50%', transform: 'translateX(-50%)' }}>
                 <ConsoleGauge size={gaugeSize} delay={2.5} />
               </div>
@@ -1000,11 +1026,11 @@ function FloorSelector({ pos, deck, moving, go }) {
 // Light strips bolted into the shaft between decks. They sweep across the
 // content as you pass them, which is what makes the ride feel like it happens
 // in a space rather than to a layer.
-function PassingLights({ pos, vh, moving }) {
-  if (!moving) return null;
+function PassingLights({ pos, vh, step, gap }) {
   return DECKS.slice(0, -1).map((_, f) => {
-    // the seam between deck f and deck f+1 lands here in screen space
-    const y = (pos - f) * vh;
+    // centre of the dead shaft between deck f and deck f+1, in screen space —
+    // at rest this sits a full half-gap outside the viewport on either side
+    const y = (pos - f) * step - gap / 2;
     if (y < -140 || y > vh + 140) return null;
     return (
       <div
@@ -1151,7 +1177,9 @@ export default function Dieselpunk() {
   const contentScale = 0.7 + 0.3 * roomP;
   const contentBlur = 4 * (1 - roomP);
 
-  const floorPxWall = vh * WALL_PARALLAX;
+  const gap = vh * DECK_GAP;
+  const step = vh + gap;
+  const floorPxWall = step * WALL_PARALLAX;
   const speed = Math.abs(velocity);
   const blurAmount = Math.min(16, speed * 5.5);
   // between two decks the shaft is unlit, so the content genuinely goes dark
@@ -1188,7 +1216,7 @@ export default function Dieselpunk() {
         style={{
           position: 'absolute', left: 0, right: 0, top: '-60%', bottom: '-60%',
           background: 'radial-gradient(ellipse at 50% 30%, var(--bg-2) 0%, var(--bg) 62%)',
-          transform: `translateY(${(pos * vh * BG_PARALLAX).toFixed(1)}px)`,
+          transform: `translateY(${(pos * step * BG_PARALLAX).toFixed(1)}px)`,
         }}
       />
       <div
@@ -1219,7 +1247,7 @@ export default function Dieselpunk() {
           ].filter(Boolean).join(' ') || 'none',
         }}
       >
-        <div style={{ position: 'absolute', inset: 0, transform: `translateY(${(pos * vh).toFixed(1)}px)` }}>
+        <div style={{ position: 'absolute', inset: 0, transform: `translateY(${(pos * step).toFixed(1)}px)` }}>
           {DECKS.map((d, i) => {
             if (Math.abs(i - pos) > 1.4) return null;
             const Body = DECK_BODIES[i];
@@ -1227,7 +1255,7 @@ export default function Dieselpunk() {
               <div
                 key={d.id}
                 style={{
-                  position: 'absolute', left: 0, right: 0, top: -i * vh, height: vh,
+                  position: 'absolute', left: 0, right: 0, top: -i * step, height: vh,
                   display: 'flex', flexDirection: 'column', justifyContent: 'center',
                   padding: '5.5rem 1.5rem 3rem',
                   boxSizing: 'border-box',
@@ -1242,7 +1270,7 @@ export default function Dieselpunk() {
         </div>
       </div>
 
-      <PassingLights pos={pos} vh={vh} moving={moving} />
+      <PassingLights pos={pos} vh={vh} step={step} gap={gap} />
 
       {/* the shaft is unlit between decks */}
       <div style={{ position: 'absolute', inset: 0, background: '#0b0705', opacity: darkness.toFixed(3), pointerEvents: 'none', zIndex: 3 }} />
