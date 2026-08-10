@@ -24,12 +24,7 @@ const snap = [0.16, 1, 0.3, 1];
 
 function Platform() {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: snap, delay: 2.2 }}
-      style={{ position: 'relative', marginTop: '2.4rem', height: 76 }}
-    >
+    <div style={{ position: 'relative', marginTop: '2.4rem', height: 76 }}>
       <div
         style={{
           position: 'absolute', top: 0, left: 0, right: 0, height: 26,
@@ -58,7 +53,7 @@ function Platform() {
       >
         <Rivets />
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -191,10 +186,10 @@ function GaugeGlyph() {
   );
 }
 
-const DOOR_HOLD_END = 1000;
-const DOOR_SHAKE_END = 1350;
-const DOOR_TOTAL_MS = 2800;
-const DOOR_FADE_START = 2300;
+const DOOR_HOLD_END = 500;
+const DOOR_SHAKE_END = 750;
+const DOOR_FADE_START = 1600;
+const DOOR_TOTAL_MS = 2000;
 
 function sharpKick(p) {
   return Math.pow(p, 0.4);
@@ -209,7 +204,7 @@ function computeDoor(t, isLeft) {
     const local = t - DOOR_HOLD_END;
     const span = DOOR_SHAKE_END - DOOR_HOLD_END;
     const decay = 1 - local / span;
-    mag = Math.sin(local / 26) * 3.5 * decay;
+    mag = Math.sin(local / 26) * 1.7 * decay;
   } else {
     const p = Math.min(1, (t - DOOR_SHAKE_END) / (DOOR_TOTAL_MS - DOOR_SHAKE_END));
     mag = sharpKick(p) * 112;
@@ -431,29 +426,31 @@ const btnStyle = {
   cursor: 'pointer',
 };
 
-function PressIntro() {
-  const { t, setT, playing, play } = useScrub(DOOR_TOTAL_MS);
-
+function PressIntro({ t }) {
   return (
-    <>
-      <div style={{ position: 'fixed', inset: 0, zIndex: 99, pointerEvents: 'none', overflow: 'hidden' }}>
-        <DoorPlate side="left" t={t}>
-          <EmbossedMT />
-          <span style={{ width: 20, height: 1, background: 'var(--line)' }} />
-          <span style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--muted)', letterSpacing: 1 }}>Nr.001</span>
-        </DoorPlate>
-        <DoorPlate side="right" t={t}>
-          <GaugeGlyph />
-          <span style={{ width: 20, height: 1, background: 'var(--line)' }} />
-          <span style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--muted)', letterSpacing: 1 }}>OK</span>
-        </DoorPlate>
-        <SeamLight t={t} />
-      </div>
-      <div style={{ pointerEvents: 'auto' }}>
-        <DebugScrub t={t} setT={setT} playing={playing} play={play} />
-      </div>
-    </>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 99, pointerEvents: 'none', overflow: 'hidden' }}>
+      <DoorPlate side="left" t={t}>
+        <EmbossedMT />
+        <span style={{ width: 20, height: 1, background: 'var(--line)' }} />
+        <span style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--muted)', letterSpacing: 1 }}>Nr.001</span>
+      </DoorPlate>
+      <DoorPlate side="right" t={t}>
+        <GaugeGlyph />
+        <span style={{ width: 20, height: 1, background: 'var(--line)' }} />
+        <span style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--muted)', letterSpacing: 1 }}>OK</span>
+      </DoorPlate>
+      <SeamLight t={t} />
+    </div>
   );
+}
+
+const ROOM_CONVERGE_START = 1500;
+const ROOM_CONVERGE_END = 2000;
+
+function computeRoomProgress(t) {
+  if (t <= ROOM_CONVERGE_START) return 0;
+  const p = Math.min(1, (t - ROOM_CONVERGE_START) / (ROOM_CONVERGE_END - ROOM_CONVERGE_START));
+  return 1 - Math.pow(1 - p, 3);
 }
 
 function Plate({ children, style, delay = 0 }) {
@@ -492,18 +489,211 @@ const skills = [
   { label: 'Architektur', tech: 'N-Tier · DDD · REST' },
 ];
 
+function ConsoleGauge({ size = 72, delay = 0 }) {
+  return (
+    <div style={{ position: 'relative', width: size, height: size, filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.55))' }}>
+      <svg width={size} height={size} viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="47" fill="var(--panel)" stroke="var(--brass)" strokeWidth="3" />
+        <circle cx="50" cy="50" r="37" fill="var(--screen)" stroke="var(--brass-deep)" strokeWidth="1.5" />
+        {Array.from({ length: 10 }).map((_, i) => {
+          const a = (i / 9) * 240 - 120;
+          return <line key={i} x1="50" y1="16" x2="50" y2="21" stroke="var(--brass)" strokeWidth="1.3" transform={`rotate(${a} 50 50)`} />;
+        })}
+      </svg>
+      <motion.svg
+        width={size} height={size} viewBox="0 0 100 100"
+        style={{ position: 'absolute', inset: 0, transformOrigin: '50% 50%' }}
+        initial={{ rotate: -120 }}
+        animate={{ rotate: 60 }}
+        transition={{ duration: 1.8, delay, ease: [0.16, 1, 0.3, 1] }}
+      >
+        <line x1="50" y1="50" x2="50" y2="20" stroke="var(--glow)" strokeWidth="2" style={{ filter: 'drop-shadow(0 0 3px rgba(255,180,84,0.8))' }} />
+        <circle cx="50" cy="50" r="4" fill="var(--brass)" />
+      </motion.svg>
+    </div>
+  );
+}
+
+function ValveWheel({ size = 60 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 56 56" style={{ filter: 'drop-shadow(0 3px 4px rgba(0,0,0,0.6))' }}>
+      <circle cx="28" cy="28" r="21" fill="none" stroke="var(--brass)" strokeWidth="4" />
+      {[0, 60, 120].map((a) => (
+        <line key={a} x1="28" y1="28" x2="28" y2="7" stroke="var(--brass)" strokeWidth="4" strokeLinecap="round" transform={`rotate(${a} 28 28)`} />
+      ))}
+      <circle cx="28" cy="28" r="7" fill="var(--brass-deep)" stroke="var(--brass)" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
+function ControlPanel({ side, width = 70, simple = false, roomP = 1 }) {
+  const isLeft = side === 'left';
+  const pipe = {
+    position: 'absolute', left: '50%', width: 8, marginLeft: -4, borderRadius: 4,
+    backgroundImage: 'linear-gradient(90deg, #14100a 0%, #3a2a18 20%, #b98a4a 50%, #3a2a18 80%, #14100a 100%)',
+  };
+  const gaugeTop = 90;
+  const gaugeSize = 60;
+  const valveTop = 250;
+  const valveSize = 57;
+  const gauge2Top = 416;
+  const instrumentScale = 0.85 + 0.15 * roomP;
+  const dim = 0.35 + 0.65 * roomP;
+  const wallInsertInset = 50;
+  // x of the wall's left edge is always 0, so x of its right edge = 0 + width.
+  // Anchor the instruments a constant 3px in from that edge, so they stay glued
+  // to the wall as it animates and land exactly on the already-tuned 67px rest spot.
+  const wallRightEdge = width;
+  const INSTRUMENT_ANCHOR = wallRightEdge - 10;
+
+  return (
+    <>
+      <div style={{ position: 'absolute', top: 0, bottom: 0, [side]: 0, width, zIndex: 1, overflow: 'hidden', pointerEvents: 'none' }}>
+        {/* full-height surface stuff (texture, dark overlay, light pools, brass
+            line) — overshoots top/bottom well past the box's own bounds so that
+            even at the smallest scale (0.55) it still fully covers the box;
+            otherwise it pulls away from the origin and visibly "cuts off" before
+            reaching the real top/bottom edge. None of this needs to line up with
+            the instruments' exact pixel position, so the shifted local origin is
+            harmless here. */}
+        <div
+          style={{
+            position: 'absolute', top: '-30%', bottom: '-100%', left: 0, right: 0,
+            transform: `scaleY(${instrumentScale.toFixed(3)})`,
+            transformOrigin: 'center 20%',
+          }}
+        >
+          <div
+            style={{
+              position: 'absolute', inset: 0,
+              backgroundImage:
+                `linear-gradient(${isLeft ? '90deg' : '270deg'}, #241a10 0%, #2e2116 25%, transparent 100%), url(${rustBrass})`,
+              backgroundSize: 'auto, 240px 240px',
+              // anchor the tiling to the wall's own right (content-facing) edge — the
+              // edge that's actually tracked/meaningful — instead of the default left
+              // edge, so the pattern stays glued there instead of appearing to drift
+              // as `width` animates.
+              backgroundPosition: isLeft ? '100% 0' : '0% 0',
+              backgroundBlendMode: 'multiply',
+              boxShadow: isLeft ? '16px 0 26px rgba(0,0,0,0.5)' : '-16px 0 26px rgba(0,0,0,0.5)',
+            }}
+          />
+
+          {/* uneven light pools that brighten unevenly as the room is reached */}
+          <div
+            style={{
+              position: 'absolute', inset: 0,
+              mixBlendMode: 'screen',
+              opacity: (0.15 + 0.85 * roomP).toFixed(2),
+            }}
+          />
+          <div style={{ position: 'absolute', inset: 0, background: '#000', opacity: (0.6 * (1 - roomP)).toFixed(2) }} />
+
+          <div style={{ position: 'absolute', top: 0, bottom: 0, [isLeft ? 'right' : 'left']: wallInsertInset, width: 2, background: 'var(--brass)', opacity: 0.4 }} />
+        </div>
+
+        {/* shadow only — kept in its own non-overshot wrapper (same scale/origin,
+            but exact inset:0) so gaugeTop/valveTop/gauge2Top still line up
+            correctly; the wrapper above has a shifted local origin and can't
+            share this. */}
+        {!simple && (
+          <div
+            style={{
+              position: 'absolute', inset: 0,
+              transform: `scaleY(${instrumentScale.toFixed(3)})`,
+              transformOrigin: 'center 20%',
+            }}
+          >
+            {/* contact shadow the instruments cast back onto the wall — confined to
+                this clipped box, so it never spills onto the background past the wall */}
+            <div
+              style={{
+                position: 'absolute', inset: 0,
+                backgroundImage:
+                  `radial-gradient(ellipse 46px 56px at ${wallRightEdge}px ${gaugeTop + gaugeSize / 2}px, rgba(0,0,0,0.5), transparent 70%),` +
+                  `radial-gradient(ellipse 40px 48px at ${wallRightEdge}px ${valveTop + valveSize / 2}px, rgba(0,0,0,0.45), transparent 70%),` +
+                  `radial-gradient(ellipse 42px 52px at ${wallRightEdge}px ${gauge2Top + 27}px, rgba(0,0,0,0.5), transparent 70%)`,
+                opacity: (0.4 + 0.6 * roomP).toFixed(2),
+              }}
+            />
+          </div>
+        )}
+
+        <Rivets />
+      </div>
+
+      {!simple && (
+        <div
+          style={{
+            position: 'absolute', top: 0, bottom: 0, [side]: 0, width: 0, zIndex: 1, overflow: 'visible', pointerEvents: 'none',
+          }}
+        >
+          <div id="instrument"
+            style={{
+              position: 'absolute', top: 0, height: '100%', width: 0,
+              [isLeft ? 'left' : 'right']: INSTRUMENT_ANCHOR,
+              transform: `perspective(500px) rotateY(${isLeft ? 24 : -24}deg) scale(${instrumentScale.toFixed(3)})`,
+              transformOrigin: '0 20%',
+              filter: `brightness(${dim.toFixed(2)})`,
+            }}
+          >
+            <div style={{ ...pipe, top: gaugeTop + gaugeSize, height: valveTop - (gaugeTop + gaugeSize) }} />
+            <div style={{ ...pipe, top: valveTop + valveSize, height: gauge2Top - (valveTop + valveSize) }} />
+
+            <div style={{ position: 'absolute', top: gaugeTop, left: '50%', transform: 'translateX(-50%)' }}>
+              <ConsoleGauge size={gaugeSize} delay={2.5} />
+            </div>
+            <div style={{ position: 'absolute', top: valveTop, left: '50%', transform: 'translateX(-50%)' }}>
+              <ValveWheel size={valveSize} />
+            </div>
+            <div style={{ position: 'absolute', top: gauge2Top, left: '50%', transform: 'translateX(-50%)' }}>
+              <ConsoleGauge size={54} delay={2.65} />
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 export default function Dieselpunk() {
   const scrollY = useScrollY();
+  const { t, setT, playing, play } = useScrub(DOOR_TOTAL_MS);
+  const roomP = computeRoomProgress(t);
+  const vw = (typeof window !== 'undefined' ? window.innerWidth : 1920) / 100;
+  const wallWidth = 70 + 7 * (1 - roomP) * vw;
+  const contentScale = 0.7 + 0.3 * roomP;
+  const contentBlur = 4 * (1 - roomP);
 
   return (
     <div style={{ ...vars, background: 'var(--bg)', color: 'var(--ink)', fontFamily: "'Inter', sans-serif", position: 'relative', overflow: 'hidden' }}>
-      <PressIntro />
+      <PressIntro t={t} />
       <Grain opacity={0.06} />
+
       <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 50% 0%, var(--bg-2) 0%, var(--bg) 65%)' }} />
+      <div
+        style={{
+          position: 'absolute', inset: 0,
+          background: 'linear-gradient(180deg, rgba(255,205,150,0.07) 0%, transparent 65%, transparent 75%, rgba(0,0,0,0.2) 85%, rgba(0,0,0,0.42) 100%)',
+        }}
+      />
       <BigGear style={{ top: -60 - scrollY * 0.08, left: -90 }} size={260} speed={50} />
       <BigGear style={{ bottom: -100 + scrollY * 0.05, right: -110 }} size={320} speed={65} reverse />
+      <ControlPanel side="left" width={wallWidth} roomP={roomP} />
+      <ControlPanel side="right" width={wallWidth} simple roomP={roomP} />
 
-      <div style={{ position: 'relative', maxWidth: 960, margin: '0 auto', padding: '0 1.5rem' }}>
+      <div style={{ pointerEvents: 'auto' }}>
+        <DebugScrub t={t} setT={setT} playing={playing} play={play} />
+      </div>
+
+      <div
+        style={{
+          position: 'relative', zIndex: 2, maxWidth: 960, margin: '0 auto', padding: '0 1.5rem',
+          transform: `scale(${contentScale})`,
+          transformOrigin: '50% 45%',
+          filter: contentBlur > 0.05 ? `blur(${contentBlur.toFixed(2)}px)` : 'none',
+        }}
+      >
         <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.6rem 0', borderBottom: '1px solid var(--line)' }}>
           <span style={{ fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: 2, color: 'var(--muted)' }}>No. 001 / MT</span>
           <div style={{ display: 'flex', gap: '1.4rem' }}>
@@ -520,14 +710,11 @@ export default function Dieselpunk() {
         </nav>
 
         <section style={{ position: 'relative', minHeight: '78vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '1.4rem', padding: '2rem 0' }}>
-          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.4, ease: snap, delay: 1.6 }}>
+          <div>
             <GaugeLogo />
-          </motion.div>
+          </div>
 
-          <motion.h1
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, ease: snap, delay: 1.75 }}
+          <h1
             style={{
               fontFamily: 'var(--serif)', fontWeight: 700,
               fontSize: 'clamp(2.4rem, 7vw, 4rem)', lineHeight: 1.05, margin: 0,
@@ -537,29 +724,21 @@ export default function Dieselpunk() {
             Mykolai
             <br />
             Tymchenko
-          </motion.h1>
+          </h1>
 
-          <motion.p
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, ease: snap, delay: 1.9 }}
+          <p
             style={{
               fontFamily: 'var(--mono)', fontSize: 13, letterSpacing: 1, textTransform: 'uppercase',
               color: 'var(--glow)', margin: 0, textShadow: '0 0 10px rgba(255,180,84,0.5)',
             }}
           >
             .NET / C# — Backend &amp; Fullstack
-          </motion.p>
+          </p>
 
-          <motion.p
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, ease: snap, delay: 2.05 }}
-            style={{ fontSize: 15, lineHeight: 1.7, color: 'var(--muted)', maxWidth: 440, margin: 0 }}
-          >
+          <p style={{ fontSize: 15, lineHeight: 1.7, color: 'var(--muted)', maxWidth: 440, margin: 0 }}>
             Baue Systeme, die tragen — von der Datenbank bis zur Oberfläche.
             Offen für neue Aufgaben im Ruhrgebiet / NRW.
-          </motion.p>
+          </p>
 
           <Platform />
         </section>
