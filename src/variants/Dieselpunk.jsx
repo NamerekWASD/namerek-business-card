@@ -637,85 +637,178 @@ const skills = [
   { label: 'Architektur', tech: 'N-Tier · DDD · REST' },
 ];
 
-function ConsoleGauge({ size = 72, delay = 0 }) {
+const steelFace = (scale = 46) => ({
+  backgroundImage:
+    `linear-gradient(90deg, #0a0b0c 0%, #40474d 22%, #b9c3ca 50%, #40474d 78%, #0a0b0c 100%), url(${brushedSteel})`,
+  backgroundSize: `auto, ${scale}px ${scale}px`,
+  backgroundBlendMode: 'multiply',
+});
+
+// The T-section guide rail the cabin runs on: the one thing every lift shaft
+// actually has, and the one shape that survives a 70px-wide tilted strip —
+// it is vertical and continuous, so nothing about it reads as a blob.
+function GuideRail() {
   return (
-    <div style={{ position: 'relative', width: size, height: size, filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.55))' }}>
-      {/* rim — worn bronze photo texture, lightened so it reads warm against the
-          duller rust-brass wall instead of blending into it */}
+    <>
       <div
         style={{
-          position: 'absolute', inset: 0, borderRadius: '50%',
-          backgroundImage: `linear-gradient(160deg, rgba(226,178,110,0.75), rgba(139,94,34,0.75)), url(${bronzeWorn})`,
-          backgroundSize: `auto, ${Math.round(size * 1.7)}px ${Math.round(size * 1.7)}px`,
-          backgroundBlendMode: 'soft-light',
-          boxShadow: '0 0 0 1.5px var(--brass-deep)',
+          position: 'absolute', top: '-60%', height: '220%', left: '50%', width: 30, marginLeft: -15,
+          ...steelFace(64),
+          filter: 'brightness(0.52)',
+          boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.6)',
         }}
       />
-      {/* face — same bronze photo, oxidised-dark tint and tighter scale so it
-          reads as a different (patinated) material than the polished rim */}
       <div
         style={{
-          position: 'absolute', inset: '10.5%', borderRadius: '50%',
-          backgroundImage: `linear-gradient(180deg, rgba(28,23,18,0.88), rgba(10,8,6,0.92)), url(${bronzeWorn})`,
-          backgroundSize: `auto, ${Math.round(size * 1.05)}px ${Math.round(size * 1.05)}px`,
+          position: 'absolute', top: '-60%', height: '220%', left: '50%', width: 11, marginLeft: -5.5,
+          ...steelFace(38),
+          boxShadow: '0 0 6px rgba(0,0,0,0.7)',
+        }}
+      />
+    </>
+  );
+}
+
+// Bolted joints between rail sections. The rail itself is uniform, so without
+// these the shaft could be travelling at any speed or none — these are what
+// actually carry the sense of motion past the cabin.
+function RailClips({ offset }) {
+  const PITCH = 190;
+  const shift = ((offset % PITCH) + PITCH) % PITCH;
+  return Array.from({ length: 12 }).map((_, i) => (
+    <div
+      key={i}
+      style={{
+        position: 'absolute', top: i * PITCH - PITCH + shift, left: '50%', width: 38, marginLeft: -19, height: 15,
+        backgroundImage: `linear-gradient(180deg, #6c5836, #2b2115), url(${rustBrass})`,
+        backgroundSize: 'auto, 60px 60px',
+        backgroundBlendMode: 'multiply',
+        borderRadius: 2,
+        boxShadow: '0 2px 4px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12)',
+      }}
+    >
+      <span style={{ position: 'absolute', top: 5, left: 4, width: 5, height: 5, borderRadius: '50%', background: 'var(--rivet)', boxShadow: 'inset 0 1px 1px rgba(0,0,0,0.8)' }} />
+      <span style={{ position: 'absolute', top: 5, right: 4, width: 5, height: 5, borderRadius: '50%', background: 'var(--rivet)', boxShadow: 'inset 0 1px 1px rgba(0,0,0,0.8)' }} />
+    </div>
+  ));
+}
+
+// The roller guides are bolted to the cabin, not the shaft, so they are the one
+// piece of hardware that must stay nailed to the screen while everything else
+// streams past. That contrast is the whole point of them.
+function RollerShoe({ top }) {
+  return (
+    <div style={{ position: 'absolute', top, left: '50%', width: 44, marginLeft: -22, height: 52 }}>
+      <div
+        style={{
+          position: 'absolute', inset: '6px 0',
+          backgroundImage: `linear-gradient(180deg, #3b3128, #1b1610), url(${rustBrass})`,
+          backgroundSize: 'auto, 70px 70px',
           backgroundBlendMode: 'multiply',
-          boxShadow: 'inset 0 3px 6px rgba(0,0,0,0.85), 0 0 0 1.5px var(--brass-deep)',
+          borderRadius: 3,
+          boxShadow: '0 4px 10px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.14)',
         }}
       />
-      <svg width={size} height={size} viewBox="0 0 100 100" style={{ position: 'absolute', inset: 0 }}>
-        {Array.from({ length: 10 }).map((_, i) => {
-          const a = (i / 9) * 240 - 120;
-          return <line key={i} x1="50" y1="16" x2="50" y2="21" stroke="var(--brass)" strokeWidth="1.3" transform={`rotate(${a} 50 50)`} />;
-        })}
-      </svg>
-      <motion.svg
-        width={size} height={size} viewBox="0 0 100 100"
-        style={{ position: 'absolute', inset: 0, transformOrigin: '50% 50%' }}
-        initial={{ rotate: -120 }}
-        animate={{ rotate: 60 }}
-        transition={{ duration: 1.8, delay, ease: [0.16, 1, 0.3, 1] }}
-      >
-        <line x1="50" y1="50" x2="50" y2="20" stroke="var(--glow)" strokeWidth="2" style={{ filter: 'drop-shadow(0 0 3px rgba(255,180,84,0.8))' }} />
-        <circle cx="50" cy="50" r="4" fill="var(--brass)" />
-      </motion.svg>
+      {[-15, 15].map((dx) => (
+        <span
+          key={dx}
+          style={{
+            position: 'absolute', top: 14, left: `calc(50% + ${dx}px)`, marginLeft: -8,
+            width: 16, height: 24, borderRadius: 8,
+            background: 'linear-gradient(90deg, #1a1d20, #7d878f 45%, #1a1d20)',
+            boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.7)',
+          }}
+        />
+      ))}
     </div>
   );
 }
 
-function ValveWheel({ size = 60 }) {
-  const ringMask = 'radial-gradient(circle closest-side, transparent 66%, black 68% 82%, transparent 84%)';
+// The shaft-side landing door at each deck: what actually makes one floor
+// distinguishable from the next when you pass it.
+function LandingDoor({ top, height, no, innerEdge }) {
   return (
-    <div style={{ position: 'relative', width: size, height: size, filter: 'drop-shadow(0 3px 4px rgba(0,0,0,0.6))' }}>
-      {/* rim ring — worn bronze photo texture, masked down to just the band the
-          stroke used to draw; same treatment as the gauge rims for consistency */}
+    <div style={{ position: 'absolute', top, height, [innerEdge]: 3, width: 64 }}>
+      {/* lintel and sill — at this width the frame is what reads as a doorway,
+          so it gets the contrast rather than the leaves */}
+      <div style={{ position: 'absolute', left: -3, right: -3, top: -7, height: 7, backgroundImage: `linear-gradient(180deg, #7d6136, #33261501), url(${rustBrass})`, backgroundSize: 'auto, 60px 60px', backgroundBlendMode: 'multiply', boxShadow: '0 2px 5px rgba(0,0,0,0.7)' }} />
+      <div style={{ position: 'absolute', left: -3, right: -3, bottom: -7, height: 7, backgroundImage: `linear-gradient(0deg, #6b5230, #2b2015), url(${rustBrass})`, backgroundSize: 'auto, 60px 60px', backgroundBlendMode: 'multiply', boxShadow: '0 -2px 5px rgba(0,0,0,0.7)' }} />
       <div
         style={{
-          position: 'absolute', inset: 0, borderRadius: '50%',
-          backgroundImage: `linear-gradient(160deg, rgba(226,178,110,0.75), rgba(139,94,34,0.75)), url(${bronzeWorn})`,
-          backgroundSize: `auto, ${Math.round(size * 1.5)}px ${Math.round(size * 1.5)}px`,
-          backgroundBlendMode: 'soft-light',
-          WebkitMaskImage: ringMask,
-          maskImage: ringMask,
+          position: 'absolute', inset: 0, borderRadius: 1,
+          // only a shade darker than the wall — a near-black fill turned half
+          // the shaft into a flat strip and swallowed the rust texture
+          backgroundImage: `linear-gradient(180deg, #3d2e1e, #261c11), url(${rustBrass})`,
+          backgroundSize: 'auto, 130px 130px',
+          backgroundBlendMode: 'multiply',
+          boxShadow: 'inset 0 0 10px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(150,113,63,0.5), 0 0 12px rgba(0,0,0,0.5)',
         }}
       />
-      <svg width={size} height={size} viewBox="0 0 56 56" style={{ position: 'absolute', inset: 0 }}>
-        {[0, 60, 120].map((a) => (
-          <line key={a} x1="28" y1="28" x2="28" y2="7" stroke="var(--brass)" strokeWidth="4" strokeLinecap="round" transform={`rotate(${a} 28 28)`} />
-        ))}
-      </svg>
-      {/* hub — same bronze photo, oxidised-dark tint so it reads as a different
-          material than the rim, matching the gauges' rim/face split */}
+      {/* the leaves meet here — the seam is what says "door" at this size */}
+      <div style={{ position: 'absolute', top: 8, bottom: 20, left: '50%', width: 2, marginLeft: -1, background: 'rgba(0,0,0,0.75)', boxShadow: '1px 0 0 rgba(194,144,63,0.16)' }} />
       <div
         style={{
-          position: 'absolute', inset: '34%', borderRadius: '50%',
-          backgroundImage: `linear-gradient(180deg, rgba(54,37,19,0.88), rgba(18,12,7,0.92)), url(${bronzeWorn})`,
-          backgroundSize: `auto, ${Math.round(size * 1)}px ${Math.round(size * 1)}px`,
-          backgroundBlendMode: 'multiply',
-          boxShadow: '0 0 0 1.5px var(--brass), inset 0 2px 4px rgba(0,0,0,0.7)',
+          position: 'absolute', left: 4, right: 4, bottom: 6, height: 7,
+          backgroundImage: 'repeating-linear-gradient(45deg, #b8862a 0px, #b8862a 6px, #241a10 6px, #241a10 12px)',
+          opacity: 0.75,
+          boxShadow: '0 1px 0 rgba(0,0,0,0.7)',
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute', top: -21, left: '50%', marginLeft: -17, width: 34, height: 16,
+          background: 'var(--screen)', borderRadius: 2,
+          boxShadow: 'inset 0 1px 4px rgba(0,0,0,0.9), 0 0 0 1px rgba(96,73,44,0.55)',
+          fontFamily: 'var(--mono)', fontSize: 10, lineHeight: '16px', textAlign: 'center',
+          color: 'var(--glow)', textShadow: '0 0 6px rgba(255,180,84,0.7)',
+        }}
+      >
+        {no}
+      </div>
+    </div>
+  );
+}
+
+// Hoist ropes and the counterweight. When the cabin rises the counterweight
+// drops, so on screen it runs the other way at twice the shaft's rate — it is
+// the only element here that doesn't just suggest movement but proves its
+// direction. It crosses the frame around the middle of the shaft, the same way
+// you only ever meet it once in a real lift.
+function Counterweight({ y, height }) {
+  return (
+    <div style={{ position: 'absolute', top: y, height, left: '50%', width: 54, marginLeft: -27 }}>
+      <div
+        style={{
+          position: 'absolute', inset: 0, borderRadius: 2,
+          ...steelFace(52),
+          // deliberately left bright: it crosses the frame exactly while the
+          // cabin is in the unlit stretch between decks, so a dimmed block
+          // would simply disappear into the dark it is meant to cut through
+          boxShadow: '0 0 24px rgba(0,0,0,0.85), inset 0 0 0 2px rgba(0,0,0,0.5), inset 0 0 0 3px rgba(190,200,208,0.25)',
+        }}
+      />
+      {/* the stack of weight plates */}
+      <div
+        style={{
+          position: 'absolute', inset: '6px 5px',
+          backgroundImage: 'repeating-linear-gradient(180deg, rgba(255,255,255,0.09) 0px, rgba(255,255,255,0.09) 1px, transparent 1px, transparent 17px)',
         }}
       />
     </div>
   );
+}
+
+function HoistRopes() {
+  return [-13, 0, 13].map((dx) => (
+    <div
+      key={dx}
+      style={{
+        position: 'absolute', top: '-60%', height: '220%', left: `calc(50% + ${dx}px)`, width: 3, marginLeft: -1.5,
+        background: 'linear-gradient(90deg, #14171a, #8f9aa2 50%, #14171a)',
+        opacity: 0.85,
+      }}
+    />
+  ));
 }
 
 // A rivet seam running the full height of the shaft. Offsetting it modulo the
@@ -737,28 +830,13 @@ function ShaftRivets({ offset, edge, inset }) {
   ));
 }
 
-function ControlPanel({ side, width = 70, simple = false, roomP = 1, pos = 0, floorPx = 900, blur = 0 }) {
+function ControlPanel({ side, width = 70, simple = false, roomP = 1, pos = 0, floorPx = 900, blur = 0, vh = 900 }) {
   const isLeft = side === 'left';
   // how far the wall has travelled, in its own (parallaxed) pixel space — at
   // pos === f, floor f's instruments and stencil sit exactly at their rest spot
   const travelY = pos * floorPx;
   const nearFloors = DECKS.map((_, f) => f).filter((f) => Math.abs(f - pos) < 1.7);
   const wallFilter = blur > 0.25 ? `url(#shaftBlur) brightness(${(1 - Math.min(0.22, blur * 0.02)).toFixed(3)})` : 'none';
-  // steel, not brass — a deliberately different material from the gauges/valve
-  // so the pipe doesn't read as "yet another brass thing"
-  const pipe = {
-    position: 'absolute', left: '50%', width: 12, marginLeft: -6, borderRadius: 5,
-    backgroundImage:
-      `linear-gradient(90deg, #0c0d0e 0%, #4a5158 20%, #c4cdd3 50%, #4a5158 80%, #0c0d0e 100%), url(${brushedSteel})`,
-    backgroundSize: 'auto, 46px 46px',
-    backgroundBlendMode: 'multiply',
-  };
-  const gaugeTop = 90;
-  const gaugeSize = 60;
-  const gauge2Size = 54;
-  const valveTop = 250;
-  const valveSize = 57;
-  const gauge2Top = 416;
   const instrumentScale = 0.85 + 0.15 * roomP;
   const dim = 0.35 + 0.65 * roomP;
   const wallInsertInset = 50;
@@ -768,6 +846,12 @@ function ControlPanel({ side, width = 70, simple = false, roomP = 1, pos = 0, fl
   const wallRightEdge = width;
   const INSTRUMENT_ANCHOR = wallRightEdge - 10;
   const innerEdge = isLeft ? 'right' : 'left';
+  // The counterweight hangs on the other end of the ropes, so it runs opposite
+  // the cabin: on screen that is twice the shaft's own rate, in the same
+  // direction the shaft appears to move. It is level with the cabin halfway up
+  // the stack, which is where you meet it.
+  const cwHeight = vh * 1.15;
+  const cwY = vh * 0.45 - cwHeight / 2 + 2 * (pos - (DECKS.length - 1) / 2) * floorPx;
   return (
     <>
       <div style={{ position: 'absolute', top: 0, bottom: 0, [side]: 0, width, zIndex: 1, overflow: 'hidden', pointerEvents: 'none', filter: wallFilter }}>
@@ -831,26 +915,30 @@ function ControlPanel({ side, width = 70, simple = false, roomP = 1, pos = 0, fl
             transformOrigin: `${isLeft ? '100%' : '0%'} 20%`,
           }}
         >
-          {/* contact shadow the instruments cast back onto the wall — confined to
-              this clipped box, so it never spills onto the background past the wall */}
-          {!simple && (
-            <div
-              style={{
-                position: 'absolute', inset: 0,
-                backgroundImage: nearFloors
-                  .map((f) => {
-                    const o = travelY - f * floorPx;
-                    return (
-                      `radial-gradient(ellipse 46px 56px at ${wallRightEdge}px ${gaugeTop + gaugeSize / 2 + o}px, rgba(0,0,0,0.5), transparent 70%),` +
-                      `radial-gradient(ellipse 40px 48px at ${wallRightEdge}px ${valveTop + valveSize / 2 + o}px, rgba(0,0,0,0.45), transparent 70%),` +
-                      `radial-gradient(ellipse 42px 52px at ${wallRightEdge}px ${gauge2Top + 27 + o}px, rgba(0,0,0,0.5), transparent 70%)`
-                    );
-                  })
-                  .join(',') || 'none',
-                opacity: (0.4 + 0.6 * roomP).toFixed(2),
-              }}
+          {/* the shaft hardware bolted to the content-facing edge casts back
+              onto the wall — confined to this clipped box, so it never spills
+              onto the background past the wall */}
+          <div
+            style={{
+              position: 'absolute', top: 0, bottom: 0, [innerEdge]: 0, width: 34,
+              background: `linear-gradient(${isLeft ? '270deg' : '90deg'}, rgba(0,0,0,0.55), transparent)`,
+              opacity: (0.4 + 0.6 * roomP).toFixed(2),
+            }}
+          />
+
+          {/* the landing door of each deck — without them one stretch of shaft
+              is indistinguishable from the next as it goes by */}
+          {nearFloors.map((f) => (
+            <LandingDoor
+              key={`door-${f}`}
+              // sized off the viewport, not the floor pitch: the wall's pitch is
+              // parallaxed and a door scaled to it ends up taller than the screen
+              top={travelY - f * floorPx + vh * 0.26}
+              height={vh * 0.48}
+              no={DECKS[f].no}
+              innerEdge={innerEdge}
             />
-          )}
+          ))}
 
           {/* deck numbers stencilled on the shaft wall — the only thing that
               tells you how far you actually travelled, and the reason a long
@@ -886,56 +974,38 @@ function ControlPanel({ side, width = 70, simple = false, roomP = 1, pos = 0, fl
         </div>
       </div>
 
-      {!simple && (
-        <div
+      <div
+        style={{
+          position: 'absolute', top: 0, bottom: 0, [side]: 0, width: 0, zIndex: 1, overflow: 'visible', pointerEvents: 'none',
+          filter: wallFilter,
+        }}
+      >
+        <div id="instrument"
           style={{
-            position: 'absolute', top: 0, bottom: 0, [side]: 0, width: 0, zIndex: 1, overflow: 'visible', pointerEvents: 'none',
-            filter: wallFilter,
+            position: 'absolute', top: 0, height: '100%', width: 0,
+            [isLeft ? 'left' : 'right']: INSTRUMENT_ANCHOR,
+            transform: `perspective(550px) rotateY(${isLeft ? 40 : -40}deg) scale(${instrumentScale.toFixed(3)})`,
+            transformOrigin: '0 20%',
+            filter: `brightness(${dim.toFixed(2)})`,
           }}
         >
-          {/* one instrument cluster per deck, so passing floor 02 means literally
-              watching floor 02's own gauges slide by rather than a single set of
-              props pretending to be all of them */}
-          {/* the pipe run gets its own layer underneath every cluster. Drawing
-              it inside each cluster meant the floor *above* rendered later and
-              punched its pipe straight through the gauge below it. */}
-          {nearFloors.map((f) => (
-            <div key={`pipe-${f}`}
-              style={{
-                position: 'absolute', top: travelY - f * floorPx, height: '100%', width: 0,
-                [isLeft ? 'left' : 'right']: INSTRUMENT_ANCHOR,
-                transform: `perspective(550px) rotateY(${isLeft ? 40 : -40}deg) scale(${instrumentScale.toFixed(3)})`,
-                transformOrigin: '0 20%',
-                filter: `brightness(${dim.toFixed(2)})`,
-              }}
-            >
-              <div style={{ ...pipe, top: -floorPx * 0.5, height: floorPx * 1.6 }} />
-            </div>
-          ))}
-
-          {nearFloors.map((f) => (
-            <div key={f} id={f === 0 ? 'instrument' : undefined}
-              style={{
-                position: 'absolute', top: travelY - f * floorPx, height: '100%', width: 0,
-                [isLeft ? 'left' : 'right']: INSTRUMENT_ANCHOR,
-                transform: `perspective(550px) rotateY(${isLeft ? 40 : -40}deg) scale(${instrumentScale.toFixed(3)})`,
-                transformOrigin: '0 20%',
-                filter: `brightness(${dim.toFixed(2)})`,
-              }}
-            >
-              <div style={{ position: 'absolute', top: gaugeTop, left: '50%', transform: 'translateX(-50%)' }}>
-                <ConsoleGauge size={gaugeSize} delay={2.5} />
-              </div>
-              <div style={{ position: 'absolute', top: valveTop, left: '50%', transform: 'translateX(-50%)' }}>
-                <ValveWheel size={valveSize} />
-              </div>
-              <div style={{ position: 'absolute', top: gauge2Top, left: '50%', transform: 'translateX(-50%)' }}>
-                <ConsoleGauge size={gauge2Size} delay={2.65} />
-              </div>
-            </div>
-          ))}
+          {simple ? (
+            <>
+              <HoistRopes />
+              <Counterweight y={cwY} height={cwHeight} />
+            </>
+          ) : (
+            <>
+              <GuideRail />
+              {/* the clips belong to the shaft and stream past… */}
+              <RailClips offset={travelY} />
+              {/* …while the roller shoes are bolted to the cabin and never move */}
+              <RollerShoe top={vh * 0.17} />
+              <RollerShoe top={vh * 0.74} />
+            </>
+          )}
         </div>
-      )}
+      </div>
     </>
   );
 }
@@ -1056,9 +1126,88 @@ function DeckHeading({ children }) {
   );
 }
 
-function StartDeck({ lag }) {
+// The half-round indicator that sits over the doors of every old lift. It is
+// the one place an analogue dial earns its keep here: big enough for the
+// texture to actually read, and it does a job — the needle sweeps continuously
+// with the cabin instead of decorating the wall.
+function FloorDial({ pos, size = 260 }) {
+  const SPAN = 68;
+  const angle = -SPAN + (pos / (DECKS.length - 1)) * SPAN * 2;
+  const rad = (a) => ((a - 90) * Math.PI) / 180;
   return (
-    <>
+    <div style={{ position: 'relative', width: size, height: size * 0.5 + 34 }}>
+      <div
+        style={{
+          position: 'absolute', left: 0, right: 0, top: 0, height: size * 0.5 + 14,
+          borderRadius: `${size / 2}px ${size / 2}px 4px 4px`,
+          backgroundImage: `linear-gradient(160deg, rgba(176,138,86,0.72), rgba(88,60,26,0.85)), url(${bronzeWorn})`,
+          backgroundSize: `auto, ${Math.round(size * 0.8)}px ${Math.round(size * 0.8)}px`,
+          backgroundBlendMode: 'soft-light',
+          boxShadow: '0 14px 26px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.16)',
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute', left: 12, right: 12, top: 12, height: size * 0.5 - 8,
+          borderRadius: `${size / 2}px ${size / 2}px 2px 2px`,
+          backgroundImage: `linear-gradient(180deg, rgba(26,21,16,0.92), rgba(9,7,5,0.95)), url(${bronzeWorn})`,
+          backgroundSize: `auto, ${Math.round(size * 0.45)}px ${Math.round(size * 0.45)}px`,
+          backgroundBlendMode: 'multiply',
+          boxShadow: 'inset 0 4px 10px rgba(0,0,0,0.9), inset 0 0 0 1px var(--brass-deep)',
+        }}
+      />
+      <svg
+        viewBox="0 0 200 108"
+        style={{ position: 'absolute', left: 12, right: 12, top: 12, width: size - 24, height: (size - 24) * 0.54 }}
+      >
+        {DECKS.map((d, i) => {
+          const a = -SPAN + (i / (DECKS.length - 1)) * SPAN * 2;
+          const lit = Math.max(0, 1 - Math.abs(pos - i) * 1.6);
+          return (
+            <g key={d.id}>
+              {/* numerals sit outside the ticks, clear of the needle's sweep —
+                  inside, the needle parked on a floor covered its own label */}
+              <line
+                x1={100 + 78 * Math.cos(rad(a))} y1={100 + 78 * Math.sin(rad(a))}
+                x2={100 + 66 * Math.cos(rad(a))} y2={100 + 66 * Math.sin(rad(a))}
+                stroke="var(--brass)" strokeWidth="2.2"
+              />
+              <text
+                x={100 + 91 * Math.cos(rad(a))} y={100 + 91 * Math.sin(rad(a)) + 4.5}
+                textAnchor="middle" fontFamily="var(--mono)" fontSize="13"
+                fill={lit > 0.05 ? 'var(--glow)' : 'var(--muted)'}
+                opacity={0.45 + 0.55 * lit}
+                style={lit > 0.05 ? { filter: `drop-shadow(0 0 ${4 * lit}px rgba(255,180,84,0.9))` } : undefined}
+              >
+                {d.no}
+              </text>
+            </g>
+          );
+        })}
+        <line
+          x1="100" y1="100"
+          x2={100 + 61 * Math.cos(rad(angle))} y2={100 + 61 * Math.sin(rad(angle))}
+          stroke="var(--glow)" strokeWidth="3" strokeLinecap="round"
+          style={{ filter: 'drop-shadow(0 0 5px rgba(255,180,84,0.9))' }}
+        />
+        <circle cx="100" cy="100" r="7" fill="var(--brass)" stroke="var(--brass-deep)" strokeWidth="1.5" />
+      </svg>
+      <div
+        style={{
+          position: 'absolute', left: 0, right: 0, bottom: 0, textAlign: 'center',
+          fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: 3, color: 'var(--muted)',
+        }}
+      >
+        FAHRKORB I
+      </div>
+    </div>
+  );
+}
+
+function StartDeck({ lag, pos }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '2.5rem', flexWrap: 'wrap' }}>
+      <div style={{ flex: '1 1 340px', minWidth: 300 }}>
       <div style={{ transform: `translateY(${(lag * 0.5).toFixed(2)}px)` }}>
         <GaugeLogo />
       </div>
@@ -1090,7 +1239,12 @@ function StartDeck({ lag }) {
       <div style={{ transform: `translateY(${(lag * 1.6).toFixed(2)}px)` }}>
         <Platform />
       </div>
-    </>
+      </div>
+
+      <div style={{ flex: '0 1 260px', display: 'flex', justifyContent: 'center', transform: `translateY(${(lag * 0.7).toFixed(2)}px)` }}>
+        <FloorDial pos={pos} />
+      </div>
+    </div>
   );
 }
 
@@ -1228,8 +1382,8 @@ export default function Dieselpunk() {
       <BigGear style={{ top: -60 + pos * vh * 0.06, left: -90 }} size={260} speed={50} />
       <BigGear style={{ bottom: -100 - pos * vh * 0.04, right: -110 }} size={320} speed={65} reverse />
 
-      <ControlPanel side="left" width={wallWidth} roomP={roomP} pos={pos} floorPx={floorPxWall} blur={blurAmount} />
-      <ControlPanel side="right" width={wallWidth} simple roomP={roomP} pos={pos} floorPx={floorPxWall} blur={blurAmount} />
+      <ControlPanel side="left" width={wallWidth} roomP={roomP} pos={pos} floorPx={floorPxWall} blur={blurAmount} vh={vh} />
+      <ControlPanel side="right" width={wallWidth} simple roomP={roomP} pos={pos} floorPx={floorPxWall} blur={blurAmount} vh={vh} />
 
       <div style={{ pointerEvents: 'auto' }}>
         <DebugScrub t={t} setT={setT} playing={playing} play={play} scrub={scrub} setScrub={setScrub} />
@@ -1262,7 +1416,7 @@ export default function Dieselpunk() {
                 }}
               >
                 <div style={{ width: '100%', maxWidth: 960, margin: '0 auto' }}>
-                  <Body lag={lag} />
+                  <Body lag={lag} pos={pos} />
                 </div>
               </div>
             );
