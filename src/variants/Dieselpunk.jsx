@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import Grain from './shared/Grain';
-import useScrollY from './shared/useScrollY';
 import rustBrass from '../assets/textures/rust-brass.jpg';
 import bronzeWorn from '../assets/textures/bronze-worn.jpg';
 import brushedSteel from '../assets/textures/brushed-steel.jpg';
@@ -23,6 +22,117 @@ const vars = {
 };
 
 const snap = [0.16, 1, 0.3, 1];
+
+// Every tab is a deck of the same shaft: switching tabs is a lift ride, so the
+// decks have an order and a direction — going from Kontakt back to Start rides
+// *down*, and a three-floor hop takes longer than a neighbouring one.
+const DECKS = [
+  { id: 'start', label: 'Start', no: '01' },
+  { id: 'leistungen', label: 'Leistungen', no: '02' },
+  { id: 'projekte', label: 'Projekte', no: '03' },
+  { id: 'kontakt', label: 'Kontakt', no: '04' },
+];
+
+// The three depth planes travel at different rates, which is what sells "the
+// camera moved" instead of "a div slid": the side walls are nearest so they
+// sweep past fastest, the content plane is the reference, the backdrop drifts.
+const WALL_PARALLAX = 1.28;
+const BG_PARALLAX = 0.42;
+
+const LIFT_BASE_MS = 760;
+const LIFT_PER_FLOOR_MS = 300;
+
+function liftDuration(dist) {
+  return LIFT_BASE_MS + LIFT_PER_FLOOR_MS * (Math.max(1, dist) - 1);
+}
+
+// A lift has three phases, not one curve: it pulls away, holds a cruising
+// speed, then brakes. A plain ease-out spends the whole ride decelerating and
+// covers ~90% of the distance in the first half, which reads as a tween.
+// This integrates an explicit velocity profile instead.
+const ACCEL = 0.18;
+const DECEL = 0.44;
+const CRUISE = 1 - ACCEL - DECEL;
+const DIST_TOTAL = 0.4 * ACCEL + CRUISE + DECEL / 3;
+
+function liftEase(p) {
+  if (p <= 0) return 0;
+  if (p >= 1) return 1;
+  let s;
+  if (p < ACCEL) {
+    s = 0.4 * ACCEL * Math.pow(p / ACCEL, 2.5);
+  } else if (p < ACCEL + CRUISE) {
+    s = 0.4 * ACCEL + (p - ACCEL);
+  } else {
+    const u = (p - ACCEL - CRUISE) / DECEL;
+    s = 0.4 * ACCEL + CRUISE + (DECEL / 3) * (1 - Math.pow(1 - u, 3));
+  }
+  const base = s / DIST_TOTAL;
+  // hydraulic overshoot as the brakes bite, damped out over the last stretch —
+  // the arrival is what makes it read as machinery rather than a tween
+  const settleFrom = 0.78;
+  if (p <= settleFrom) return base;
+  const k = (p - settleFrom) / (1 - settleFrom);
+  return base + Math.sin(k * Math.PI * 2) * 0.04 * (1 - k);
+}
+
+function useViewport() {
+  const [size, setSize] = useState(() => ({
+    vw: typeof window === 'undefined' ? 1920 : window.innerWidth,
+    vh: typeof window === 'undefined' ? 1080 : window.innerHeight,
+  }));
+  useEffect(() => {
+    const onResize = () => setSize({ vw: window.innerWidth, vh: window.innerHeight });
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  return size;
+}
+
+function useLift() {
+  const [deck, setDeck] = useState(0);
+  const [travel, setTravel] = useState(null);
+  // a hand-driven stand-in for `travel`, so the ride can be frozen and dragged
+  // frame by frame while tuning the easing — same trick the door intro uses
+  const [scrub, setScrub] = useState(null);
+  const rafRef = useRef(null);
+
+  const go = (to) => {
+    if (to === deck || travel) return;
+    const from = deck;
+    const dur = liftDuration(Math.abs(to - from));
+    const t0 = performance.now();
+    const tick = (now) => {
+      const p = Math.min(1, (now - t0) / dur);
+      if (p >= 1) {
+        setTravel(null);
+        setDeck(to);
+        return;
+      }
+      setTravel({ from, to, p, dur });
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    setTravel({ from, to, p: 0, dur });
+    rafRef.current = requestAnimationFrame(tick);
+  };
+
+  useEffect(() => () => cancelAnimationFrame(rafRef.current), []);
+
+  const ride = scrub || travel;
+  const pos = ride ? ride.from + (ride.to - ride.from) * liftEase(ride.p) : deck;
+  // signed floors/second, sampled off the easing curve rather than off frame
+  // deltas so it stays stable when a frame is dropped
+  let velocity = 0;
+  if (ride) {
+    const d = 0.01;
+    const a = liftEase(Math.max(0, ride.p - d));
+    const b = liftEase(Math.min(1, ride.p + d));
+    const dur = ride.dur || liftDuration(Math.abs(ride.to - ride.from));
+    velocity = (ride.to - ride.from) * ((b - a) / (2 * d)) / (dur / 1000);
+  }
+
+  return { deck, pos, velocity, go, moving: !!ride, scrub, setScrub };
+}
 
 function Platform() {
   return (
@@ -272,7 +382,10 @@ function DoorPlate({ side, t, children }) {
   return (
     <div
       style={{
-        position: 'fixed',
+        // absolute, not fixed: a fixed element escapes its wrapper's
+        // overflow:hidden, and the doors' 112% travel then pushes the document
+        // sideways and drags the whole shaft off-centre
+        position: 'absolute',
         top: 0,
         bottom: 0,
         [isLeft ? 'left' : 'right']: -50,
@@ -358,7 +471,7 @@ function SeamLight({ t }) {
   return (
     <div
       style={{
-        position: 'fixed',
+        position: 'absolute',
         left: '50%',
         top: 0,
         bottom: 0,
@@ -373,7 +486,32 @@ function SeamLight({ t }) {
   );
 }
 
-function DebugScrub({ t, setT, playing, play }) {
+function LiftScrub({ scrub, setScrub, deckCount }) {
+  const ride = scrub || { from: 0, to: deckCount - 1, p: 0 };
+  const set = (patch) => setScrub({ ...ride, ...patch });
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, borderTop: '1px solid rgba(255,255,255,0.18)', paddingTop: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+        <span>lift ride debug</span>
+        <span>{ride.from + 1} → {ride.to + 1} · {(ride.p * 100).toFixed(0)}%</span>
+      </div>
+      <input
+        type="range" min={0} max={1} step={0.005}
+        value={ride.p}
+        onChange={(e) => set({ p: Number(e.target.value) })}
+        style={{ width: '100%' }}
+      />
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <button onClick={() => set({ from: 0, to: 1 })} style={btnStyle}>1→2</button>
+        <button onClick={() => set({ from: 0, to: 3 })} style={btnStyle}>1→4</button>
+        <button onClick={() => set({ from: 3, to: 0 })} style={btnStyle}>4→1</button>
+        <button onClick={() => setScrub(null)} style={btnStyle}>release</button>
+      </div>
+    </div>
+  );
+}
+
+function DebugScrub({ t, setT, playing, play, scrub, setScrub }) {
   return (
     <div
       style={{
@@ -414,6 +552,7 @@ function DebugScrub({ t, setT, playing, play }) {
         <button onClick={() => setT(Math.min(DOOR_TOTAL_MS, t + 300))} style={btnStyle}>+300ms</button>
         <button onClick={() => play(0)} style={btnStyle}>{playing ? '▶ playing…' : '▶ play'}</button>
       </div>
+      <LiftScrub scrub={scrub} setScrub={setScrub} deckCount={DECKS.length} />
     </div>
   );
 }
@@ -455,25 +594,25 @@ function computeRoomProgress(t) {
   return 1 - Math.pow(1 - p, 3);
 }
 
-function Plate({ children, style, delay = 0 }) {
+// `lag` is the deck's inertia: while the cabin accelerates, the plates trail
+// behind the motion and only settle a beat after the ride stops, which is what
+// gives them apparent mass. `i` staggers that lag so they don't move as a block.
+function Plate({ children, style, lag = 0, i = 0 }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.5 }}
-      transition={{ duration: 0.5, ease: snap, delay }}
+    <div
       style={{
         position: 'relative',
         background: 'linear-gradient(160deg, #342515, #241a10)',
         border: '1px solid var(--line)',
         borderRadius: 4,
         boxShadow: '0 10px 20px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06)',
+        transform: `translateY(${(lag * (1 + i * 0.24)).toFixed(2)}px)`,
         ...style,
       }}
     >
       <Rivets />
       {children}
-    </motion.div>
+    </div>
   );
 }
 
@@ -572,8 +711,32 @@ function ValveWheel({ size = 60 }) {
   );
 }
 
-function ControlPanel({ side, width = 70, simple = false, roomP = 1 }) {
+// A rivet seam running the full height of the shaft. Offsetting it modulo the
+// pitch makes it endless: the wall can travel any distance and the seam never
+// runs out or visibly restarts.
+function ShaftRivets({ offset, edge }) {
+  const PITCH = 46;
+  const shift = ((offset % PITCH) + PITCH) % PITCH;
+  return Array.from({ length: 34 }).map((_, i) => (
+    <span
+      key={i}
+      style={{
+        position: 'absolute', top: i * PITCH - PITCH + shift, [edge]: 11,
+        width: 6, height: 6, borderRadius: '50%',
+        background: 'var(--rivet)',
+        boxShadow: 'inset 0 1px 1px rgba(0,0,0,0.7), 0 1px 0 rgba(255,255,255,0.06)',
+      }}
+    />
+  ));
+}
+
+function ControlPanel({ side, width = 70, simple = false, roomP = 1, pos = 0, floorPx = 900, blur = 0 }) {
   const isLeft = side === 'left';
+  // how far the wall has travelled, in its own (parallaxed) pixel space — at
+  // pos === f, floor f's instruments and stencil sit exactly at their rest spot
+  const travelY = pos * floorPx;
+  const nearFloors = DECKS.map((_, f) => f).filter((f) => Math.abs(f - pos) < 1.7);
+  const wallFilter = blur > 0.25 ? `url(#shaftBlur) brightness(${(1 - Math.min(0.22, blur * 0.02)).toFixed(3)})` : 'none';
   // steel, not brass — a deliberately different material from the gauges/valve
   // so the pipe doesn't read as "yet another brass thing"
   const pipe = {
@@ -599,7 +762,7 @@ function ControlPanel({ side, width = 70, simple = false, roomP = 1 }) {
   const INSTRUMENT_ANCHOR = wallRightEdge - 10;
   return (
     <>
-      <div style={{ position: 'absolute', top: 0, bottom: 0, [side]: 0, width, zIndex: 1, overflow: 'hidden', pointerEvents: 'none' }}>
+      <div style={{ position: 'absolute', top: 0, bottom: 0, [side]: 0, width, zIndex: 1, overflow: 'hidden', pointerEvents: 'none', filter: wallFilter }}>
         {/* full-height surface stuff (texture, dark overlay, light pools, brass
             line) — overshoots top/bottom well past the box's own bounds so that
             even at the smallest scale (0.55) it still fully covers the box;
@@ -627,7 +790,9 @@ function ControlPanel({ side, width = 70, simple = false, roomP = 1 }) {
               // edge that's actually tracked/meaningful — instead of the default left
               // edge, so the pattern stays glued there instead of appearing to drift
               // as `width` animates.
-              backgroundPosition: isLeft ? '100% 0' : '0% 0',
+              // the vertical component rides `travelY`, so the shaft's own
+              // grain streams past instead of the wall staying a still backdrop
+              backgroundPosition: `${isLeft ? '100%' : '0%'} ${travelY.toFixed(1)}px`,
               backgroundBlendMode: 'multiply',
               boxShadow: isLeft ? '16px 0 26px rgba(0,0,0,0.5)' : '-16px 0 26px rgba(0,0,0,0.5)',
             }}
@@ -664,16 +829,46 @@ function ControlPanel({ side, width = 70, simple = false, roomP = 1 }) {
             <div
               style={{
                 position: 'absolute', inset: 0,
-                backgroundImage:
-                  `radial-gradient(ellipse 46px 56px at ${wallRightEdge}px ${gaugeTop + gaugeSize / 2}px, rgba(0,0,0,0.5), transparent 70%),` +
-                  `radial-gradient(ellipse 40px 48px at ${wallRightEdge}px ${valveTop + valveSize / 2}px, rgba(0,0,0,0.45), transparent 70%),` +
-                  `radial-gradient(ellipse 42px 52px at ${wallRightEdge}px ${gauge2Top + 27}px, rgba(0,0,0,0.5), transparent 70%)`,
+                backgroundImage: nearFloors
+                  .map((f) => {
+                    const o = travelY - f * floorPx;
+                    return (
+                      `radial-gradient(ellipse 46px 56px at ${wallRightEdge}px ${gaugeTop + gaugeSize / 2 + o}px, rgba(0,0,0,0.5), transparent 70%),` +
+                      `radial-gradient(ellipse 40px 48px at ${wallRightEdge}px ${valveTop + valveSize / 2 + o}px, rgba(0,0,0,0.45), transparent 70%),` +
+                      `radial-gradient(ellipse 42px 52px at ${wallRightEdge}px ${gauge2Top + 27 + o}px, rgba(0,0,0,0.5), transparent 70%)`
+                    );
+                  })
+                  .join(',') || 'none',
                 opacity: (0.4 + 0.6 * roomP).toFixed(2),
               }}
             />
           )}
 
-          <Rivets />
+          {/* deck numbers stencilled on the shaft wall — the only thing that
+              tells you how far you actually travelled, and the reason a long
+              ride reads as long rather than just slow */}
+          {nearFloors.map((f) => (
+            <div
+              key={f}
+              style={{
+                position: 'absolute',
+                top: travelY - f * floorPx + floorPx * 0.46,
+                [isLeft ? 'right' : 'left']: 6,
+                width: width - 12,
+                textAlign: 'center',
+                fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 34, lineHeight: 1,
+                letterSpacing: 1,
+                color: 'rgba(0,0,0,0.5)',
+                textShadow: '0 1px 0 rgba(194,144,63,0.22)',
+                transform: 'scaleY(1.35)',
+              }}
+            >
+              {DECKS[f].no}
+            </div>
+          ))}
+
+          <ShaftRivets offset={travelY} edge={isLeft ? 'right' : 'left'} />
+          <ShaftRivets offset={travelY + 23} edge={isLeft ? 'left' : 'right'} />
         </div>
       </div>
 
@@ -681,178 +876,393 @@ function ControlPanel({ side, width = 70, simple = false, roomP = 1 }) {
         <div
           style={{
             position: 'absolute', top: 0, bottom: 0, [side]: 0, width: 0, zIndex: 1, overflow: 'visible', pointerEvents: 'none',
+            filter: wallFilter,
           }}
         >
-          <div id="instrument"
-            style={{
-              position: 'absolute', top: 0, height: '100%', width: 0,
-              [isLeft ? 'left' : 'right']: INSTRUMENT_ANCHOR,
-              transform: `perspective(550px) rotateY(${isLeft ? 40 : -40}deg) scale(${instrumentScale.toFixed(3)})`,
-              transformOrigin: '0 20%',
-              filter: `brightness(${dim.toFixed(2)})`,
-            }}
-          >
-            <div style={{ ...pipe, top: gaugeTop + gaugeSize, height: gauge2Top - (gaugeTop + gaugeSize + gauge2Size) + valveSize }} />
+          {/* one instrument cluster per deck, so passing floor 02 means literally
+              watching floor 02's own gauges slide by rather than a single set of
+              props pretending to be all of them */}
+          {nearFloors.map((f) => (
+            <div key={f} id={f === 0 ? 'instrument' : undefined}
+              style={{
+                position: 'absolute', top: travelY - f * floorPx, height: '100%', width: 0,
+                [isLeft ? 'left' : 'right']: INSTRUMENT_ANCHOR,
+                transform: `perspective(550px) rotateY(${isLeft ? 40 : -40}deg) scale(${instrumentScale.toFixed(3)})`,
+                transformOrigin: '0 20%',
+                filter: `brightness(${dim.toFixed(2)})`,
+              }}
+            >
+              {/* the pipe now runs the length of the shaft and the instruments
+                  tap into it, instead of being a stub between two gauges —
+                  otherwise the run would visibly break at every floor seam */}
+              <div style={{ ...pipe, top: -floorPx * 0.5, height: floorPx * 1.6 }} />
 
-            <div style={{ position: 'absolute', top: gaugeTop, left: '50%', transform: 'translateX(-50%)' }}>
-              <ConsoleGauge size={gaugeSize} delay={2.5} />
+              <div style={{ position: 'absolute', top: gaugeTop, left: '50%', transform: 'translateX(-50%)' }}>
+                <ConsoleGauge size={gaugeSize} delay={2.5} />
+              </div>
+              <div style={{ position: 'absolute', top: valveTop, left: '50%', transform: 'translateX(-50%)' }}>
+                <ValveWheel size={valveSize} />
+              </div>
+              <div style={{ position: 'absolute', top: gauge2Top, left: '50%', transform: 'translateX(-50%)' }}>
+                <ConsoleGauge size={gauge2Size} delay={2.65} />
+              </div>
             </div>
-            <div style={{ position: 'absolute', top: valveTop, left: '50%', transform: 'translateX(-50%)' }}>
-              <ValveWheel size={valveSize} />
-            </div>
-            <div style={{ position: 'absolute', top: gauge2Top, left: '50%', transform: 'translateX(-50%)' }}>
-              <ConsoleGauge size={gauge2Size} delay={2.65} />
-            </div>
-          </div>
+          ))}
         </div>
       )}
     </>
   );
 }
 
+// Directional (vertical-only) blur. A plain CSS blur smears sideways too and
+// instantly reads as "out of focus" rather than "moving fast", so the shaft
+// gets an SVG filter with the horizontal deviation pinned to zero.
+function MotionBlurDef({ amount, contentAmount }) {
+  return (
+    <svg width="0" height="0" style={{ position: 'absolute', pointerEvents: 'none' }} aria-hidden>
+      <defs>
+        <filter id="shaftBlur" x="-10%" y="-30%" width="120%" height="160%">
+          <feGaussianBlur stdDeviation={`0 ${amount.toFixed(2)}`} />
+        </filter>
+        <filter id="deckBlur" x="-5%" y="-20%" width="110%" height="140%">
+          <feGaussianBlur stdDeviation={`0 ${contentAmount.toFixed(2)}`} />
+        </filter>
+      </defs>
+    </svg>
+  );
+}
+
+// The cabin's floor selector. Lamps light by proximity to the current position,
+// so during a ride they flare one by one as each deck is passed — the readout
+// counts up or down on its own instead of just swapping at the end.
+function FloorSelector({ pos, deck, moving, go }) {
+  const dir = moving ? Math.sign(pos - deck) : 0;
+  const reading = DECKS[Math.max(0, Math.min(DECKS.length - 1, Math.round(pos)))].no;
+  return (
+    <nav
+      style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end',
+        padding: '1.1rem 0 0.9rem', borderBottom: '1px solid var(--line)',
+        gap: '1rem',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: 2, color: 'var(--muted)' }}>No. 001 / MT</span>
+        <span
+          style={{
+            fontFamily: 'var(--mono)', fontSize: 15, letterSpacing: 1,
+            background: 'var(--screen)', color: 'var(--glow)',
+            padding: '2px 8px', borderRadius: 2, minWidth: 34, textAlign: 'center',
+            boxShadow: 'inset 0 2px 5px rgba(0,0,0,0.85)',
+            textShadow: '0 0 8px rgba(255,180,84,0.75)',
+          }}
+        >
+          {reading}
+        </span>
+        <span style={{ fontFamily: 'var(--mono)', fontSize: 13, color: dir ? 'var(--glow)' : 'var(--line)', textShadow: dir ? '0 0 8px rgba(255,180,84,0.8)' : 'none' }}>
+          {dir > 0 ? '▲' : dir < 0 ? '▼' : '—'}
+        </span>
+      </div>
+
+      <div style={{ display: 'flex', gap: '0.9rem' }}>
+        {DECKS.map((d, i) => {
+          const lamp = Math.max(0, 1 - Math.abs(pos - i));
+          const selected = i === deck && !moving;
+          return (
+            <button
+              key={d.id}
+              onClick={() => go(i)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                background: 'transparent', border: 0, padding: '4px 2px',
+                cursor: moving ? 'default' : 'pointer',
+                fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: 1, textTransform: 'uppercase',
+                color: selected ? 'var(--glow)' : 'var(--muted)',
+                borderBottom: `2px solid ${selected ? 'var(--brass)' : 'transparent'}`,
+              }}
+            >
+              <span
+                style={{
+                  width: 7, height: 7, borderRadius: '50%',
+                  background: `rgba(255,180,84,${(0.12 + 0.88 * lamp).toFixed(2)})`,
+                  boxShadow: lamp > 0.05 ? `0 0 ${(9 * lamp).toFixed(1)}px rgba(255,180,84,${(0.9 * lamp).toFixed(2)})` : 'inset 0 1px 2px rgba(0,0,0,0.8)',
+                }}
+              />
+              {d.label}
+            </button>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}
+
+// Light strips bolted into the shaft between decks. They sweep across the
+// content as you pass them, which is what makes the ride feel like it happens
+// in a space rather than to a layer.
+function PassingLights({ pos, vh, moving }) {
+  if (!moving) return null;
+  return DECKS.slice(0, -1).map((_, f) => {
+    // the seam between deck f and deck f+1 lands here in screen space
+    const y = (pos - f) * vh;
+    if (y < -140 || y > vh + 140) return null;
+    return (
+      <div
+        key={f}
+        style={{
+          position: 'absolute', left: 0, right: 0, top: y, height: 3,
+          background: 'linear-gradient(90deg, transparent, rgba(255,190,110,0.85), transparent)',
+          boxShadow: '0 0 40px 14px rgba(255,170,70,0.28)',
+          mixBlendMode: 'screen',
+          zIndex: 4, pointerEvents: 'none',
+        }}
+      />
+    );
+  });
+}
+
+function DeckHeading({ children }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: '1.4rem' }}>
+      <h2 style={{ fontFamily: 'var(--serif)', fontWeight: 700, fontSize: 30, margin: 0, textShadow: '0 2px 0 rgba(0,0,0,0.5)' }}>{children}</h2>
+      <span style={{ flex: 1, height: 1, background: 'var(--line)' }} />
+    </div>
+  );
+}
+
+function StartDeck({ lag }) {
+  return (
+    <>
+      <div style={{ transform: `translateY(${(lag * 0.5).toFixed(2)}px)` }}>
+        <GaugeLogo />
+      </div>
+      <h1
+        style={{
+          fontFamily: 'var(--serif)', fontWeight: 700,
+          fontSize: 'clamp(2.2rem, 6vw, 3.6rem)', lineHeight: 1.05, margin: '1.2rem 0 0',
+          textShadow: '0 2px 0 rgba(0,0,0,0.5)',
+          transform: `translateY(${(lag * 0.8).toFixed(2)}px)`,
+        }}
+      >
+        Mykolai
+        <br />
+        Tymchenko
+      </h1>
+      <p
+        style={{
+          fontFamily: 'var(--mono)', fontSize: 13, letterSpacing: 1, textTransform: 'uppercase',
+          color: 'var(--glow)', margin: '1rem 0 0', textShadow: '0 0 10px rgba(255,180,84,0.5)',
+          transform: `translateY(${(lag * 1.1).toFixed(2)}px)`,
+        }}
+      >
+        .NET / C# &mdash; Backend &amp; Fullstack
+      </p>
+      <p style={{ fontSize: 15, lineHeight: 1.7, color: 'var(--muted)', maxWidth: 440, margin: '1rem 0 0', transform: `translateY(${(lag * 1.35).toFixed(2)}px)` }}>
+        Baue Systeme, die tragen &mdash; von der Datenbank bis zur Oberfl&auml;che.
+        Offen f&uuml;r neue Aufgaben im Ruhrgebiet / NRW.
+      </p>
+      <div style={{ transform: `translateY(${(lag * 1.6).toFixed(2)}px)` }}>
+        <Platform />
+      </div>
+    </>
+  );
+}
+
+function LeistungenDeck({ lag }) {
+  return (
+    <>
+      <DeckHeading>Leistungen</DeckHeading>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
+        {skills.map((g, i) => (
+          <Plate key={g.label} i={i} lag={lag} style={{ padding: '1rem 1.1rem' }}>
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', color: 'var(--brass)' }}>
+              {g.label}
+            </div>
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--glow)', marginTop: 8, textShadow: '0 0 6px rgba(255,180,84,0.4)' }}>
+              {g.tech}
+            </div>
+          </Plate>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function ProjekteDeck({ lag }) {
+  return (
+    <>
+      <DeckHeading>Projekte</DeckHeading>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '1rem' }}>
+        {stats.map((s, i) => (
+          <Plate key={s.label} i={i} lag={lag} style={{ padding: '1rem 0.9rem' }}>
+            <ScreenValue value={s.value} />
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--muted)', textAlign: 'center', marginTop: 8 }}>
+              {s.label}
+            </div>
+          </Plate>
+        ))}
+      </div>
+      <Plate i={4} lag={lag} style={{ padding: '1.2rem', marginTop: '1rem' }}>
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', color: 'var(--brass)' }}>
+          Referenzen
+        </div>
+        <p style={{ fontSize: 14, lineHeight: 1.7, color: 'var(--muted)', margin: '8px 0 0' }}>
+          Ausgew&auml;hlte Projekte sind in Vorbereitung &mdash; Details gerne direkt im Gespr&auml;ch.
+        </p>
+      </Plate>
+    </>
+  );
+}
+
+function KontaktDeck({ lag }) {
+  return (
+    <div style={{ textAlign: 'center', transform: `translateY(${(lag * 0.9).toFixed(2)}px)` }}>
+      <h2 style={{ fontFamily: 'var(--serif)', fontSize: 28, color: 'var(--ink)', margin: 0 }}>Lust auf ein Gespr&auml;ch?</h2>
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '0.8rem', marginTop: '1.6rem', flexWrap: 'wrap' }}>
+        <a
+          href="mailto:nykolai.tymchenko@gmail.com"
+          style={{ fontFamily: 'var(--mono)', fontSize: 12, border: '1px solid var(--brass)', color: 'var(--glow)', borderRadius: 2, padding: '0.7rem 1.2rem', textDecoration: 'none' }}
+        >
+          nykolai.tymchenko@gmail.com
+        </a>
+        <a
+          href="https://linkedin.com/in/mykolai-tymchenko"
+          target="_blank" rel="noreferrer"
+          style={{ fontFamily: 'var(--mono)', fontSize: 12, border: '1px solid var(--line)', color: 'var(--muted)', borderRadius: 2, padding: '0.7rem 1.2rem', textDecoration: 'none' }}
+        >
+          LinkedIn
+        </a>
+      </div>
+      <p style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--muted)', marginTop: '2rem', letterSpacing: 1 }}>
+        DUISBURG &mdash; VERF&Uuml;GBAR AB SOFORT
+      </p>
+    </div>
+  );
+}
+
+const DECK_BODIES = [StartDeck, LeistungenDeck, ProjekteDeck, KontaktDeck];
+
 export default function Dieselpunk() {
-  const scrollY = useScrollY();
   const { t, setT, playing, play } = useScrub(DOOR_TOTAL_MS);
+  const { pos, deck, moving, velocity, go, scrub, setScrub } = useLift();
+  const { vw: winW, vh } = useViewport();
   const roomP = computeRoomProgress(t);
-  const vw = (typeof window !== 'undefined' ? window.innerWidth : 1920) / 100;
-  const wallWidth = 70 + 7 * (1 - roomP) * vw;
+  const wallWidth = 70 + 7 * (1 - roomP) * (winW / 100);
   const contentScale = 0.7 + 0.3 * roomP;
   const contentBlur = 4 * (1 - roomP);
 
+  const floorPxWall = vh * WALL_PARALLAX;
+  const speed = Math.abs(velocity);
+  const blurAmount = Math.min(16, speed * 5.5);
+  // between two decks the shaft is unlit, so the content genuinely goes dark
+  // mid-ride instead of sliding past in full view
+  const frac = pos - Math.floor(pos);
+  const darkness = moving ? Math.sin(frac * Math.PI) * 0.32 : 0;
+  // the decks get a touch of the same vertical smear — razor-sharp text flying
+  // past at speed is the giveaway that nothing is really moving
+  const contentSmear = Math.min(3.2, speed * 1.1);
+  // loose objects trail the cabin's motion and settle a beat after it stops
+  const lag = Math.max(-17, Math.min(17, -velocity * 4.6));
+
+  // the decks are one screen each and the shaft owns the vertical axis, so the
+  // document itself must never scroll
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
   return (
-    <div style={{ ...vars, background: 'var(--bg)', color: 'var(--ink)', fontFamily: "'Inter', sans-serif", position: 'relative', overflow: 'hidden' }}>
+    <div
+      style={{
+        ...vars, background: 'var(--bg)', color: 'var(--ink)', fontFamily: "'Inter', sans-serif",
+        position: 'fixed', inset: 0, overflow: 'hidden',
+      }}
+    >
+      <MotionBlurDef amount={blurAmount} contentAmount={contentSmear} />
       <PressIntro t={t} />
       <Grain opacity={0.06} />
 
-      <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 50% 0%, var(--bg-2) 0%, var(--bg) 65%)' }} />
+      {/* backdrop — the deepest plane, so it drifts slowest */}
+      <div
+        style={{
+          position: 'absolute', left: 0, right: 0, top: '-60%', bottom: '-60%',
+          background: 'radial-gradient(ellipse at 50% 30%, var(--bg-2) 0%, var(--bg) 62%)',
+          transform: `translateY(${(pos * vh * BG_PARALLAX).toFixed(1)}px)`,
+        }}
+      />
       <div
         style={{
           position: 'absolute', inset: 0,
           background: 'linear-gradient(180deg, rgba(255,205,150,0.07) 0%, transparent 65%, transparent 75%, rgba(0,0,0,0.2) 85%, rgba(0,0,0,0.42) 100%)',
         }}
       />
-      <BigGear style={{ top: -60 - scrollY * 0.08, left: -90 }} size={260} speed={50} />
-      <BigGear style={{ bottom: -100 + scrollY * 0.05, right: -110 }} size={320} speed={65} reverse />
-      <ControlPanel side="left" width={wallWidth} roomP={roomP} />
-      <ControlPanel side="right" width={wallWidth} simple roomP={roomP} />
+      <BigGear style={{ top: -60 + pos * vh * 0.06, left: -90 }} size={260} speed={50} />
+      <BigGear style={{ bottom: -100 - pos * vh * 0.04, right: -110 }} size={320} speed={65} reverse />
+
+      <ControlPanel side="left" width={wallWidth} roomP={roomP} pos={pos} floorPx={floorPxWall} blur={blurAmount} />
+      <ControlPanel side="right" width={wallWidth} simple roomP={roomP} pos={pos} floorPx={floorPxWall} blur={blurAmount} />
 
       <div style={{ pointerEvents: 'auto' }}>
-        <DebugScrub t={t} setT={setT} playing={playing} play={play} />
+        <DebugScrub t={t} setT={setT} playing={playing} play={play} scrub={scrub} setScrub={setScrub} />
       </div>
 
+      {/* the decks: one shaft-tall column that the camera travels along */}
       <div
         style={{
-          position: 'relative', zIndex: 2, maxWidth: 960, margin: '0 auto', padding: '0 1.5rem',
+          position: 'absolute', inset: 0, zIndex: 2,
           transform: `scale(${contentScale})`,
           transformOrigin: '50% 45%',
+          filter: [
+            contentBlur > 0.05 ? `blur(${contentBlur.toFixed(2)}px)` : '',
+            contentSmear > 0.2 ? 'url(#deckBlur)' : '',
+          ].filter(Boolean).join(' ') || 'none',
+        }}
+      >
+        <div style={{ position: 'absolute', inset: 0, transform: `translateY(${(pos * vh).toFixed(1)}px)` }}>
+          {DECKS.map((d, i) => {
+            if (Math.abs(i - pos) > 1.4) return null;
+            const Body = DECK_BODIES[i];
+            return (
+              <div
+                key={d.id}
+                style={{
+                  position: 'absolute', left: 0, right: 0, top: -i * vh, height: vh,
+                  display: 'flex', flexDirection: 'column', justifyContent: 'center',
+                  padding: '5.5rem 1.5rem 3rem',
+                  boxSizing: 'border-box',
+                }}
+              >
+                <div style={{ width: '100%', maxWidth: 960, margin: '0 auto' }}>
+                  <Body lag={lag} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <PassingLights pos={pos} vh={vh} moving={moving} />
+
+      {/* the shaft is unlit between decks */}
+      <div style={{ position: 'absolute', inset: 0, background: '#0b0705', opacity: darkness.toFixed(3), pointerEvents: 'none', zIndex: 3 }} />
+
+      {/* the cabin's own opening — decks slide away behind these edges rather
+          than off a bare viewport boundary */}
+      <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 90, background: 'linear-gradient(180deg, rgba(8,5,3,0.92), transparent)', pointerEvents: 'none', zIndex: 3 }} />
+      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 110, background: 'linear-gradient(0deg, rgba(8,5,3,0.92), transparent)', pointerEvents: 'none', zIndex: 3 }} />
+
+      {/* the selector rides with the cabin, not with the floor */}
+      <div
+        style={{
+          position: 'absolute', top: 0, left: 0, right: 0, zIndex: 6,
+          transform: `scale(${contentScale})`, transformOrigin: '50% 0%',
           filter: contentBlur > 0.05 ? `blur(${contentBlur.toFixed(2)}px)` : 'none',
         }}
       >
-        <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.6rem 0', borderBottom: '1px solid var(--line)' }}>
-          <span style={{ fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: 2, color: 'var(--muted)' }}>No. 001 / MT</span>
-          <div style={{ display: 'flex', gap: '1.4rem' }}>
-            {['Start', 'Leistungen', 'Projekte', 'Kontakt'].map((l, i) => (
-              <span
-                key={l}
-                title={i > 0 ? 'bald verfügbar' : undefined}
-                style={{ fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: i === 0 ? 'var(--glow)' : 'var(--muted)' }}
-              >
-                {l}
-              </span>
-            ))}
-          </div>
-        </nav>
-
-        <section style={{ position: 'relative', minHeight: '78vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '1.4rem', padding: '2rem 0' }}>
-          <div>
-            <GaugeLogo />
-          </div>
-
-          <h1
-            style={{
-              fontFamily: 'var(--serif)', fontWeight: 700,
-              fontSize: 'clamp(2.4rem, 7vw, 4rem)', lineHeight: 1.05, margin: 0,
-              textShadow: '0 2px 0 rgba(0,0,0,0.5)',
-            }}
-          >
-            Mykolai
-            <br />
-            Tymchenko
-          </h1>
-
-          <p
-            style={{
-              fontFamily: 'var(--mono)', fontSize: 13, letterSpacing: 1, textTransform: 'uppercase',
-              color: 'var(--glow)', margin: 0, textShadow: '0 0 10px rgba(255,180,84,0.5)',
-            }}
-          >
-            .NET / C# — Backend &amp; Fullstack
-          </p>
-
-          <p style={{ fontSize: 15, lineHeight: 1.7, color: 'var(--muted)', maxWidth: 440, margin: 0 }}>
-            Baue Systeme, die tragen — von der Datenbank bis zur Oberfläche.
-            Offen für neue Aufgaben im Ruhrgebiet / NRW.
-          </p>
-
-          <Platform />
-        </section>
-
-        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '1rem', padding: '2rem 0' }}>
-          {stats.map((s, i) => (
-            <Plate key={s.label} delay={i * 0.07} style={{ padding: '1rem 0.9rem' }}>
-              <ScreenValue value={s.value} />
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--muted)', textAlign: 'center', marginTop: 8 }}>
-                {s.label}
-              </div>
-            </Plate>
-          ))}
-        </section>
-
-        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', paddingBottom: '2.5rem' }}>
-          {skills.map((g, i) => (
-            <Plate key={g.label} delay={i * 0.07} style={{ padding: '1rem 1.1rem' }}>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', color: 'var(--brass)' }}>
-                {g.label}
-              </div>
-              <div
-                style={{
-                  fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--glow)', marginTop: 8,
-                  textShadow: '0 0 6px rgba(255,180,84,0.4)',
-                }}
-              >
-                {g.tech}
-              </div>
-            </Plate>
-          ))}
-        </section>
-
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.5 }}
-          transition={{ duration: 0.5, ease: snap }}
-          style={{ borderTop: '1px solid var(--line)', padding: '2.6rem 0 3rem', textAlign: 'center' }}
-        >
-          <h2 style={{ fontFamily: 'var(--serif)', fontSize: 24, color: 'var(--ink)', margin: 0 }}>Lust auf ein Gespräch?</h2>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '0.8rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
-            <a
-              href="mailto:nykolai.tymchenko@gmail.com"
-              style={{ fontFamily: 'var(--mono)', fontSize: 12, border: '1px solid var(--brass)', color: 'var(--glow)', borderRadius: 2, padding: '0.7rem 1.2rem', textDecoration: 'none' }}
-            >
-              nykolai.tymchenko@gmail.com
-            </a>
-            <a
-              href="https://linkedin.com/in/mykolai-tymchenko"
-              target="_blank" rel="noreferrer"
-              style={{ fontFamily: 'var(--mono)', fontSize: 12, border: '1px solid var(--line)', color: 'var(--muted)', borderRadius: 2, padding: '0.7rem 1.2rem', textDecoration: 'none' }}
-            >
-              LinkedIn
-            </a>
-          </div>
-          <p style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--muted)', marginTop: '2rem', letterSpacing: 1 }}>
-            DUISBURG — VERFÜGBAR AB SOFORT
-          </p>
-        </motion.section>
+        <div style={{ maxWidth: 960, margin: '0 auto', padding: '0 1.5rem' }}>
+          <FloorSelector pos={pos} deck={deck} moving={moving} go={go} />
+        </div>
       </div>
     </div>
   );
