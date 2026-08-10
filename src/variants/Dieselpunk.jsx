@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import Grain from './shared/Grain';
 import useScrollY from './shared/useScrollY';
 import rustBrass from '../assets/textures/rust-brass.jpg';
+import bronzeWorn from '../assets/textures/bronze-worn.jpg';
+import brushedSteel from '../assets/textures/brushed-steel.jpg';
 
 const vars = {
   '--bg': '#1a120e',
@@ -218,7 +220,7 @@ function computeDoor(t, isLeft) {
 
 function computeSeamLight(t) {
   const start = DOOR_SHAKE_END;
-  const peak = DOOR_SHAKE_END + 130;
+  const peak = DOOR_SHAKE_END + 20;
   const end = DOOR_SHAKE_END + 420;
   if (t < start || t > end) return 0;
   if (t < peak) return (t - start) / (peak - start);
@@ -364,7 +366,7 @@ function SeamLight({ t }) {
         marginLeft: -(3 + intensity * 5) / 2,
         background: 'var(--glow)',
         opacity: intensity * 0.9,
-        boxShadow: `0 0 ${20 * intensity}px ${8 * intensity}px rgba(255,180,84,${0.5 * intensity})`,
+        boxShadow: `0 0 ${100 * intensity}px ${40 * intensity}px rgba(255,180,84,${0.5 * intensity})`,
         zIndex: 6,
       }}
     />
@@ -492,9 +494,29 @@ const skills = [
 function ConsoleGauge({ size = 72, delay = 0 }) {
   return (
     <div style={{ position: 'relative', width: size, height: size, filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.55))' }}>
-      <svg width={size} height={size} viewBox="0 0 100 100">
-        <circle cx="50" cy="50" r="47" fill="var(--panel)" stroke="var(--brass)" strokeWidth="3" />
-        <circle cx="50" cy="50" r="37" fill="var(--screen)" stroke="var(--brass-deep)" strokeWidth="1.5" />
+      {/* rim — worn bronze photo texture, lightened so it reads warm against the
+          duller rust-brass wall instead of blending into it */}
+      <div
+        style={{
+          position: 'absolute', inset: 0, borderRadius: '50%',
+          backgroundImage: `linear-gradient(160deg, rgba(226,178,110,0.75), rgba(139,94,34,0.75)), url(${bronzeWorn})`,
+          backgroundSize: `auto, ${Math.round(size * 1.7)}px ${Math.round(size * 1.7)}px`,
+          backgroundBlendMode: 'soft-light',
+          boxShadow: '0 0 0 1.5px var(--brass-deep)',
+        }}
+      />
+      {/* face — same bronze photo, oxidised-dark tint and tighter scale so it
+          reads as a different (patinated) material than the polished rim */}
+      <div
+        style={{
+          position: 'absolute', inset: '10.5%', borderRadius: '50%',
+          backgroundImage: `linear-gradient(180deg, rgba(28,23,18,0.88), rgba(10,8,6,0.92)), url(${bronzeWorn})`,
+          backgroundSize: `auto, ${Math.round(size * 1.05)}px ${Math.round(size * 1.05)}px`,
+          backgroundBlendMode: 'multiply',
+          boxShadow: 'inset 0 3px 6px rgba(0,0,0,0.85), 0 0 0 1.5px var(--brass-deep)',
+        }}
+      />
+      <svg width={size} height={size} viewBox="0 0 100 100" style={{ position: 'absolute', inset: 0 }}>
         {Array.from({ length: 10 }).map((_, i) => {
           const a = (i / 9) * 240 - 120;
           return <line key={i} x1="50" y1="16" x2="50" y2="21" stroke="var(--brass)" strokeWidth="1.3" transform={`rotate(${a} 50 50)`} />;
@@ -515,25 +537,55 @@ function ConsoleGauge({ size = 72, delay = 0 }) {
 }
 
 function ValveWheel({ size = 60 }) {
+  const ringMask = 'radial-gradient(circle closest-side, transparent 66%, black 68% 82%, transparent 84%)';
   return (
-    <svg width={size} height={size} viewBox="0 0 56 56" style={{ filter: 'drop-shadow(0 3px 4px rgba(0,0,0,0.6))' }}>
-      <circle cx="28" cy="28" r="21" fill="none" stroke="var(--brass)" strokeWidth="4" />
-      {[0, 60, 120].map((a) => (
-        <line key={a} x1="28" y1="28" x2="28" y2="7" stroke="var(--brass)" strokeWidth="4" strokeLinecap="round" transform={`rotate(${a} 28 28)`} />
-      ))}
-      <circle cx="28" cy="28" r="7" fill="var(--brass-deep)" stroke="var(--brass)" strokeWidth="1.5" />
-    </svg>
+    <div style={{ position: 'relative', width: size, height: size, filter: 'drop-shadow(0 3px 4px rgba(0,0,0,0.6))' }}>
+      {/* rim ring — worn bronze photo texture, masked down to just the band the
+          stroke used to draw; same treatment as the gauge rims for consistency */}
+      <div
+        style={{
+          position: 'absolute', inset: 0, borderRadius: '50%',
+          backgroundImage: `linear-gradient(160deg, rgba(226,178,110,0.75), rgba(139,94,34,0.75)), url(${bronzeWorn})`,
+          backgroundSize: `auto, ${Math.round(size * 1.5)}px ${Math.round(size * 1.5)}px`,
+          backgroundBlendMode: 'soft-light',
+          WebkitMaskImage: ringMask,
+          maskImage: ringMask,
+        }}
+      />
+      <svg width={size} height={size} viewBox="0 0 56 56" style={{ position: 'absolute', inset: 0 }}>
+        {[0, 60, 120].map((a) => (
+          <line key={a} x1="28" y1="28" x2="28" y2="7" stroke="var(--brass)" strokeWidth="4" strokeLinecap="round" transform={`rotate(${a} 28 28)`} />
+        ))}
+      </svg>
+      {/* hub — same bronze photo, oxidised-dark tint so it reads as a different
+          material than the rim, matching the gauges' rim/face split */}
+      <div
+        style={{
+          position: 'absolute', inset: '34%', borderRadius: '50%',
+          backgroundImage: `linear-gradient(180deg, rgba(54,37,19,0.88), rgba(18,12,7,0.92)), url(${bronzeWorn})`,
+          backgroundSize: `auto, ${Math.round(size * 1)}px ${Math.round(size * 1)}px`,
+          backgroundBlendMode: 'multiply',
+          boxShadow: '0 0 0 1.5px var(--brass), inset 0 2px 4px rgba(0,0,0,0.7)',
+        }}
+      />
+    </div>
   );
 }
 
 function ControlPanel({ side, width = 70, simple = false, roomP = 1 }) {
   const isLeft = side === 'left';
+  // steel, not brass — a deliberately different material from the gauges/valve
+  // so the pipe doesn't read as "yet another brass thing"
   const pipe = {
-    position: 'absolute', left: '50%', width: 8, marginLeft: -4, borderRadius: 4,
-    backgroundImage: 'linear-gradient(90deg, #14100a 0%, #3a2a18 20%, #b98a4a 50%, #3a2a18 80%, #14100a 100%)',
+    position: 'absolute', left: '50%', width: 12, marginLeft: -6, borderRadius: 5,
+    backgroundImage:
+      `linear-gradient(90deg, #0c0d0e 0%, #4a5158 20%, #c4cdd3 50%, #4a5158 80%, #0c0d0e 100%), url(${brushedSteel})`,
+    backgroundSize: 'auto, 46px 46px',
+    backgroundBlendMode: 'multiply',
   };
   const gaugeTop = 90;
   const gaugeSize = 60;
+  const gauge2Size = 54;
   const valveTop = 250;
   const valveSize = 57;
   const gauge2Top = 416;
@@ -545,7 +597,6 @@ function ControlPanel({ side, width = 70, simple = false, roomP = 1 }) {
   // to the wall as it animates and land exactly on the already-tuned 67px rest spot.
   const wallRightEdge = width;
   const INSTRUMENT_ANCHOR = wallRightEdge - 10;
-
   return (
     <>
       <div style={{ position: 'absolute', top: 0, bottom: 0, [side]: 0, width, zIndex: 1, overflow: 'hidden', pointerEvents: 'none' }}>
@@ -559,8 +610,11 @@ function ControlPanel({ side, width = 70, simple = false, roomP = 1 }) {
         <div
           style={{
             position: 'absolute', top: '-30%', bottom: '-100%', left: 0, right: 0,
-            transform: `scaleY(${instrumentScale.toFixed(3)})`,
-            transformOrigin: 'center 20%',
+            // tilted the same way as the instrument cluster (perspective + rotateY,
+            // hinged from the same content-facing edge) so the wall itself reads as
+            // viewed from the side too, not flat-on while the instruments are angled.
+            transform: `perspective(350px) rotateY(${isLeft ? 30 : -40}deg) scaleY(${instrumentScale.toFixed(3)})`,
+            transformOrigin: `${isLeft ? '100%' : '0%'} 20%`,
           }}
         >
           <div
@@ -592,20 +646,21 @@ function ControlPanel({ side, width = 70, simple = false, roomP = 1 }) {
           <div style={{ position: 'absolute', top: 0, bottom: 0, [isLeft ? 'right' : 'left']: wallInsertInset, width: 2, background: 'var(--brass)', opacity: 0.4 }} />
         </div>
 
-        {/* shadow only — kept in its own non-overshot wrapper (same scale/origin,
-            but exact inset:0) so gaugeTop/valveTop/gauge2Top still line up
-            correctly; the wrapper above has a shifted local origin and can't
-            share this. */}
-        {!simple && (
-          <div
-            style={{
-              position: 'absolute', inset: 0,
-              transform: `scaleY(${instrumentScale.toFixed(3)})`,
-              transformOrigin: 'center 20%',
-            }}
-          >
-            {/* contact shadow the instruments cast back onto the wall — confined to
-                this clipped box, so it never spills onto the background past the wall */}
+        {/* rivets (+ shadow, when present) — kept in their own non-overshot
+            wrapper (same scale/origin/tilt as the surface above, but exact
+            inset:0) so gaugeTop/valveTop/gauge2Top still line up correctly, and
+            so the rivets ride with the wall's own zoom instead of staying pinned
+            to the viewport while the surface moves under them. */}
+        <div
+          style={{
+            position: 'absolute', inset: 0,
+            transform: `perspective(550px) rotateY(${isLeft ? 40 : -40}deg) scaleY(${instrumentScale.toFixed(3)})`,
+            transformOrigin: `${isLeft ? '100%' : '0%'} 20%`,
+          }}
+        >
+          {/* contact shadow the instruments cast back onto the wall — confined to
+              this clipped box, so it never spills onto the background past the wall */}
+          {!simple && (
             <div
               style={{
                 position: 'absolute', inset: 0,
@@ -616,10 +671,10 @@ function ControlPanel({ side, width = 70, simple = false, roomP = 1 }) {
                 opacity: (0.4 + 0.6 * roomP).toFixed(2),
               }}
             />
-          </div>
-        )}
+          )}
 
-        <Rivets />
+          <Rivets />
+        </div>
       </div>
 
       {!simple && (
@@ -632,13 +687,12 @@ function ControlPanel({ side, width = 70, simple = false, roomP = 1 }) {
             style={{
               position: 'absolute', top: 0, height: '100%', width: 0,
               [isLeft ? 'left' : 'right']: INSTRUMENT_ANCHOR,
-              transform: `perspective(500px) rotateY(${isLeft ? 24 : -24}deg) scale(${instrumentScale.toFixed(3)})`,
+              transform: `perspective(550px) rotateY(${isLeft ? 40 : -40}deg) scale(${instrumentScale.toFixed(3)})`,
               transformOrigin: '0 20%',
               filter: `brightness(${dim.toFixed(2)})`,
             }}
           >
-            <div style={{ ...pipe, top: gaugeTop + gaugeSize, height: valveTop - (gaugeTop + gaugeSize) }} />
-            <div style={{ ...pipe, top: valveTop + valveSize, height: gauge2Top - (valveTop + valveSize) }} />
+            <div style={{ ...pipe, top: gaugeTop + gaugeSize, height: gauge2Top - (gaugeTop + gaugeSize + gauge2Size) + valveSize }} />
 
             <div style={{ position: 'absolute', top: gaugeTop, left: '50%', transform: 'translateX(-50%)' }}>
               <ConsoleGauge size={gaugeSize} delay={2.5} />
@@ -647,7 +701,7 @@ function ControlPanel({ side, width = 70, simple = false, roomP = 1 }) {
               <ValveWheel size={valveSize} />
             </div>
             <div style={{ position: 'absolute', top: gauge2Top, left: '50%', transform: 'translateX(-50%)' }}>
-              <ConsoleGauge size={54} delay={2.65} />
+              <ConsoleGauge size={gauge2Size} delay={2.65} />
             </div>
           </div>
         </div>
