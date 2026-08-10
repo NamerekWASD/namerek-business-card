@@ -728,7 +728,9 @@ function RollerShoe({ top }) {
 // distinguishable from the next when you pass it.
 function LandingDoor({ top, height, no, innerEdge }) {
   return (
-    <div style={{ position: 'absolute', top, height, [innerEdge]: 3, width: 64 }}>
+    // narrow enough to leave the riveted strip of wall beside it: the seams run
+    // past the doorway rather than across its leaves
+    <div style={{ position: 'absolute', top, height, [innerEdge]: 3, width: 44 }}>
       {/* lintel and sill — at this width the frame is what reads as a doorway,
           so it gets the contrast rather than the leaves */}
       <div style={{ position: 'absolute', left: -3, right: -3, top: -7, height: 7, backgroundImage: `linear-gradient(180deg, #7d6136, #33261501), url(${rustBrass})`, backgroundSize: 'auto, 60px 60px', backgroundBlendMode: 'multiply', boxShadow: '0 2px 5px rgba(0,0,0,0.7)' }} />
@@ -756,10 +758,10 @@ function LandingDoor({ top, height, no, innerEdge }) {
       />
       <div
         style={{
-          position: 'absolute', top: -21, left: '50%', marginLeft: -17, width: 34, height: 16,
+          position: 'absolute', top: -21, left: '50%', marginLeft: -14, width: 28, height: 15,
           background: 'var(--screen)', borderRadius: 2,
           boxShadow: 'inset 0 1px 4px rgba(0,0,0,0.9), 0 0 0 1px rgba(96,73,44,0.55)',
-          fontFamily: 'var(--mono)', fontSize: 10, lineHeight: '16px', textAlign: 'center',
+          fontFamily: 'var(--mono)', fontSize: 9, lineHeight: '15px', textAlign: 'center',
           color: 'var(--glow)', textShadow: '0 0 6px rgba(255,180,84,0.7)',
         }}
       >
@@ -790,20 +792,45 @@ function Counterweight({ y, height }) {
       {/* the stack of weight plates */}
       <div
         style={{
-          position: 'absolute', inset: '6px 5px',
+          position: 'absolute', inset: '14px 5px 6px',
           backgroundImage: 'repeating-linear-gradient(180deg, rgba(255,255,255,0.09) 0px, rgba(255,255,255,0.09) 1px, transparent 1px, transparent 17px)',
         }}
       />
+      {/* the crosshead the ropes terminate in — without it the block is just a
+          bar sliding past and reads as nothing in particular */}
+      <div
+        style={{
+          position: 'absolute', top: -13, left: -9, right: -9, height: 15, borderRadius: 2,
+          ...steelFace(40),
+          boxShadow: '0 3px 7px rgba(0,0,0,0.75), inset 0 1px 0 rgba(255,255,255,0.2)',
+        }}
+      />
+      {[-13, 0, 13].map((dx) => (
+        <span
+          key={dx}
+          style={{
+            position: 'absolute', top: -22, left: `calc(50% + ${dx}px)`, marginLeft: -3.5,
+            width: 7, height: 11, borderRadius: 2,
+            background: 'linear-gradient(90deg, #23282c, #99a4ac 50%, #23282c)',
+          }}
+        />
+      ))}
     </div>
   );
 }
 
-function HoistRopes() {
+// The ropes run from the sheave at the top of the shaft down to the
+// counterweight's crosshead and stop there — drawn past it they read as the
+// block dangling from below, which is backwards.
+function HoistRopes({ bottom }) {
+  const TOP = -4000;
+  const height = Math.max(0, bottom - TOP);
+  if (height <= 0) return null;
   return [-13, 0, 13].map((dx) => (
     <div
       key={dx}
       style={{
-        position: 'absolute', top: '-60%', height: '220%', left: `calc(50% + ${dx}px)`, width: 3, marginLeft: -1.5,
+        position: 'absolute', top: TOP, height, left: `calc(50% + ${dx}px)`, width: 3, marginLeft: -1.5,
         background: 'linear-gradient(90deg, #14171a, #8f9aa2 50%, #14171a)',
         opacity: 0.85,
       }}
@@ -839,19 +866,26 @@ function ControlPanel({ side, width = 70, simple = false, roomP = 1, pos = 0, fl
   const wallFilter = blur > 0.25 ? `url(#shaftBlur) brightness(${(1 - Math.min(0.22, blur * 0.02)).toFixed(3)})` : 'none';
   const instrumentScale = 0.85 + 0.15 * roomP;
   const dim = 0.35 + 0.65 * roomP;
-  const wallInsertInset = 50;
+  // pushed outboard so the doorway, the brass insert and both rivet seams each
+  // get their own strip of wall instead of overlapping
+  const wallInsertInset = 58;
   // x of the wall's left edge is always 0, so x of its right edge = 0 + width.
   // Anchor the instruments a constant 3px in from that edge, so they stay glued
   // to the wall as it animates and land exactly on the already-tuned 67px rest spot.
   const wallRightEdge = width;
-  const INSTRUMENT_ANCHOR = wallRightEdge - 10;
+  // sat right on the wall's inner edge, which made the wall look sliced open
+  // lengthwise. The rail (and the ropes) belong in the shaft, just clear of it.
+  const INSTRUMENT_ANCHOR = wallRightEdge + (simple ? 12 : 4);
   const innerEdge = isLeft ? 'right' : 'left';
   // The counterweight hangs on the other end of the ropes, so it runs opposite
   // the cabin: on screen that is twice the shaft's own rate, in the same
   // direction the shaft appears to move. It is level with the cabin halfway up
   // the stack, which is where you meet it.
+  // Anchored so it hangs into the top of the frame while the cabin sits on deck
+  // 02: at full ride speed it is smeared past recognition, so it needs one
+  // resting place where you can actually see what it is.
   const cwHeight = vh * 1.15;
-  const cwY = vh * 0.45 - cwHeight / 2 + 2 * (pos - (DECKS.length - 1) / 2) * floorPx;
+  const cwY = 132 - cwHeight + 2 * (pos - 1) * floorPx;
   return (
     <>
       <div style={{ position: 'absolute', top: 0, bottom: 0, [side]: 0, width, zIndex: 1, overflow: 'hidden', pointerEvents: 'none', filter: wallFilter }}>
@@ -933,7 +967,7 @@ function ControlPanel({ side, width = 70, simple = false, roomP = 1, pos = 0, fl
               key={`door-${f}`}
               // sized off the viewport, not the floor pitch: the wall's pitch is
               // parallaxed and a door scaled to it ends up taller than the screen
-              top={travelY - f * floorPx + vh * 0.26}
+              top={travelY - f * floorPx + vh * 0.33}
               height={vh * 0.48}
               no={DECKS[f].no}
               innerEdge={innerEdge}
@@ -969,8 +1003,8 @@ function ControlPanel({ side, width = 70, simple = false, roomP = 1, pos = 0, fl
               content-facing edge. Measuring the outer seam from the *outer*
               edge made it roll across the wall while `width` animates open
               during the intro, instead of staying bolted to the insert. */}
-          <ShaftRivets offset={travelY} edge={innerEdge} inset={wallInsertInset - 11} />
-          <ShaftRivets offset={travelY + 23} edge={innerEdge} inset={wallInsertInset + 9} />
+          <ShaftRivets offset={travelY} edge={innerEdge} inset={wallInsertInset - 7} />
+          <ShaftRivets offset={travelY + 23} edge={innerEdge} inset={wallInsertInset + 5} />
         </div>
       </div>
 
@@ -991,7 +1025,7 @@ function ControlPanel({ side, width = 70, simple = false, roomP = 1, pos = 0, fl
         >
           {simple ? (
             <>
-              <HoistRopes />
+              <HoistRopes bottom={cwY - 12} />
               <Counterweight y={cwY} height={cwHeight} />
             </>
           ) : (
@@ -999,12 +1033,29 @@ function ControlPanel({ side, width = 70, simple = false, roomP = 1, pos = 0, fl
               <GuideRail />
               {/* the clips belong to the shaft and stream past… */}
               <RailClips offset={travelY} />
-              {/* …while the roller shoes are bolted to the cabin and never move */}
-              <RollerShoe top={vh * 0.17} />
-              <RollerShoe top={vh * 0.74} />
             </>
           )}
         </div>
+
+        {/* The roller shoes are bolted to the cabin and never move, so they get
+            their own layer hinged at mid-height. Sharing the rail's origin at
+            20% left the lower shoe far enough down the perspective to be
+            visibly squashed; symmetric placement about the hinge keeps both
+            reading as the same part. */}
+        {!simple && (
+          <div
+            style={{
+              position: 'absolute', top: 0, height: '100%', width: 0,
+              [isLeft ? 'left' : 'right']: INSTRUMENT_ANCHOR,
+              transform: `perspective(550px) rotateY(${isLeft ? 40 : -40}deg) scale(${instrumentScale.toFixed(3)})`,
+              transformOrigin: '0 50%',
+              filter: `brightness(${dim.toFixed(2)})`,
+            }}
+          >
+            <RollerShoe top={vh * 0.28} />
+            <RollerShoe top={vh * 0.72} />
+          </div>
+        )}
       </div>
     </>
   );
