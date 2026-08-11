@@ -248,84 +248,32 @@ function GaugeLogo() {
   );
 }
 
-function EmbossedMT() {
-  return (
-    <span
-      style={{
-        fontFamily: 'var(--serif)',
-        fontWeight: 700,
-        fontSize: 22,
-        letterSpacing: 1,
-        color: 'var(--brass)',
-        textShadow: '1px 1px 1px rgba(0,0,0,0.65), -1px -1px 1px rgba(255,255,255,0.08)',
-      }}
-    >
-      MT
-    </span>
-  );
+
+// The intro is the landing doors of floor 01 opening — not a second, full-screen
+// pair of doors laid over the scene. Once the shaft had real doors of its own,
+// opening giant ones to reveal a lift with its own shut doors made no sense at
+// all; the arrival we already animate on every ride is the arrival.
+const DOOR_HOLD_END = 420;
+const DOOR_SHAKE_END = 660;
+const DOOR_TOTAL_MS = 2200;
+const INTRO_OPEN_END = 1720;
+
+function introClosure(t) {
+  if (t <= DOOR_SHAKE_END) return 1;
+  if (t >= INTRO_OPEN_END) return 0;
+  const p = (t - DOOR_SHAKE_END) / (INTRO_OPEN_END - DOOR_SHAKE_END);
+  // fast off the mark and easing into the stop, the way a heavy leaf actually
+  // travels once the gear takes up
+  return 1 - Math.pow(p, 0.55);
 }
 
-function GaugeGlyph() {
-  return (
-    <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
-      <circle cx="18" cy="18" r="15" stroke="var(--brass)" strokeWidth="1.2" />
-      {[0, 45, 90, 135, 180, 225, 270, 315].map((a) => (
-        <line
-          key={a}
-          x1="18" y1="4" x2="18" y2="7"
-          stroke="var(--brass)" strokeWidth="1"
-          transform={`rotate(${a} 18 18)`}
-        />
-      ))}
-      <motion.line
-        x1="18" y1="18" x2="18" y2="8"
-        stroke="var(--glow)" strokeWidth="1.4"
-        style={{ transformOrigin: '18px 18px', filter: 'drop-shadow(0 0 3px rgba(255,180,84,0.8))' }}
-        initial={{ rotate: -140 }}
-        animate={{ rotate: 40 }}
-        transition={{ duration: 1.3, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
-      />
-    </svg>
-  );
-}
-
-const DOOR_HOLD_END = 500;
-const DOOR_SHAKE_END = 750;
-const DOOR_FADE_START = 1600;
-const DOOR_TOTAL_MS = 2000;
-
-function sharpKick(p) {
-  return Math.pow(p, 0.4);
-}
-
-function computeDoor(t, isLeft) {
-  const sign = isLeft ? -1 : 1;
-  let mag = 0;
-  if (t < DOOR_HOLD_END) {
-    mag = 0;
-  } else if (t < DOOR_SHAKE_END) {
-    const local = t - DOOR_HOLD_END;
-    const span = DOOR_SHAKE_END - DOOR_HOLD_END;
-    const decay = 1 - local / span;
-    mag = Math.sin(local / 26) * 1.7 * decay;
-  } else {
-    const p = Math.min(1, (t - DOOR_SHAKE_END) / (DOOR_TOTAL_MS - DOOR_SHAKE_END));
-    mag = sharpKick(p) * 112;
-  }
-  let opacity = 1;
-  if (t > DOOR_FADE_START) {
-    opacity = 1 - Math.min(1, (t - DOOR_FADE_START) / (DOOR_TOTAL_MS - DOOR_FADE_START));
-  }
-  return { x: sign * mag, opacity };
-}
-
-function computeSeamLight(t) {
-  const start = DOOR_SHAKE_END;
-  const peak = DOOR_SHAKE_END + 20;
-  const end = DOOR_SHAKE_END + 420;
-  if (t < start || t > end) return 0;
-  if (t < peak) return (t - start) / (peak - start);
-  return 1 - (t - peak) / (end - peak);
+// the shudder before the leaves break apart: the gear engaging against a door
+// that has been shut a long time
+function introShake(t) {
+  if (t < DOOR_HOLD_END || t > DOOR_SHAKE_END) return 0;
+  const local = t - DOOR_HOLD_END;
+  const span = DOOR_SHAKE_END - DOOR_HOLD_END;
+  return Math.sin(local / 21) * 2.4 * (1 - local / span);
 }
 
 function useScrub(totalMs) {
@@ -366,116 +314,7 @@ function useScrub(totalMs) {
   return { t, setT: (v) => { stop(); setT(v); }, playing, play, stop };
 }
 
-function DoorPlate({ side, t, children }) {
-  const isLeft = side === 'left';
-  const inner = isLeft ? 'right' : 'left';
-  const { x, opacity } = computeDoor(t, isLeft);
-  return (
-    <div
-      style={{
-        // absolute, not fixed: a fixed element escapes its wrapper's
-        // overflow:hidden, and the doors' 112% travel then pushes the document
-        // sideways and drags the whole shaft off-centre
-        position: 'absolute',
-        top: 0,
-        bottom: 0,
-        [isLeft ? 'left' : 'right']: -50,
-        width: '55vw',
-        transform: `translateX(${x}%)`,
-        opacity,
-        overflow: 'hidden',
-        [isLeft ? 'borderRight' : 'borderLeft']: '2px solid var(--brass)',
-        boxShadow: isLeft
-          ? 'inset -6px 0 12px rgba(0,0,0,0.4), 10px 0 24px rgba(0,0,0,0.5)'
-          : 'inset 6px 0 12px rgba(0,0,0,0.4), -10px 0 24px rgba(0,0,0,0.5)',
-        zIndex: 5,
-      }}
-    >
-      <div
-        style={{
-          position: 'absolute', inset: 0,
-          backgroundImage:
-            'radial-gradient(ellipse 30vw 40vh at ' + (isLeft ? '25% 30%' : '75% 30%') + ', rgba(130,64,20,0.35), transparent 70%),' +
-            'radial-gradient(ellipse 22vw 30vh at ' + (isLeft ? '70% 75%' : '30% 75%') + ', rgba(110,55,18,0.3), transparent 70%),' +
-            'repeating-linear-gradient(112deg, rgba(255,255,255,0.05) 0px, rgba(255,255,255,0.05) 1px, transparent 1px, transparent 13px),' +
-            'repeating-linear-gradient(24deg, rgba(0,0,0,0.25) 0px, rgba(0,0,0,0.25) 1px, transparent 1px, transparent 19px),' +
-            `linear-gradient(160deg, #3a2a18, #241a10), url(${rustBrass})`,
-          backgroundSize: 'auto, auto, auto, auto, auto, 340px 340px',
-          backgroundBlendMode: 'normal, normal, normal, normal, multiply, normal',
-        }}
-      />
 
-      <div
-        style={{
-          position: 'absolute', top: 0, left: 0, right: 0, height: 22,
-          backgroundImage: `linear-gradient(180deg, #1c130b, #100b06), url(${rustBrass})`,
-          backgroundSize: 'auto, 200px 200px',
-          backgroundBlendMode: 'multiply',
-          boxShadow: '0 1px 0 rgba(194,144,63,0.2), 0 2px 6px rgba(0,0,0,0.6)',
-        }}
-      />
-
-      <div
-        style={{
-          position: 'absolute', top: '44%', left: 0, right: 0, height: 18,
-          backgroundImage: 'repeating-linear-gradient(45deg, #d9a531 0px, #d9a531 10px, #241a10 10px, #241a10 20px)',
-          boxShadow: '0 1px 0 rgba(0,0,0,0.6), 0 -1px 0 rgba(0,0,0,0.6)',
-        }}
-      />
-
-      <div
-        style={{
-          position: 'absolute', bottom: 0, left: 0, right: 0, height: '14%',
-          backgroundImage: `linear-gradient(180deg, #4a3a28, #2c2015), url(${rustBrass})`,
-          backgroundSize: 'auto, 260px 260px',
-          backgroundBlendMode: 'multiply',
-          boxShadow: 'inset 0 2px 0 rgba(0,0,0,0.5)',
-        }}
-      />
-
-      <div
-        style={{
-          position: 'absolute', top: 'calc(44% + 18px)', [inner]: 0,
-          width: 32, height: 44,
-          background: 'linear-gradient(180deg, #8b6432, #4a3520)',
-          [isLeft ? 'borderTopLeftRadius' : 'borderTopRightRadius']: 4,
-          [isLeft ? 'borderBottomLeftRadius' : 'borderBottomRightRadius']: 4,
-          boxShadow: '0 3px 6px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.15)',
-        }}
-      >
-        <span style={{ position: 'absolute', top: 6, [inner]: 6, width: 7, height: 7, borderRadius: '50%', background: 'var(--rivet)', boxShadow: 'inset 0 1px 1px rgba(0,0,0,0.7)' }} />
-        <span style={{ position: 'absolute', bottom: 6, [inner]: 6, width: 7, height: 7, borderRadius: '50%', background: 'var(--rivet)', boxShadow: 'inset 0 1px 1px rgba(0,0,0,0.7)' }} />
-      </div>
-
-      <Rivets />
-
-      <div style={{ position: 'relative', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function SeamLight({ t }) {
-  const intensity = computeSeamLight(t);
-  if (intensity <= 0) return null;
-  return (
-    <div
-      style={{
-        position: 'absolute',
-        left: '50%',
-        top: 0,
-        bottom: 0,
-        width: 3 + intensity * 5,
-        marginLeft: -(3 + intensity * 5) / 2,
-        background: 'var(--glow)',
-        opacity: intensity * 0.9,
-        boxShadow: `0 0 ${100 * intensity}px ${40 * intensity}px rgba(255,180,84,${0.5 * intensity})`,
-        zIndex: 6,
-      }}
-    />
-  );
-}
 
 function LiftScrub({ scrub, setScrub, deckCount }) {
   const ride = scrub || { from: 0, to: deckCount - 1, p: 0 };
@@ -558,26 +397,10 @@ const btnStyle = {
   cursor: 'pointer',
 };
 
-function PressIntro({ t }) {
-  return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 99, pointerEvents: 'none', overflow: 'hidden' }}>
-      <DoorPlate side="left" t={t}>
-        <EmbossedMT />
-        <span style={{ width: 20, height: 1, background: 'var(--line)' }} />
-        <span style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--muted)', letterSpacing: 1 }}>Nr.001</span>
-      </DoorPlate>
-      <DoorPlate side="right" t={t}>
-        <GaugeGlyph />
-        <span style={{ width: 20, height: 1, background: 'var(--line)' }} />
-        <span style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--muted)', letterSpacing: 1 }}>OK</span>
-      </DoorPlate>
-      <SeamLight t={t} />
-    </div>
-  );
-}
-
-const ROOM_CONVERGE_START = 1500;
-const ROOM_CONVERGE_END = 2000;
+// the camera settles while the leaves are still travelling, so approach and
+// reveal are one movement rather than two beats in a queue
+const ROOM_CONVERGE_START = 700;
+const ROOM_CONVERGE_END = 2100;
 
 function computeRoomProgress(t) {
   if (t <= ROOM_CONVERGE_START) return 0;
@@ -635,7 +458,7 @@ const skills = [
 // ---------------------------------------------------------------------------
 
 const CAM_PERSPECTIVE = 1400;
-const CAM_ORIGIN_Y = 0.45;
+const CAM_ORIGIN_Y = 0.50;
 // how far the shaft walls run back. Deeper means the corridor eats more of the
 // screen: a wall's far edge lands at (viewportWidth / 2) * DEPTH / (P + DEPTH).
 const SHAFT_DEPTH = 340;
@@ -689,12 +512,7 @@ function ShaftRivets({ offset, depth, span, nearEdge }) {
 // is known analytically and the flat content layer can be clipped to it exactly.
 const BACK_SCALE = CAM_PERSPECTIVE / (CAM_PERSPECTIVE + SHAFT_DEPTH);
 const DOOR_W = 0.78; // fraction of the shaft's width
-const DOOR_H = 0.78; // fraction of its height
-// The landing is a shallow recess, not a room. The recess is the whole point:
-// it gives the doorway a reveal — four surfaces at a grazing angle to the camera,
-// which is the one kind of surface that carries volume. A deep room would only
-// hang the flat content in a bigger void.
-const NICHE_D = 90;
+const DOOR_H = 0.94; // fraction of its height
 
 // One identifying object per landing, so a floor is somewhere rather than a
 // number. Parked low and to one side, clear of the centred content.
@@ -782,95 +600,122 @@ function PropBody({ idx }) {
   );
 }
 
-// One floor's doorway, drawn on the back plane. The leaves ride in their own
-// clipped, flattened layer so they vanish behind the jambs when they retract.
-function Landing({ vw, vh, top, no, idx, closure }) {
+// How far the architrave stands proud of the wall. The frame replaced a recessed
+// niche: recessing the landing made the opening read as a window across a gap,
+// and the dark piers flanking it were the gap. One continuous wall with the
+// doorway standing out of it puts the far end of the shaft within reach.
+const FRAME_D = 58;
+const FRAME_M = 34; // width of an architrave member
+const BACK_OVERSCAN = 0.7;
+
+// The doorway of one floor: architrave, leaves, indicator. It lives in its own
+// layer in front of the content, because the content sits on the landing wall
+// and doors that cannot cover it are not doors.
+function Doorway({ vw, vh, top, no, closure, shake }) {
   const w = vw * DOOR_W;
   const h = vh * DOOR_H;
   const left = (vw - w) / 2;
-  // The reveal has to be the brightest thing in the frame or the wall reads as a
-  // printed rectangle rather than something with thickness. Each jamb is graded
-  // along its own depth — bright at the opening where the cage lamp reaches it,
-  // falling off into the recess — which is the one lighting cue a flat face can
-  // carry honestly, because here the gradient really does run along the z axis.
-  const jambFace = (nearFirst) => ({
+  const face = ironFace(64, 1.25);
+  // The returns are graded along their own depth — bright at the front edge
+  // where the cage lamp reaches them, dark where they meet the wall. This is the
+  // one lighting cue a flat face can carry honestly, because here the gradient
+  // really does run along the z axis.
+  const ret = (nearFirst, horiz) => ({
     backgroundImage:
-      `linear-gradient(90deg, ${nearFirst ? '#c99a5c, #2b1e11' : '#2b1e11, #c99a5c'}), url(${rustBrass})`,
-    backgroundSize: `auto, 70px 70px`,
-    // soft-light, not multiply: multiplying a mid-tone rust tile over this crushes
-    // the very highlight the reveal exists to show
+      `linear-gradient(${horiz ? '180deg' : '90deg'}, ${nearFirst ? '#c99a5c, #2a1d10' : '#2a1d10, #c99a5c'}), url(${rustBrass})`,
+    backgroundSize: 'auto, 70px 70px',
     backgroundBlendMode: 'soft-light',
   });
+
   return (
-    <div style={{ position: 'absolute', left, top, width: w, height: h, transformStyle: 'preserve-3d' }}>
-      {/* the landing itself, recessed. Dark and warm: the content has to be
-          readable on it, and a busy rust tile behind body text is unreadable. */}
-      <div
-        style={{
-          position: 'absolute', inset: 0, transform: `translateZ(${-NICHE_D}px)`,
-          backgroundImage:
-            'radial-gradient(ellipse 66% 52% at 50% 14%, rgba(74,50,26,0.42) 0%, rgba(0,0,0,0) 74%),'
-            + `linear-gradient(180deg, rgba(20,14,8,0.9), rgba(9,6,3,0.96)), url(${rustBrass})`,
-          backgroundSize: 'auto, auto, 200px 200px',
-          backgroundBlendMode: 'screen, normal, multiply',
-          boxShadow: 'inset 0 0 90px rgba(0,0,0,0.75)',
-          overflow: 'hidden',
-        }}
-      >
-        <LandingProp idx={idx} />
-      </div>
-
-      {/* the reveal: four faces bridging the wall to the landing, every one of
-          them steeply angled to the camera */}
-      <div style={{ position: 'absolute', left: 0, top: 0, width: NICHE_D, height: h, transformOrigin: '0% 50%', transform: 'rotateY(90deg)', ...jambFace(true) }} />
-      <div style={{ position: 'absolute', right: 0, top: 0, width: NICHE_D, height: h, transformOrigin: '100% 50%', transform: 'rotateY(-90deg)', ...jambFace(false) }} />
-      {/* the head is a soffit we look up at, so it stays dark; the sill catches
-          the light square on */}
-      <div style={{ position: 'absolute', left: 0, top: 0, width: w, height: NICHE_D, transformOrigin: '50% 0%', transform: 'rotateX(-90deg)', ...ironFace(52, 0.4) }} />
-      <div style={{ position: 'absolute', left: 0, top: h, width: w, height: NICHE_D, transformOrigin: '50% 0%', transform: 'rotateX(-90deg)', ...ironFace(52, 1.7) }} />
-      {/* the lip of the opening itself */}
-      <div style={{ position: 'absolute', inset: -3, border: '3px solid rgba(150,113,63,0.32)', boxShadow: '0 0 14px rgba(0,0,0,0.8)' }} />
-
-      {/* the leaves */}
-      <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', transform: 'translateZ(5px)' }}>
+    <div style={{ position: 'absolute', left: 0, top, width: vw, height: h, transformStyle: 'preserve-3d' }}>
+      {/* the leaves, set back inside the frame */}
+      <div style={{ position: 'absolute', left, top: 0, width: w, height: h, overflow: 'hidden', transform: `translateZ(${FRAME_D * 0.34}px)` }}>
         {[0, 1].map((s) => (
           <div
             key={s}
             style={{
               position: 'absolute', top: 0, height: '100%', width: '50%',
               left: s ? '50%' : 0,
-              transform: `translateX(${(s ? 1 - closure : closure - 1) * 100}%)`,
-              backgroundImage: `linear-gradient(${s ? '260deg' : '100deg'}, #46341f, #241a11), url(${rustBrass})`,
+              transform: `translateX(calc(${((s ? 1 - closure : closure - 1) * 100).toFixed(2)}% + ${((s ? 1 : -1) * shake).toFixed(2)}px))`,
+              backgroundImage: `linear-gradient(${s ? '260deg' : '100deg'}, #46341f, #221810), url(${rustBrass})`,
               backgroundSize: 'auto, 170px 170px',
               backgroundBlendMode: 'multiply',
-              boxShadow: `inset 0 0 26px rgba(0,0,0,0.7), ${s ? '-' : ''}3px 0 12px rgba(0,0,0,0.8)`,
+              boxShadow: `inset 0 0 30px rgba(0,0,0,0.75), ${s ? '-' : ''}4px 0 16px rgba(0,0,0,0.85)`,
             }}
           >
-            <div style={{ position: 'absolute', top: '7%', bottom: '7%', [s ? 'left' : 'right']: 9, width: 3, background: 'rgba(0,0,0,0.55)' }} />
+            <div style={{ position: 'absolute', top: '7%', bottom: '7%', [s ? 'left' : 'right']: 10, width: 3, background: 'rgba(0,0,0,0.6)' }} />
             <div
               style={{
-                position: 'absolute', left: '8%', right: '8%', bottom: '7%', height: 12,
+                position: 'absolute', left: '8%', right: '8%', bottom: '7%', height: 13,
                 backgroundImage: 'repeating-linear-gradient(45deg, #b8862a 0px, #b8862a 9px, #241a10 9px, #241a10 18px)',
-                opacity: 0.75,
+                opacity: 0.7,
               }}
             />
+            {/* the mark that used to live on the intro's own doors — it belongs
+                on the real ones, where it is legible every time they close */}
+            <div
+              style={{
+                position: 'absolute', top: '42%', [s ? 'left' : 'right']: '14%',
+                fontFamily: 'var(--mono)', fontSize: 15, letterSpacing: 3,
+                color: 'rgba(196,150,86,0.34)', textShadow: '0 1px 0 rgba(0,0,0,0.7)',
+              }}
+            >
+              {s ? 'Nr. 001' : 'MT'}
+            </div>
           </div>
         ))}
       </div>
 
-      {/* floor number, above the opening on the shaft wall itself */}
+      {/* the returns, bridging the frame's front back to the wall */}
+      <div style={{ position: 'absolute', left, top: 0, width: FRAME_D, height: h, transformOrigin: '0% 50%', transform: `translateZ(${FRAME_D}px) rotateY(90deg)`, ...ret(true, false) }} />
+      <div style={{ position: 'absolute', left: left + w - FRAME_D, top: 0, width: FRAME_D, height: h, transformOrigin: '100% 50%', transform: `translateZ(${FRAME_D}px) rotateY(-90deg)`, ...ret(false, false) }} />
+      <div style={{ position: 'absolute', left, top: 0, width: w, height: FRAME_D, transformOrigin: '50% 0%', transform: `translateZ(${FRAME_D}px) rotateX(-90deg)`, ...ret(true, true) }} />
+      <div style={{ position: 'absolute', left, top: h, width: w, height: FRAME_D, transformOrigin: '50% 0%', transform: 'rotateX(90deg)', ...ret(false, true) }} />
+
+      {/* the architrave itself, standing proud of the wall */}
+      {[
+        { l: left - FRAME_M, t: -FRAME_M, w: w + FRAME_M * 2, h: FRAME_M },
+        { l: left - FRAME_M, t: h, w: w + FRAME_M * 2, h: FRAME_M },
+        { l: left - FRAME_M, t: 0, w: FRAME_M, h },
+        { l: left + w, t: 0, w: FRAME_M, h },
+      ].map((b, i) => (
+        <div
+          key={i}
+          style={{
+            position: 'absolute', left: b.l, top: b.t, width: b.w, height: b.h,
+            transform: `translateZ(${FRAME_D}px)`,
+            ...face,
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), inset 0 0 0 1px rgba(0,0,0,0.5), 0 6px 22px rgba(0,0,0,0.75)',
+          }}
+        >
+          {/* bolts down the member, spaced along whichever way it runs */}
+          {Array.from({ length: b.w > b.h ? 14 : 8 }).map((_, k, arr) => (
+            <span
+              key={k}
+              style={{
+                position: 'absolute',
+                left: b.w > b.h ? `${((k + 0.5) / arr.length) * 100}%` : '50%',
+                top: b.w > b.h ? '50%' : `${((k + 0.5) / arr.length) * 100}%`,
+                width: 8, height: 8, marginLeft: -4, marginTop: -4, borderRadius: '50%',
+                background: 'var(--rivet)',
+                boxShadow: 'inset 0 1px 1px rgba(0,0,0,0.7), 0 1px 0 rgba(255,255,255,0.08)',
+              }}
+            />
+          ))}
+        </div>
+      ))}
+
+      {/* Floor number, inside the head of the opening and in front of the leaves.
+          On the architrave itself it fouled the cage roof on short windows, and
+          in front of the doors it stays readable as a shut landing goes past. */}
       <div
         style={{
-          position: 'absolute', left: '50%', top: 14, marginLeft: -32, width: 64, height: 32,
-          // inside the head of the opening, and in front of the leaves. Above the
-          // opening it fouled the cage roof on short windows, and level with the
-          // wall it was buried by the spandrel of the slot above — same depth,
-          // drawn later. In front of the doors it also stays readable as a closed
-          // landing goes by.
-          transform: 'translateZ(9px)',
+          position: 'absolute', left: '50%', top: 16, marginLeft: -32, width: 64, height: 26,
+          transform: `translateZ(${(FRAME_D * 0.34 + 6).toFixed(1)}px)`,
           background: 'var(--screen)', borderRadius: 2,
           boxShadow: 'inset 0 1px 5px rgba(0,0,0,0.9), 0 0 0 1px rgba(96,73,44,0.55)',
-          fontFamily: 'var(--mono)', fontSize: 19, lineHeight: '32px', textAlign: 'center',
+          fontFamily: 'var(--mono)', fontSize: 16, lineHeight: '26px', textAlign: 'center',
           color: 'var(--glow)', textShadow: '0 0 8px rgba(255,180,84,0.7)',
         }}
       >
@@ -880,30 +725,57 @@ function Landing({ vw, vh, top, no, idx, closure }) {
   );
 }
 
-// The far wall of the shaft, carrying a doorway per floor. It scrolls at the
-// content's rate rather than the walls' — the walls keep their parallax cheat,
-// but a door has to stay glued to the content it frames.
-function ShaftBack({ vw, vh, pos, floorPx, closure, roomP }) {
+// The doorways, in their own camera in front of the content. Two `perspective`
+// containers with identical parameters are one camera, so these line up exactly
+// with the wall they stand on despite the flat content layer between them.
+function Doorways({ vw, vh, pos, floorPx, closure, shake, blur }) {
   const travelY = pos * floorPx;
-  const overscan = vh * 0.7;
+  const overscan = vh * BACK_OVERSCAN;
+  const here = Math.round(pos);
+  const slots = [here - 1, here, here + 1].filter((f) => f >= 0 && f < DECKS.length);
+  const filter = blur > 0.25 ? 'url(#shaftBlur)' : 'none';
+
+  return (
+    <div style={{ position: 'absolute', inset: 0, zIndex: 3, pointerEvents: 'none', filter }}>
+      <div style={{ position: 'absolute', inset: 0, perspective: `${CAM_PERSPECTIVE}px`, perspectiveOrigin: `50% ${CAM_ORIGIN_Y * 100}%` }}>
+        <div style={{ position: 'absolute', inset: 0, transformStyle: 'preserve-3d' }}>
+          <div
+            style={{
+              position: 'absolute', left: 0, top: -overscan, width: vw, height: vh + overscan * 2,
+              transform: `translateZ(${-SHAFT_DEPTH}px)`, transformStyle: 'preserve-3d',
+            }}
+          >
+            {slots.map((f) => (
+              <Doorway
+                key={f}
+                vw={vw}
+                vh={vh}
+                top={overscan + travelY - f * floorPx + vh * CAM_ORIGIN_Y - (vh * DOOR_H) / 2}
+                no={DECKS[f].no}
+                closure={closure}
+                shake={shake}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// The far wall of the shaft: one continuous surface, the full width of the shaft.
+// It used to be near-black blind wall with a lit recess punched in it, which read
+// as a window seen across a chasm — the chasm being the piers. Lit evenly, the
+// far end becomes somewhere you are standing in front of.
+function ShaftBack({ vw, vh, pos, floorPx, roomP }) {
+  const travelY = pos * floorPx;
+  const overscan = vh * BACK_OVERSCAN;
   const w = vw * DOOR_W;
   const h = vh * DOOR_H;
   const left = (vw - w) / 2;
-  const doorTop = (f) => overscan + travelY - f * floorPx + vh * CAM_ORIGIN_Y - h / 2;
-
-  // The blind wall is built from strips around the openings rather than one solid
-  // plane. It has to be an actual hole: the landing is recessed *behind* this
-  // plane, so a full-width background — however dark — simply occludes it, and
-  // the recess and everything standing in it never paint at all.
-  const wall = {
-    backgroundImage: `linear-gradient(180deg, rgba(9,6,3,0.88), rgba(9,6,3,0.88)), url(${rustBrass})`,
-    backgroundSize: `auto, 180px 180px`,
-    backgroundPosition: `0 0, 0 ${travelY.toFixed(1)}px`,
-    backgroundBlendMode: 'normal, multiply',
-  };
-  // one slot per floor plus dead shaft above and below, so the wall never runs out
   const here = Math.round(pos);
-  const slots = [here - 3, here - 2, here - 1, here, here + 1, here + 2, here + 3];
+  const slots = [here - 1, here, here + 1].filter((f) => f >= 0 && f < DECKS.length);
+  const doorTop = (f) => overscan + travelY - f * floorPx + vh * CAM_ORIGIN_Y - h / 2;
 
   return (
     <div
@@ -911,29 +783,27 @@ function ShaftBack({ vw, vh, pos, floorPx, closure, roomP }) {
         position: 'absolute', left: 0, top: -overscan, width: vw, height: vh + overscan * 2,
         transform: `translateZ(${-SHAFT_DEPTH}px)`,
         transformStyle: 'preserve-3d',
+        backgroundImage: `linear-gradient(180deg, rgba(16,11,6,0.74), rgba(16,11,6,0.74)), url(${rustBrass})`,
+        backgroundSize: `auto, 210px 210px`,
+        backgroundPosition: `0 0, 0 ${travelY.toFixed(1)}px`,
+        backgroundBlendMode: 'normal, multiply',
+        boxShadow: 'inset 0 0 240px rgba(0,0,0,0.8)',
       }}
     >
-      {/* the piers flanking every opening, continuous the whole way up */}
-      <div style={{ position: 'absolute', left: 0, top: 0, width: left, height: '100%', ...wall, boxShadow: 'inset -40px 0 60px rgba(0,0,0,0.75)' }} />
-      <div style={{ position: 'absolute', left: left + w, top: 0, width: vw - left - w, height: '100%', ...wall, boxShadow: 'inset 40px 0 60px rgba(0,0,0,0.75)' }} />
-
-      {slots.map((f) => {
-        const isDeck = f >= 0 && f < DECKS.length;
-        return (
-          <div key={f}>
-            {/* the spandrel between this opening and the one above it */}
-            <div style={{ position: 'absolute', left, top: doorTop(f) + h, width: w, height: floorPx - h, ...wall, boxShadow: 'inset 0 30px 50px rgba(0,0,0,0.7)' }} />
-            {isDeck ? (
-              <Landing vw={vw} vh={vh} top={doorTop(f)} no={DECKS[f].no} idx={f} closure={closure} />
-            ) : (
-              // dead shaft: no landing here, just more wall
-              <div style={{ position: 'absolute', left, top: doorTop(f), width: w, height: h, ...wall }} />
-            )}
-          </div>
-        );
-      })}
-
-      <div style={{ position: 'absolute', inset: 0, background: '#000', opacity: (0.7 * (1 - roomP)).toFixed(2), transform: 'translateZ(8px)' }} />
+      {slots.map((f) => (
+        <div key={f} style={{ position: 'absolute', left, top: doorTop(f), width: w, height: h, overflow: 'hidden' }}>
+          {/* the landing's own light, falling from above the opening */}
+          <div
+            style={{
+              position: 'absolute', inset: 0,
+              background: 'radial-gradient(ellipse 68% 54% at 50% 10%, rgba(96,66,34,0.5) 0%, rgba(0,0,0,0) 76%)',
+              mixBlendMode: 'screen',
+            }}
+          />
+          <LandingProp idx={f} />
+        </div>
+      ))}
+      <div style={{ position: 'absolute', inset: 0, background: '#000', opacity: (0.55 * (1 - roomP)).toFixed(2), transform: 'translateZ(8px)' }} />
     </div>
   );
 }
@@ -1114,7 +984,7 @@ function HoistRopes({ bottom }) {
 // wrapper *outside* the perspective element on purpose: `filter` flattens the
 // 3D rendering context of the element it is applied to, so putting it any
 // deeper would collapse the whole scene back into decals.
-function Shaft({ vw, vh, pos, floorPx, backFloorPx, roomP, blur, closure }) {
+function Shaft({ vw, vh, pos, floorPx, backFloorPx, roomP, blur }) {
   const travelY = pos * floorPx;
   // the rail and the counterweight are shaft furniture, not the subject. Pushed
   // behind the cage bars and knocked back, they read as texture instead of
@@ -1137,7 +1007,7 @@ function Shaft({ vw, vh, pos, floorPx, backFloorPx, roomP, blur, closure }) {
         }}
       >
         <div style={{ position: 'absolute', inset: 0, transformStyle: 'preserve-3d', transform: `translateZ(${sceneZ.toFixed(1)}px)` }}>
-          <ShaftBack vw={vw} vh={vh} pos={pos} floorPx={backFloorPx} closure={closure} roomP={roomP} />
+          <ShaftBack vw={vw} vh={vh} pos={pos} floorPx={backFloorPx} roomP={roomP} />
           <ShaftWall side="left" vh={vh} pos={pos} floorPx={floorPx} roomP={roomP} />
           <ShaftWall side="right" vh={vh} pos={pos} floorPx={floorPx} roomP={roomP} />
 
@@ -1344,6 +1214,9 @@ function CageFront({ vw, vh }) {
 
 // Two sources, each switchable on its own so they can be judged apart.
 const LIGHTS = { cage: true, landing: true };
+// How a departing deck leaves the opening: 'clip' streams it on behind the
+// closing leaves, 'fade' dims it out where it stands.
+const CONTENT_EXIT = 'clip';
 
 // The cage lamp is bolted to the cage, and the cage does not move relative to the
 // camera — so its falloff is static in screen space and costs one gradient rather
@@ -1701,7 +1574,11 @@ export default function Dieselpunk() {
   const gap = vh * DECK_GAP;
   const step = vh + gap;
   const floorPxWall = step * WALL_PARALLAX;
-  const closure = doorClosure(ridePhase);
+  // the intro and a ride drive the same leaves, so whichever wants them more
+  // shut wins — that also makes the very first frame a shut door rather than a
+  // scene that has to be covered up by something else
+  const closure = Math.max(doorClosure(ridePhase), introClosure(t));
+  const shake = introShake(t);
 
   // Where the doorway lands on screen. A plane square to the camera is only a
   // uniform scale, so this is exact — which is what lets the content stay a flat,
@@ -1742,7 +1619,6 @@ export default function Dieselpunk() {
       }}
     >
       <MotionBlurDef amount={blurAmount} contentAmount={contentSmear} />
-      <PressIntro t={t} />
       <Grain opacity={0.06} />
 
       {/* backdrop — the deepest plane, so it drifts slowest */}
@@ -1765,7 +1641,7 @@ export default function Dieselpunk() {
       <Shaft
         vw={winW} vh={vh} pos={pos}
         floorPx={floorPxWall} backFloorPx={step}
-        roomP={roomP} blur={blurAmount} closure={closure}
+        roomP={roomP} blur={blurAmount}
       />
 
       <div style={{ pointerEvents: 'auto' }}>
@@ -1781,6 +1657,9 @@ export default function Dieselpunk() {
           position: 'absolute',
           left: ap.left, top: ap.top, width: ap.width, height: ap.height,
           overflow: 'hidden', zIndex: 2,
+          // 'clip' lets the deck stream on behind the closing leaves and escape
+          // through the narrowing gap; 'fade' simply dims it out
+          opacity: CONTENT_EXIT === 'fade' ? (1 - closure).toFixed(3) : 1,
           filter: [
             contentBlur > 0.05 ? `blur(${contentBlur.toFixed(2)}px)` : '',
             contentSmear > 0.2 ? 'url(#deckBlur)' : '',
@@ -1810,6 +1689,13 @@ export default function Dieselpunk() {
           })}
         </div>
       </div>
+
+      {/* the doors, in front of the content: the content sits on the landing,
+          so leaves that cannot cover it are not doors */}
+      <Doorways
+        vw={winW} vh={vh} pos={pos} floorPx={step}
+        closure={closure} shake={shake} blur={blurAmount}
+      />
 
       <PassingLights pos={pos} vh={vh} step={step} gap={gap} />
 
