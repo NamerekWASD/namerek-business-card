@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import Grain from './shared/Grain';
 import rustBrass from '../assets/textures/rust-brass.jpg';
@@ -479,12 +479,18 @@ const CAM_ORIGIN_Y = 0.50;
 // how far the shaft walls run back. Deeper means the corridor eats more of the
 // screen: a wall's far edge lands at (viewportWidth / 2) * DEPTH / (P + DEPTH).
 const SHAFT_DEPTH = 340;
-// The rail and the counterweight sit inboard far enough to clear the cage posts.
-// Hard against the shaft wall they were hidden behind the gate at any ordinary
-// window width and only appeared when the window was narrowed — furniture you
-// can never see is furniture you did not build.
-const RAIL_Z = -150;
-const RAIL_X = 215;
+// The counterweight sits inboard far enough to clear the cage posts. Hard
+// against the shaft wall it was hidden behind the gate at any ordinary window
+// width and only appeared when the window was narrowed — furniture you can never
+// see is furniture you did not build.
+//
+// The guide rail used to live here too, and it is gone. It was the reason this
+// rebuild started and it never came good at any of it: a vertical beam facing
+// the camera has no convergence available to it, so shading had to carry the
+// whole of the volume, and the shading of a straight bar is a straight bar. Then
+// the lamps needed the only sixty pixels of shaft you can see at all. What runs
+// down that wall now is a cable, which has the one property the rail could never
+// be given — it is not straight.
 const CW_Z = -160;
 const CW_X = 190;
 
@@ -518,12 +524,10 @@ const LAMPS = {
   // light genuinely falls away between landings, which is the thing the black
   // overlay used to be faking.
   every: 1,
-  // |x| from the centre of the shaft, as a fraction of its width. Between the
-  // gate's far post and the outside of the architrave there is only about sixty
-  // pixels of shaft you can see at all, and the guide rail already stands in it.
-  // So the lamp goes outboard of the rail and takes the lattice across part of
-  // its face — which it can afford and the rail cannot: a light reads through
-  // bars, a dark steel beam behind them is just gone.
+  // |x| from the centre of the shaft, as a fraction of its width. Left wall
+  // only: the right-hand side of the shaft belongs to the counterweight, and two
+  // symmetric lamps light the cage from both sides at once, which is the one
+  // arrangement guaranteed to produce no modelling at all.
   side: 0.464,
   rise: 0.14, // how far above the landing it is bolted, in floors
   proud: 26, // how far the glass stands off the wall it is bolted to
@@ -551,7 +555,6 @@ function lampsAt(vw, vh, pos, step) {
   for (let u = first; u <= pos + 1.7; u += LAMPS.every) {
     const y = (pos - u - LAMPS.rise) * step + vh * CAM_ORIGIN_Y;
     out.push({ id: `${u}L`, x: vw * (0.5 - LAMPS.side), y, z });
-    out.push({ id: `${u}R`, x: vw * (0.5 + LAMPS.side), y, z });
   }
   return out;
 }
@@ -600,10 +603,13 @@ function project(p, vw, vh) {
 // shading is a claim I cannot check; here we know exactly where the light is,
 // so the roundness either comes out of the arithmetic or the arithmetic is
 // wrong. Nothing is painted across it.
-function Lamp({ p, lamps }) {
-  const R = LAMPS.size / 2;
+// `fixed`, when given, lights the fitting from the room instead of from the
+// lamp list — for the one inside the corridor, which is in another room and
+// cannot be lit by the shaft it is behind a wall from.
+function Lamp({ p, lamps, size = LAMPS.size, fixed }) {
+  const R = size / 2;
   const N = 16;
-  const D = LAMPS.proud;
+  const D = LAMPS.proud * (size / LAMPS.size);
   // a hair wider than the arc, so the quads meet instead of showing seams
   const seg = (2 * Math.PI * R) / N + 2;
   const bars = [0, 45, 90, 135];
@@ -631,7 +637,7 @@ function Lamp({ p, lamps }) {
         style={{
           position: 'absolute', left: -R * 1.05, top: -R * 1.05, width: R * 2.1, height: R * 2.1,
           transform: `translateZ(${-D}px)`, borderRadius: '50%',
-          ...ironFace(46, Math.min(1.6, lit([p.x, p.y, p.z - D], [0, 0, 1], lamps, p))),
+          ...ironFace(46, fixed != null ? roomLit([0, 0, 1]) * fixed * 0.5 : Math.min(1.6, lit([p.x, p.y, p.z - D], [0, 0, 1], lamps, p))),
           boxShadow: 'inset 0 0 0 2px rgba(0,0,0,0.5)',
         }}
       />
@@ -642,7 +648,9 @@ function Lamp({ p, lamps }) {
           const a = (k / N) * Math.PI * 2;
           const nx = Math.sin(a);
           const ny = -Math.cos(a);
-          const shade = lit([p.x + R * nx, p.y + R * ny, p.z - D / 2], [nx, ny, 0], lamps, p);
+          const shade = fixed != null
+            ? roomLit([nx, ny, 0]) * fixed
+            : lit([p.x + R * nx, p.y + R * ny, p.z - D / 2], [nx, ny, 0], lamps, p);
           return (
             <div
               key={k}
@@ -773,7 +781,20 @@ function Box({ left, top, w, h, d, dir = -1, yaw = 30, tex = ironFace, scale = 5
   const c = Math.cos(r);
   const f = (n) => tex(scale, roomLit(n) * tint);
   return (
-    <div style={{ position: 'absolute', left, top, width: 0, height: 0, transformStyle: 'preserve-3d', transform: `rotateY(${yaw}deg)` }}>
+    // Stood off the wall by exactly how far the yaw swings its far corner back.
+    // Without this a turned box sinks into the wall behind it: the corner goes to
+    // z = d - w·sin(yaw), and for anything wide and shallow that is well past
+    // zero, so the wall occludes most of its own front face. The EG plate lost
+    // three quarters of its width that way and still measured full size, because
+    // getBoundingClientRect reports the projected box and knows nothing about
+    // what is drawn over it — the DOM said 75px and the screen said 20.
+    <div
+      style={{
+        position: 'absolute', left, top, width: 0, height: 0,
+        transformStyle: 'preserve-3d',
+        transform: `translateZ(${(w * s).toFixed(1)}px) rotateY(${yaw}deg)`,
+      }}
+    >
       <div style={{ position: 'absolute', left: 0, top: 0, width: w, height: h, transform: `translateZ(${d}px)`, ...f([s, 0, c]), boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.45)' }}>
         {children}
       </div>
@@ -794,7 +815,7 @@ function LandingProp({ idx }) {
     // no `filter` on this wrapper any more: it flattens the 3D context of
     // everything below it, which would quietly turn every box back into the
     // decal it used to be. The brightness lives in each face's own shade.
-    <div style={{ position: 'absolute', right: '15%', bottom: '15%', transformStyle: 'preserve-3d' }}>
+    <div style={{ position: 'absolute', right: '20%', bottom: '15%', transformStyle: 'preserve-3d' }}>
       <PropBody idx={idx} />
     </div>
   );
@@ -899,19 +920,30 @@ function PropBody({ idx }) {
 
   // EG — the floor plate. This one already read, so it keeps its face and only
   // gains the thickness it always implied.
+  //
+  // The wrapper is not decoration. Every other prop has one; without it this
+  // branch returned a bare absolutely-positioned box, and since the anchor above
+  // shrinks to fit and an abspos child contributes nothing to that, the plate
+  // hung off the anchor point rightwards and spent most of its width inside the
+  // corridor's dark end. All that showed was the sliver that missed it.
   return (
-    <Box left={0} top={0} w={132} h={88} d={16} dir={-1} scale={56} tint={1.1}>
-      <div style={{ position: 'absolute', inset: 8, border: '2px solid rgba(216,178,110,0.35)' }} />
-      <div
-        style={{
-          position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontFamily: 'var(--mono)', fontSize: 34, fontWeight: 700, letterSpacing: 3,
-          color: 'rgba(216,178,110,0.55)', textShadow: '0 1px 0 rgba(0,0,0,0.7)',
-        }}
-      >
-        EG
-      </div>
-    </Box>
+    <div style={{ position: 'relative', width: 132, height: 88, transformStyle: 'preserve-3d' }}>
+      {/* No yaw on this one. It is a plate bolted flat to the wall, so turning
+          it would be wrong even where it helps — and it does not help: a sign
+          reads by its face, not by its corner. */}
+      <Box left={0} top={0} w={132} h={88} d={14} dir={-1} yaw={0} scale={56} tint={1.1}>
+        <div style={{ position: 'absolute', inset: 8, border: '2px solid rgba(216,178,110,0.35)' }} />
+        <div
+          style={{
+            position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontFamily: 'var(--mono)', fontSize: 34, fontWeight: 700, letterSpacing: 3,
+            color: 'rgba(216,178,110,0.55)', textShadow: '0 1px 0 rgba(0,0,0,0.7)',
+          }}
+        >
+          EG
+        </div>
+      </Box>
+    </div>
   );
 }
 
@@ -980,9 +1012,12 @@ function Doorway({ vw, vh, top, closure, shake }) {
         ))}
       </div>
 
-      {/* the returns, bridging the frame's front back to the wall */}
-      <div style={{ position: 'absolute', left, top: 0, width: FRAME_D, height: h, transformOrigin: '0% 50%', transform: `translateZ(${FRAME_D}px) rotateY(90deg)`, ...ret(true, false) }} />
-      <div style={{ position: 'absolute', left: left + w - FRAME_D, top: 0, width: FRAME_D, height: h, transformOrigin: '100% 50%', transform: `translateZ(${FRAME_D}px) rotateY(-90deg)`, ...ret(false, false) }} />
+      {/* The returns, bridging the frame's front back to the wall — head and
+          sill only. The two upright ones are gone: they were the last vertical
+          wall surface left at the sides of the opening, and a lit panel standing
+          exactly where the corridor is supposed to run out is a wall, whatever
+          it is called in the code. Now the cut is clean and the passage carries
+          on past both edges. */}
       <div style={{ position: 'absolute', left, top: 0, width: w, height: FRAME_D, transformOrigin: '50% 0%', transform: `translateZ(${FRAME_D}px) rotateX(-90deg)`, ...ret(true, true) }} />
       <div style={{ position: 'absolute', left, top: h, width: w, height: FRAME_D, transformOrigin: '50% 0%', transform: 'rotateX(90deg)', ...ret(false, true) }} />
 
@@ -1118,17 +1153,14 @@ function ShaftBack({ vw, vh, pos, floorPx }) {
                       line at a known height is what tells you the floor keeps
                       going after the light stops */}
                   <div style={{ position: 'absolute', left: 0, right: 0, bottom: '13%', height: 9, ...surface(SURFACES.landing, 1.5), boxShadow: '0 2px 6px rgba(0,0,0,0.6)' }} />
+                  {/* The corridor's own fitting. It used to be a bare radial
+                      pinned to the corner where the ceiling meets the back wall,
+                      which is nowhere a lamp goes — light with no source, and it
+                      showed. Same fixture as the shaft, smaller, lit from the
+                      room instead of from the lamps it cannot see, and its own
+                      pool on the wall is now the light in here. */}
                   {LIGHTS.landing && (
-                    <div
-                      style={{
-                        position: 'absolute', inset: 0,
-                        // tighter and hotter than it was: a wash across the
-                        // whole wall says the room is lit, a pool says it is lit
-                        // by something, and only the second one has a place in it
-                        background: 'radial-gradient(ellipse 46% 38% at 50% 0%, rgba(255,206,132,0.5) 0%, rgba(255,170,80,0.14) 42%, rgba(0,0,0,0) 74%)',
-                        mixBlendMode: 'screen',
-                      }}
-                    />
+                    <Lamp p={{ x: w * 0.5, y: h * 0.14, z: 18 }} lamps={[]} size={64} fixed={1.15} />
                   )}
                   <LandingProp idx={f} />
                   {/* the two branches. There is no wall at either end, so the
@@ -1202,84 +1234,71 @@ function ShaftWall({ side, vh, pos, floorPx }) {
   );
 }
 
-// The T-section guide rail, as an actual T: the flange lies across the shaft and
-// the blade stands out of it toward the cabin. Three faces at three angles —
-// that, and nothing else, is what makes it read as a beam instead of a stripe.
-function GuideRail({ dir, vh, shade }) {
-  const H = vh * 2.4;
-  const top = -vh * 0.7;
-  const FLANGE_D = 40;
-  const BLADE_OUT = 20;
-  const BLADE_T = 13;
-  return (
-    <>
-      {/* flange — normal points across the shaft, so it is the face we look at */}
-      <div
-        style={{
-          position: 'absolute', top, height: H, left: -FLANGE_D / 2, width: FLANGE_D,
-          transform: `rotateY(${dir * 90}deg)`,
-          ...steelFace(70, 0.42 * shade.side),
-          boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.7)',
-        }}
-      />
-      {/* blade, face-on to the camera */}
-      <div
-        style={{
-          position: 'absolute', top, height: H, left: dir > 0 ? 0 : -BLADE_OUT, width: BLADE_OUT,
-          transform: `translateZ(${BLADE_T / 2}px)`,
-          ...steelFace(44, 0.78 * shade.front),
-        }}
-      />
-      {/* the blade's tip, edge-on — the highlight that gives the beam a corner */}
-      <div
-        style={{
-          position: 'absolute', top, height: H,
-          left: dir > 0 ? BLADE_OUT - BLADE_T / 2 : -BLADE_OUT - BLADE_T / 2, width: BLADE_T,
-          transform: `rotateY(${dir * 90}deg)`,
-          ...steelFace(30, 1.15 * shade.side),
-        }}
-      />
-    </>
-  );
-}
+// The cable that replaced the guide rail. It runs the height of the shaft on the
+// lamp side, black as tar, tied back to the wall every so often.
+//
+// It wanders, and that is the entire reason it works where the rail did not. A
+// straight vertical bar facing the camera projects to a constant-width stripe:
+// both its long edges are at the same depth, there is no convergence to be had,
+// and shading is the only cue left. A line that snakes gives its own position
+// away at every turn — you read the wall behind it from the wander, for free,
+// and it costs one path.
+//
+// The wave repeats exactly, so the path is built once and the whole run is
+// translated by travelY modulo one period. That keeps it to a transform per
+// frame rather than a few hundred points of geometry, which matters here more
+// than it looks: this thing spans the full height of the shaft.
+const CABLE = {
+  on: true,
+  sway: 2, // how far it wanders either side of its run
+  wave: 140, // one full snake
+  width: 9,
+  tie: 170, // between the clips holding it back
+};
 
-// Bolted joints between rail sections. The rail is uniform, so without these the
-// shaft could be moving at any speed or none.
-function RailClips({ offset, dir, vh, shade }) {
-  const PITCH = 210;
-  const shift = ((offset % PITCH) + PITCH) % PITCH;
-  const rows = Math.ceil((vh * 1.4) / PITCH) + 2;
-  const W = 46;
-  const D = 26;
-  const Hc = 17;
-  return Array.from({ length: rows }).map((_, i) => {
-    const top = i * PITCH - PITCH + shift - vh * 0.2;
-    return (
-      <div key={i} style={{ position: 'absolute', top, left: 0, width: 0, height: 0, transformStyle: 'preserve-3d' }}>
-        <div style={{ position: 'absolute', top: 0, left: dir > 0 ? -8 : -W + 8, width: W, height: Hc, transform: `translateZ(${D / 2}px)`, ...ironFace(50, 1.5 * shade.front), borderRadius: 2, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.16)' }} />
-        <div style={{ position: 'absolute', top: 0, left: dir > 0 ? W - 8 - D / 2 : -W + 8 - D / 2, width: D, height: Hc, transform: `rotateY(${dir * 90}deg)`, ...ironFace(40, 0.95 * shade.side) }} />
-        <div style={{ position: 'absolute', top: -D / 2, left: dir > 0 ? -8 : -W + 8, width: W, height: D, transform: `translateY(${Hc / 2}px) rotateX(90deg)`, ...ironFace(50, 1.9 * shade.top) }} />
-      </div>
-    );
-  });
-}
+function ShaftCable({ vh, x, travelY }) {
+  // The strip is only as wide as the cable wanders and only as tall as one
+  // viewport plus a wave either side. Drawn across the full wall it was a five
+  // megapixel SVG being repainted every frame, which froze the renderer outright
+  // — the visible cost of forgetting that an SVG is not free just because it is
+  // one element.
+  const pad = 24;
+  const W = CABLE.sway * 2 + pad * 2;
+  const total = vh + CABLE.wave * 2;
 
-// The roller guides are bolted to the cabin, not the shaft, so they are the one
-// piece of hardware that stays nailed to the screen while everything else
-// streams past. Built as a box: front, inboard side, underside.
-function RollerShoe({ top, dir, shade }) {
-  const W = 46;
-  const D = 34;
-  const H = 56;
+  const { d, ties } = useMemo(() => {
+    const at = (y) => CABLE.sway + pad + CABLE.sway * Math.sin((y / CABLE.wave) * Math.PI * 2);
+    const pts = [];
+    for (let y = 0; y <= total; y += 18) pts.push(`${at(y).toFixed(1)} ${y}`);
+    const t = [];
+    for (let y = CABLE.tie / 2; y <= total; y += CABLE.tie) t.push([at(y), y]);
+    return { d: `M${pts.join(' L')}`, ties: t };
+  }, [total]);
+
+  if (!CABLE.on) return null;
+  const shift = ((travelY % CABLE.wave) + CABLE.wave) % CABLE.wave;
+
   return (
-    <div style={{ position: 'absolute', top, left: 0, width: 0, height: 0, transformStyle: 'preserve-3d' }}>
-      <div style={{ position: 'absolute', top: 0, left: dir > 0 ? -10 : -W + 10, width: W, height: H, transform: `translateZ(${D / 2}px)`, ...ironFace(64, 1.45 * shade.front), borderRadius: 3, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.18)' }}>
-        {[0.3, 0.7].map((fy) => (
-          <span key={fy} style={{ position: 'absolute', top: fy * H - 11, left: dir > 0 ? 26 : 6, width: 14, height: 22, borderRadius: 7, background: 'linear-gradient(90deg, #191c1f, #7d878f 45%, #191c1f)', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.7)' }} />
+    <div
+      style={{
+        position: 'absolute', left: x - CABLE.sway - pad, top: -CABLE.wave, width: W, height: total,
+        transform: `translate3d(0, ${shift.toFixed(1)}px, ${-SHAFT_DEPTH + 3}px)`,
+        willChange: 'transform',
+        pointerEvents: 'none',
+      }}
+    >
+      <svg width={W} height={total} style={{ display: 'block' }} aria-hidden>
+        {/* the cable itself, then a hair of sheen a pixel off centre — a cable is
+            round and a flat black line is a crack in the wall */}
+        <path d={d} fill="none" stroke="#080706" strokeWidth={CABLE.width} strokeLinecap="round" />
+        <path d={d} fill="none" stroke="rgba(150,138,120,0.14)" strokeWidth={1.6} transform="translate(-2.2 -0.6)" />
+        {ties.map(([tx, ty]) => (
+          <g key={ty}>
+            <rect x={tx - 9} y={ty - 3.5} width={18} height={7} rx={1.5} fill="#1b1712" />
+            <rect x={tx - 9} y={ty - 3.5} width={18} height={1.2} fill="rgba(196,166,112,0.18)" />
+          </g>
         ))}
-      </div>
-      <div style={{ position: 'absolute', top: 0, left: dir > 0 ? W - 10 - D / 2 : -W + 10 - D / 2, width: D, height: H, transform: `rotateY(${dir * 90}deg)`, ...ironFace(46, 0.9 * shade.side) }} />
-      <div style={{ position: 'absolute', top: H - D / 2, left: dir > 0 ? -10 : -W + 10, width: W, height: D, transform: `rotateX(-90deg)`, transformOrigin: '50% 0%', ...ironFace(50, 0.55 * shade.under) }} />
+      </svg>
     </div>
   );
 }
@@ -1354,29 +1373,25 @@ function HoistRopes({ bottom, dim = 1 }) {
 // 3D rendering context of the element it is applied to, so putting it any
 // deeper would collapse the whole scene back into decals.
 function Shaft({ vw, vh, pos, floorPx, backFloorPx, blur, lamps }) {
-  const travelY = pos * floorPx;
-  // the rail and the counterweight are shaft furniture, not the subject. Knocked
-  // back, they read as texture instead of demanding the attention a face-on
-  // vertical bar can never repay.
+  // the counterweight is shaft furniture, not the subject. Knocked back, it
+  // reads as texture instead of demanding attention it cannot repay.
   const dim = 0.62;
   const cwHeight = vh * 1.15;
   const cwY = 132 - cwHeight + 2 * (pos - 1) * floorPx;
   const wallFilter = blur > 0.25 ? `url(#shaftBlur) brightness(${(1 - Math.min(0.2, blur * 0.02)).toFixed(3)})` : 'none';
 
   // This is where `dim` used to be applied — as a `filter` on the group holding
-  // each object. That was the bug underneath both of them. A filter forces the
-  // used value of transform-style to flat, so those two groups have been
-  // rendering with their 3D collapsed this whole time: every face I built for
-  // the rail and the counterweight was being drawn into a single plane, which is
-  // exactly why neither ever read as a solid however the tones were tuned. It
-  // has to travel with the faces instead.
+  // the object. That was the bug underneath the counterweight and the old rail
+  // both. A filter forces the used value of transform-style to flat, so those
+  // groups rendered with their 3D collapsed: every face was being drawn into a
+  // single plane, which is why neither ever read as a solid however the tones
+  // were tuned. It has to travel with the faces instead.
   const shadeAt = (at, dir) => ({
     front: (lit(at, [0, 0, 1], lamps) / 0.8) * dim,
     side: (lit(at, [dir, 0, 0], lamps) / 0.8) * dim,
     top: (lit(at, [0, -1, 0], lamps) / 0.8) * dim,
     under: (lit(at, [0, 1, 0], lamps) / 0.8) * dim,
   });
-  const railShade = shadeAt([RAIL_X, vh * 0.5, RAIL_Z], 1);
   const cwShade = shadeAt([vw - CW_X, Math.max(0, cwY + cwHeight - 200), CW_Z], -1);
 
   return (
@@ -1395,19 +1410,10 @@ function Shaft({ vw, vh, pos, floorPx, backFloorPx, blur, lamps }) {
           <ShaftWall side="left" vh={vh} pos={pos} floorPx={floorPx} />
           <ShaftWall side="right" vh={vh} pos={pos} floorPx={floorPx} />
 
-          {/* the rail and its shoes, standing in the shaft clear of the wall */}
-          <div
-            id="instrument"
-            style={{
-              position: 'absolute', top: 0, left: RAIL_X, width: 0, height: 0,
-              transformStyle: 'preserve-3d', transform: `translateZ(${RAIL_Z}px)`,
-            }}
-          >
-            <GuideRail dir={1} vh={vh} shade={railShade} />
-            <RailClips offset={travelY} dir={1} vh={vh} shade={railShade} />
-            <RollerShoe top={vh * 0.28} dir={1} shade={railShade} />
-            <RollerShoe top={vh * 0.72} dir={1} shade={railShade} />
-          </div>
+          {/* the cable, running down past the lamps it feeds. It is drawn before
+              them so it disappears behind each fitting and comes out below,
+              which is the only part of a wiring run anyone ever notices. */}
+          <ShaftCable vh={vh} x={vw * (0.5 - LAMPS.side)} travelY={backFloorPx * pos} />
 
           {/* the counterweight runs in its own guides on the far side */}
           <div
