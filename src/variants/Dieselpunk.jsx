@@ -21,8 +21,6 @@ const vars = {
   '--mono': "'Space Mono', monospace",
 };
 
-const snap = [0.16, 1, 0.3, 1];
-
 // ── surfaces ─────────────────────────────────────────────────────────────────
 // Every large plane in the scene is described here rather than inline, so the
 // look can be dialled without going near the geometry. The textures were chosen
@@ -43,7 +41,9 @@ const SURFACES = {
   cageFloor: { from: '#3c342a', to: '#201b15', tile: 'steel', scale: 210, tex: 0.34 },
   cageSteel: { from: '#3b352d', to: '#1e1a15', tile: 'steel', scale: 130, tex: 0.36 },
   // the gate: painted mild steel, the one saturated thing in the frame
-  cageGate: { bar: '#7f6a35', barDark: '#211c12', pitch: 40, thickness: 5, near: 0.88, far: 0.12 },
+  // the two ends used to carry hand-set darkness values here; the lamps decide
+  // that now, so all that is left is what the gate is made of
+  cageGate: { bar: '#7f6a35', barDark: '#211c12', pitch: 40, thickness: 5 },
   doorLeaf: { from: '#3d3123', to: '#1c1610', tile: 'rust', scale: 280, tex: 0.26 },
   doorFrame: { from: '#4a4137', to: '#231e19', tile: 'steel', scale: 160, tex: 0.32 },
   // the small fittings — clips, shoes, rivetted plates, architrave members
@@ -496,6 +496,216 @@ const CW_X = 190;
 const steelFace = (scale = 46, shade = 1) => surface({ ...SURFACES.steel, scale }, shade);
 const ironFace = (scale = 70, shade = 1) => surface({ ...SURFACES.iron, scale }, shade);
 
+// ── light ────────────────────────────────────────────────────────────────────
+// Nothing in this scene used to be lit. Every face carried a `shade` I picked by
+// eye, and the switch called LIGHTS.cage was a vignette — a black ellipse laid
+// over the whole frame — which is exactly why turning it *off* made the picture
+// brighter. It was named for a lamp and behaved like a lens.
+//
+// The lamps are objects with positions now, and brightness is computed from
+// them: Lambert's cosine law for the angle a face is held at, inverse square for
+// how far away it is. No shadows, no bounce, so this is not a renderer. But the
+// cosine term is the whole of what makes a solid read as solid, and it is
+// precisely the term that was being guessed.
+//
+// Scene coordinates: x and y are screen pixels on the z = 0 plane, z is world
+// pixels, and -z runs away from the camera.
+const LAMPS = {
+  on: true,
+  // One pair per landing, and this is the setting that matters most. At every
+  // half floor there was always a fixture close by, so nothing ever brightened
+  // or dimmed — a shaft lit like a corridor ceiling. One per floor means the
+  // light genuinely falls away between landings, which is the thing the black
+  // overlay used to be faking.
+  every: 1,
+  // |x| from the centre of the shaft, as a fraction of its width. Between the
+  // gate's far post and the outside of the architrave there is only about sixty
+  // pixels of shaft you can see at all, and the guide rail already stands in it.
+  // So the lamp goes outboard of the rail and takes the lattice across part of
+  // its face — which it can afford and the rail cannot: a light reads through
+  // bars, a dark steel beam behind them is just gone.
+  side: 0.464,
+  rise: 0.14, // how far above the landing it is bolted, in floors
+  proud: 26, // how far the glass stands off the wall it is bolted to
+  size: 92, // across the guard ring
+  power: 2.6, // brightness at the glass itself
+  reach: 640, // the cage is most of a thousand pixels from the far wall, so a
+  // short reach leaves it on ambient alone and nothing in it responds
+  haze: 0.3, // how much of it hangs in the air instead of landing on something
+};
+
+// What the shaft bounces back, so an unlit face goes dim rather than absent.
+const LIGHT_AMBIENT = 0.26;
+// A lamp in a reflector is not a point source, so the terminator is soft: a face
+// turned a little past ninety degrees still catches some of it.
+const LIGHT_WRAP = 0.42;
+
+// Where the fixtures are, in scene coordinates, for the shaft's current
+// position. `u` is the floor coordinate, so the lamp at u = 1.5 is bolted to the
+// wall halfway between the first and second landings.
+function lampsAt(vw, vh, pos, step) {
+  if (!LAMPS.on) return [];
+  const out = [];
+  const z = -SHAFT_DEPTH + LAMPS.proud;
+  const first = Math.ceil((pos - 1.7) / LAMPS.every) * LAMPS.every;
+  for (let u = first; u <= pos + 1.7; u += LAMPS.every) {
+    const y = (pos - u - LAMPS.rise) * step + vh * CAM_ORIGIN_Y;
+    out.push({ id: `${u}L`, x: vw * (0.5 - LAMPS.side), y, z });
+    out.push({ id: `${u}R`, x: vw * (0.5 + LAMPS.side), y, z });
+  }
+  return out;
+}
+
+// The multiplier a face at `p` with outward normal `n` should be drawn at.
+// `skip` drops a lamp from the shading of its own fixture, where the distance is
+// a few pixels and an inverse square would simply blow up.
+function lit(p, n, lamps, skip) {
+  let sum = 0;
+  for (const L of lamps) {
+    if (L === skip) continue;
+    const dx = L.x - p[0];
+    const dy = L.y - p[1];
+    const dz = L.z - p[2];
+    const d2 = dx * dx + dy * dy + dz * dz;
+    const d = Math.sqrt(d2) || 1;
+    const cos = (dx * n[0] + dy * n[1] + dz * n[2]) / d;
+    const lam = Math.max(0, (cos + LIGHT_WRAP) / (1 + LIGHT_WRAP));
+    // Squared, not plain, inverse square. A single 1/(1+d²/r²) has such a long
+    // tail that a dozen lamps two floors away still sum to more light than the
+    // one overhead — the first cut came out at brightness(2.7) on every deck,
+    // which is a scene with no lamps in it, only a general glow.
+    const fall = (LAMPS.reach * LAMPS.reach) / (LAMPS.reach * LAMPS.reach + d2);
+    sum += LAMPS.power * lam * fall * fall;
+  }
+  return LIGHT_AMBIENT + sum;
+}
+
+// The perspective divide, done by hand — needed to hang haze on the sight line
+// to a lamp, which is the one thing the browser's own camera cannot tell us.
+function project(p, vw, vh) {
+  const s = CAM_PERSPECTIVE / (CAM_PERSPECTIVE - p[2]);
+  return {
+    x: vw / 2 + (p[0] - vw / 2) * s,
+    y: vh * CAM_ORIGIN_Y + (p[1] - vh * CAM_ORIGIN_Y) * s,
+    s,
+  };
+}
+
+// A bulkhead lamp, built rather than drawn: a cast base bolted to the wall, a
+// cylindrical body, a ribbed glass and the guard over it.
+//
+// The body is a genuine cylinder — sixteen quads stood on end around the axis,
+// each one shaded from its own normal by the same `lit` the rest of the scene
+// uses. That is most of the reason for modelling it at all. Everywhere else the
+// shading is a claim I cannot check; here we know exactly where the light is,
+// so the roundness either comes out of the arithmetic or the arithmetic is
+// wrong. Nothing is painted across it.
+function Lamp({ p, lamps }) {
+  const R = LAMPS.size / 2;
+  const N = 16;
+  const D = LAMPS.proud;
+  // a hair wider than the arc, so the quads meet instead of showing seams
+  const seg = (2 * Math.PI * R) / N + 2;
+  const bars = [0, 45, 90, 135];
+
+  return (
+    <div
+      style={{
+        position: 'absolute', left: p.x, top: p.y, width: 0, height: 0,
+        transformStyle: 'preserve-3d', transform: `translateZ(${p.z}px)`,
+      }}
+    >
+      {/* the pool it throws on the wall behind it. The far wall is parallel to
+          the image plane, so this lands where it should with no correction. */}
+      <div
+        style={{
+          position: 'absolute', left: -R * 4.6, top: -R * 4.6, width: R * 9.2, height: R * 9.2,
+          transform: `translateZ(${-D + 1}px)`,
+          background: 'radial-gradient(circle at 50% 50%, rgba(255,206,140,0.5) 0%, rgba(255,170,84,0.2) 26%, rgba(190,110,40,0.06) 58%, rgba(0,0,0,0) 78%)',
+          mixBlendMode: 'screen',
+        }}
+      />
+
+      {/* the base plate */}
+      <div
+        style={{
+          position: 'absolute', left: -R * 1.05, top: -R * 1.05, width: R * 2.1, height: R * 2.1,
+          transform: `translateZ(${-D}px)`, borderRadius: '50%',
+          ...ironFace(46, Math.min(1.6, lit([p.x, p.y, p.z - D], [0, 0, 1], lamps, p))),
+          boxShadow: 'inset 0 0 0 2px rgba(0,0,0,0.5)',
+        }}
+      />
+
+      {/* the body: a ring of quads, each held at its own angle to the light */}
+      <div style={{ position: 'absolute', left: 0, top: 0, width: 0, height: 0, transformStyle: 'preserve-3d', transform: `translateZ(${-D / 2}px)` }}>
+        {Array.from({ length: N }).map((_, k) => {
+          const a = (k / N) * Math.PI * 2;
+          const nx = Math.sin(a);
+          const ny = -Math.cos(a);
+          const shade = lit([p.x + R * nx, p.y + R * ny, p.z - D / 2], [nx, ny, 0], lamps, p);
+          return (
+            <div
+              key={k}
+              style={{
+                position: 'absolute', left: -seg / 2, top: -D / 2, width: seg, height: D,
+                transform: `rotate(${((a * 180) / Math.PI).toFixed(2)}deg) translateY(${-R}px) rotateX(90deg)`,
+                ...steelFace(28, Math.min(1.7, shade * 0.72)),
+              }}
+            />
+          );
+        })}
+      </div>
+
+      {/* the glass. Concentric ribs, because that is what the pressed prismatic
+          lens in one of these actually is, and they give the disc a centre. */}
+      <div
+        style={{
+          position: 'absolute', left: -R * 0.8, top: -R * 0.8, width: R * 1.6, height: R * 1.6,
+          transform: 'translateZ(-3px)', borderRadius: '50%',
+          backgroundImage: [
+            'repeating-radial-gradient(circle at 50% 50%, rgba(255,255,255,0.2) 0 2px, rgba(90,50,10,0.24) 2px 7px)',
+            'radial-gradient(circle at 50% 40%, #fff6dd 0%, #ffd28a 20%, #e79b34 48%, #8a5615 84%)',
+          ].join(', '),
+          backgroundBlendMode: 'overlay, normal',
+          boxShadow: '0 0 34px 10px rgba(255,190,104,0.75), inset 0 0 14px rgba(120,64,10,0.5)',
+        }}
+      />
+
+      {/* the guard: a ring and four bars across it, dark against the glass */}
+      <div
+        style={{
+          position: 'absolute', left: -R * 0.86, top: -R * 0.86, width: R * 1.72, height: R * 1.72,
+          transform: 'translateZ(8px)', borderRadius: '50%',
+          border: '4px solid #2a231a',
+          boxShadow: 'inset 0 1px 0 rgba(255,214,150,0.35), 0 1px 0 rgba(0,0,0,0.6)',
+        }}
+      />
+      {bars.map((deg) => (
+        <div
+          key={deg}
+          style={{
+            position: 'absolute', left: -R * 0.9, top: -2.5, width: R * 1.8, height: 5,
+            transform: `translateZ(9px) rotate(${deg}deg)`,
+            background: 'linear-gradient(180deg, #4b4033, #1a150f)',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.7)',
+          }}
+        />
+      ))}
+
+      {/* the halo. Not a light — the glass is small and very bright, and a bright
+          small thing bleeds in any real lens as well as in this one. */}
+      <div
+        style={{
+          position: 'absolute', left: -R * 2.2, top: -R * 2.2, width: R * 4.4, height: R * 4.4,
+          transform: 'translateZ(12px)', borderRadius: '50%',
+          background: 'radial-gradient(circle at 50% 50%, rgba(255,224,170,0.7) 0%, rgba(255,178,88,0.28) 30%, rgba(255,150,50,0.07) 60%, rgba(0,0,0,0) 76%)',
+          mixBlendMode: 'screen',
+        }}
+      />
+    </div>
+  );
+}
+
 // A rivet seam running the full height of the shaft wall. Offsetting it modulo
 // the pitch makes it endless: the wall can travel any distance and the seam
 // never runs out or visibly restarts.
@@ -813,7 +1023,10 @@ function ShaftBack({ vw, vh, pos, floorPx }) {
                     <div
                       style={{
                         position: 'absolute', inset: 0,
-                        background: 'radial-gradient(ellipse 62% 46% at 50% 6%, rgba(255,196,116,0.34) 0%, rgba(255,170,80,0.08) 46%, rgba(0,0,0,0) 78%)',
+                        // tighter and hotter than it was: a wash across the
+                        // whole wall says the room is lit, a pool says it is lit
+                        // by something, and only the second one has a place in it
+                        background: 'radial-gradient(ellipse 46% 38% at 50% 0%, rgba(255,206,132,0.5) 0%, rgba(255,170,80,0.14) 42%, rgba(0,0,0,0) 74%)',
                         mixBlendMode: 'screen',
                       }}
                     />
@@ -1019,7 +1232,7 @@ function HoistRopes({ bottom }) {
 // wrapper *outside* the perspective element on purpose: `filter` flattens the
 // 3D rendering context of the element it is applied to, so putting it any
 // deeper would collapse the whole scene back into decals.
-function Shaft({ vw, vh, pos, floorPx, backFloorPx, blur }) {
+function Shaft({ vw, vh, pos, floorPx, backFloorPx, blur, lamps }) {
   const travelY = pos * floorPx;
   // the rail and the counterweight are shaft furniture, not the subject. Pushed
   // behind the cage bars and knocked back, they read as texture instead of
@@ -1071,6 +1284,13 @@ function Shaft({ vw, vh, pos, floorPx, backFloorPx, blur }) {
             <HoistRopes bottom={cwY - 15} />
             <Counterweight y={cwY} height={cwHeight} dir={-1} />
           </div>
+
+          {/* the lamps, bolted to the far wall either side of every doorway.
+              They are the only light in here, so they are also the only reason
+              anything else in the shaft is visible at all. */}
+          {lamps.map((L) => (
+            <Lamp key={L.id} p={L} lamps={lamps} />
+          ))}
         </div>
       </div>
     </div>
@@ -1100,7 +1320,7 @@ const POST_Z = [CAGE_FAR, CAGE_NEAR];
 
 // A horizontal deck — roof or floor. Hinged at one end and swung 90°, so its CSS
 // height becomes depth and its local y axis reads as distance from the viewer.
-function CageDeck({ y, vw, kind }) {
+function CageDeck({ y, vw, kind, shade, pool }) {
   const isRoof = kind === 'roof';
   const ribs = [0.16, 0.38, 0.6, 0.82];
   const inset = cageInset(vw);
@@ -1115,12 +1335,15 @@ function CageDeck({ y, vw, kind }) {
         transform: isRoof
           ? `translateZ(${CAGE_NEAR}px) rotateX(-90deg)`
           : `translateZ(${CAGE_FAR}px) rotateX(90deg)`,
-        ...surface(isRoof ? SURFACES.cageRoof : SURFACES.cageFloor),
+        ...surface(isRoof ? SURFACES.cageRoof : SURFACES.cageFloor, shade),
         boxShadow: isRoof
           ? 'inset 0 0 80px rgba(0,0,0,0.8)'
           : 'inset 0 0 80px rgba(0,0,0,0.55)',
       }}
     >
+      {/* the pool the lamps lay on this deck, drawn under the ironwork so the
+          ribs sit in it rather than on top of it */}
+      {pool && <div style={{ position: 'absolute', inset: 0, ...pool }} />}
       {/* cross members: evenly spaced in depth, so on screen they bunch up toward
           the far end. Nothing else in the scene shows recession this plainly. */}
       {ribs.map((r) => (
@@ -1165,7 +1388,7 @@ function CageDeck({ y, vw, kind }) {
 
 // A corner post. Two faces: the one pointing at the camera and the inboard side,
 // which is the one that actually varies as the post moves along the depth.
-function CagePost({ z, x, top, height, dir }) {
+function CagePost({ z, x, top, height, dir, shade }) {
   const W = 15;
   const D = 20;
   return (
@@ -1175,8 +1398,8 @@ function CagePost({ z, x, top, height, dir }) {
         transformStyle: 'preserve-3d', transform: `translateZ(${z}px)`,
       }}
     >
-      <div style={{ position: 'absolute', top: 0, left: -W / 2, width: W, height, transform: `translateZ(${D / 2}px)`, ...ironFace(58, 1.3) }} />
-      <div style={{ position: 'absolute', top: 0, left: (dir > 0 ? W / 2 : -W / 2) - D / 2, width: D, height, transform: `rotateY(${dir * 90}deg)`, ...ironFace(44, 0.55) }} />
+      <div style={{ position: 'absolute', top: 0, left: -W / 2, width: W, height, transform: `translateZ(${D / 2}px)`, ...ironFace(58, shade.front) }} />
+      <div style={{ position: 'absolute', top: 0, left: (dir > 0 ? W / 2 : -W / 2) - D / 2, width: D, height, transform: `rotateY(${dir * 90}deg)`, ...ironFace(44, shade.side * 0.92) }} />
     </div>
   );
 }
@@ -1187,10 +1410,17 @@ function CagePost({ z, x, top, height, dir }) {
 // the whole mesh compresses toward the far end. Painted into a plane that runs
 // along the depth, that compression is the projection's own doing — nothing here
 // is hand-tuned. It also stops the cage reading as a cell.
-function CageGate({ x, top, height, dir }) {
+function CageGate({ x, top, height, dir, nearShade, farShade }) {
   const g = SURFACES.cageGate;
   const mesh = (deg, colour, t) =>
     `repeating-linear-gradient(${deg}deg, ${colour} 0 ${t}px, rgba(0,0,0,0) ${t}px ${g.pitch}px)`;
+  // The two ends used to carry hand-set darkness. Now the overall level rides on
+  // a brightness filter and the gradient carries only the *ratio* between the
+  // ends — otherwise the two would be counting the same light twice, and the
+  // gate would go black the moment it moved away from a lamp.
+  const hi = Math.max(nearShade, farShade, 0.001);
+  const drop = Math.max(0, Math.min(0.92, 1 - Math.min(nearShade, farShade) / hi));
+  const veil = (s) => (s < hi ? drop : 0).toFixed(3);
   return (
     <div
       style={{
@@ -1200,10 +1430,9 @@ function CageGate({ x, top, height, dir }) {
         transformOrigin: dir > 0 ? '0% 50%' : '100% 50%',
         transform: `translateZ(${CAGE_NEAR}px) rotateY(${dir * 90}deg)`,
         backgroundImage: [
-          // the gate runs away from us, so the end nearest the eye is the end
-          // furthest from the lamp — without this it is the brightest thing in
-          // the frame and the shaft disappears behind it
-          `linear-gradient(90deg, rgba(6,4,2,${dir > 0 ? g.near : g.far}), rgba(6,4,2,${dir > 0 ? g.far : g.near}))`,
+          // local +x runs away from us on the left gate and toward us on the
+          // right one, which is why the ends are ordered by `dir`
+          `linear-gradient(90deg, rgba(6,4,2,${veil(dir > 0 ? nearShade : farShade)}), rgba(6,4,2,${veil(dir > 0 ? farShade : nearShade)}))`,
           mesh(58, g.bar, g.thickness),
           mesh(-58, g.bar, g.thickness),
           // a darker pass offset behind, so the flats have some body
@@ -1211,6 +1440,7 @@ function CageGate({ x, top, height, dir }) {
           mesh(-58, g.barDark, g.thickness + 3),
         ].join(', '),
         backgroundPosition: '0 0, 0 0, 0 0, 2px 2px, 2px 2px',
+        filter: `brightness(${Math.min(1.35, hi).toFixed(3)})`,
       }}
     />
   );
@@ -1218,7 +1448,7 @@ function CageGate({ x, top, height, dir }) {
 
 // A hand rail running the length of the cage. Built the same way as a shaft wall:
 // a plane hinged at the near end and swung 90°, so its CSS width is depth.
-function CageRail({ x, y, dir, h = 13 }) {
+function CageRail({ x, y, dir, h = 13, shade }) {
   const D = 18;
   const hinge = dir > 0 ? '0% 50%' : '100% 50%';
   return (
@@ -1229,7 +1459,7 @@ function CageRail({ x, y, dir, h = 13 }) {
           width: CAGE_DEPTH, height: h,
           transformOrigin: hinge,
           transform: `translateZ(${CAGE_NEAR}px) rotateY(${dir * 90}deg)`,
-          ...ironFace(48, 0.9),
+          ...ironFace(48, shade.side),
         }}
       />
       {/* the rail sits below eye level, so the face we look at is its top */}
@@ -1238,7 +1468,7 @@ function CageRail({ x, y, dir, h = 13 }) {
           position: 'absolute', top: y, left: x - D / 2, width: D, height: CAGE_DEPTH,
           transformOrigin: '50% 0%',
           transform: `translateZ(${CAGE_FAR}px) rotateX(90deg)`,
-          ...ironFace(38, 1.5),
+          ...ironFace(38, shade.top),
         }}
       />
     </>
@@ -1250,10 +1480,43 @@ function CageRail({ x, y, dir, h = 13 }) {
 // cage and the shaft line up exactly despite the flat content sandwiched between
 // them. It carries no motion blur on purpose: the cage rides with us, so it
 // staying sharp while the shaft smears is what sells the fact that we're in it.
-function CageFront({ vw, vh }) {
+function CageFront({ vw, vh, lamps }) {
   const floorY = vh * CAGE_FLOOR_Y;
   const postH = floorY - CAGE_ROOF_Y;
   const inset = cageInset(vw);
+  const midZ = (CAGE_NEAR + CAGE_FAR) / 2;
+  const midY = CAGE_ROOF_Y + postH / 2;
+  const railY = floorY - 300;
+
+  // Every face of the cage now asks the lamps how bright it should be. The
+  // numbers these replace (1.3 for a front face, 0.55 for an inboard one) were
+  // the right *idea* — the inboard face is turned away — but they were frozen,
+  // so nothing in the cage ever changed as the shaft moved past it. These do.
+  const face = (p, n) => lit(p, n, lamps);
+  const post = (x, z, dir) => ({
+    front: face([x, midY, z], [0, 0, 1]),
+    side: face([x, midY, z], [dir, 0, 0]),
+  });
+
+  // Where the light gathers on a horizontal deck. This is not a projection: the
+  // bright spot of a point source on a plane is the foot of the perpendicular,
+  // and for a lamp out at the far wall that foot lands well past the deck's own
+  // far edge. So what reaches the floor is the shoulder of the falloff, pooled
+  // along the lip you would step off — which is where light from a doorway
+  // belongs, and is not somewhere I would have thought to paint it.
+  const pool = (deckY, isRoof) => {
+    if (!lamps.length) return null;
+    const n = isRoof ? [0, 1, 0] : [0, -1, 0];
+    const near = [...lamps].sort((a, b) => Math.abs(a.y - deckY) - Math.abs(b.y - deckY)).slice(0, 2);
+    const layers = near.map((L) => {
+      const lx = ((L.x - inset) / (vw - inset * 2)) * 100;
+      const ly = (((isRoof ? CAGE_NEAR - L.z : L.z - CAGE_FAR) / CAGE_DEPTH) * 100);
+      const i = Math.min(0.62, Math.max(0, lit([L.x, deckY, L.z], n, [L]) - LIGHT_AMBIENT) * 0.3);
+      return `radial-gradient(circle ${Math.round(CAGE_DEPTH * 2.1)}px at ${lx.toFixed(1)}% ${ly.toFixed(1)}%, rgba(255,208,146,${i.toFixed(3)}) 0%, rgba(255,168,80,${(i * 0.34).toFixed(3)}) 40%, rgba(0,0,0,0) 74%)`;
+    });
+    return { backgroundImage: layers.join(', '), backgroundBlendMode: 'screen', mixBlendMode: 'screen' };
+  };
+
   return (
     <div style={{ position: 'absolute', inset: 0, zIndex: 4, pointerEvents: 'none' }}>
       <div
@@ -1264,47 +1527,78 @@ function CageFront({ vw, vh }) {
         }}
       >
         <div style={{ position: 'absolute', inset: 0, transformStyle: 'preserve-3d' }}>
-          <CageDeck kind="roof" y={CAGE_ROOF_Y} vw={vw} />
-          <CageDeck kind="floor" y={floorY} vw={vw} />
+          <CageDeck kind="roof" y={CAGE_ROOF_Y} vw={vw} shade={face([vw / 2, CAGE_ROOF_Y, midZ], [0, 1, 0])} pool={pool(CAGE_ROOF_Y, true)} />
+          <CageDeck kind="floor" y={floorY} vw={vw} shade={face([vw / 2, floorY, midZ], [0, -1, 0])} pool={pool(floorY, false)} />
           {POST_Z.map((z) => (
-            <CagePost key={`l${z}`} z={z} x={inset} top={CAGE_ROOF_Y} height={postH} dir={1} />
+            <CagePost key={`l${z}`} z={z} x={inset} top={CAGE_ROOF_Y} height={postH} dir={1} shade={post(inset, z, 1)} />
           ))}
           {POST_Z.map((z) => (
-            <CagePost key={`r${z}`} z={z} x={vw - inset} top={CAGE_ROOF_Y} height={postH} dir={-1} />
+            <CagePost key={`r${z}`} z={z} x={vw - inset} top={CAGE_ROOF_Y} height={postH} dir={-1} shade={post(vw - inset, z, -1)} />
           ))}
-          <CageGate x={inset} top={CAGE_ROOF_Y} height={postH} dir={1} />
-          <CageGate x={vw - inset} top={CAGE_ROOF_Y} height={postH} dir={-1} />
-          <CageRail x={inset} y={floorY - 300} dir={1} />
-          <CageRail x={vw - inset} y={floorY - 300} dir={-1} />
+          <CageGate
+            x={inset} top={CAGE_ROOF_Y} height={postH} dir={1}
+            nearShade={face([inset, midY, CAGE_NEAR], [1, 0, 0])}
+            farShade={face([inset, midY, CAGE_FAR], [1, 0, 0])}
+          />
+          <CageGate
+            x={vw - inset} top={CAGE_ROOF_Y} height={postH} dir={-1}
+            nearShade={face([vw - inset, midY, CAGE_NEAR], [-1, 0, 0])}
+            farShade={face([vw - inset, midY, CAGE_FAR], [-1, 0, 0])}
+          />
+          <CageRail x={inset} y={railY} dir={1} shade={{ side: face([inset, railY, midZ], [1, 0, 0]), top: face([inset, railY, midZ], [0, -1, 0]) }} />
+          <CageRail x={vw - inset} y={railY} dir={-1} shade={{ side: face([vw - inset, railY, midZ], [-1, 0, 0]), top: face([vw - inset, railY, midZ], [0, -1, 0]) }} />
         </div>
       </div>
     </div>
   );
 }
 
-// Two sources, each switchable on its own so they can be judged apart.
-const LIGHTS = { cage: true, landing: true };
+// The remaining switches. `cage` is gone: it was never a light. It was a black
+// ellipse over the whole frame, which is why switching it off made the picture
+// brighter — a vignette wearing a lamp's name. It is called what it is now, and
+// the cage is lit by the shaft lamps, from LAMPS above.
+const LIGHTS = { landing: true, vignette: true };
 // How a departing deck leaves the opening: 'clip' streams it on behind the
 // closing leaves, 'fade' dims it out where it stands.
 const CONTENT_EXIT = 'clip';
 
-// The cage lamp is bolted to the cage, and the cage does not move relative to the
-// camera — so its falloff is static in screen space and costs one gradient rather
-// than a per-object calculation. It is also what finally gives the guide rail a
-// vertical gradient: the rail can't converge, so brightness varying along its
-// length is the only volume it will ever get.
+// The things in front of everything that are not surfaces.
+//
+// The haze is as close to volumetric as this gets. Real volume means integrating
+// the light along the ray, which means a renderer. What this does instead is
+// stand one soft disc per lamp on the sight line to that lamp, in front of the
+// cage, so the glow washes over the ironwork instead of stopping behind it.
+// That buys the one thing volume is actually for here: you can tell there is
+// air in the shaft, and a lamp going past sweeps through it.
 //
 // The landing light spills out of the doorway and therefore only exists while
 // the doors are open, which makes arrival read as arrival.
-function Lighting({ ap, closure }) {
+function Lighting({ ap, closure, lamps, vw, vh }) {
   const spill = 1 - closure;
   return (
     <div style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none' }}>
-      {LIGHTS.cage && (
+      {LAMPS.haze > 0 && lamps.map((L) => {
+        const q = project([L.x, L.y, L.z], vw, vh);
+        if (q.y < -vh * 0.5 || q.y > vh * 1.5) return null;
+        const r = LAMPS.size * 2.4 * q.s;
+        const a = LAMPS.haze * 0.3;
+        return (
+          <div
+            key={L.id}
+            style={{
+              position: 'absolute', left: q.x - r, top: q.y - r, width: r * 2, height: r * 2,
+              borderRadius: '50%',
+              background: `radial-gradient(circle at 50% 50%, rgba(255,208,150,${a.toFixed(3)}) 0%, rgba(255,160,70,${(a * 0.3).toFixed(3)}) 38%, rgba(0,0,0,0) 72%)`,
+              mixBlendMode: 'screen',
+            }}
+          />
+        );
+      })}
+      {LIGHTS.vignette && (
         <div
           style={{
             position: 'absolute', inset: 0,
-            background: `radial-gradient(ellipse 94% 86% at 50% ${(CAM_ORIGIN_Y * 100).toFixed(0)}%, rgba(0,0,0,0) 0%, rgba(0,0,0,0.22) 62%, rgba(6,4,2,0.8) 100%)`,
+            background: `radial-gradient(ellipse 96% 90% at 50% ${(CAM_ORIGIN_Y * 100).toFixed(0)}%, rgba(0,0,0,0) 0%, rgba(0,0,0,0.14) 66%, rgba(6,4,2,0.6) 100%)`,
           }}
         />
       )}
@@ -1407,29 +1701,10 @@ function FloorSelector({ pos, deck, moving, go }) {
   );
 }
 
-// Light strips bolted into the shaft between decks. They sweep across the
-// content as you pass them, which is what makes the ride feel like it happens
-// in a space rather than to a layer.
-function PassingLights({ pos, vh, step, gap }) {
-  return DECKS.slice(0, -1).map((_, f) => {
-    // centre of the dead shaft between deck f and deck f+1, in screen space —
-    // at rest this sits a full half-gap outside the viewport on either side
-    const y = (pos - f) * step - gap / 2;
-    if (y < -140 || y > vh + 140) return null;
-    return (
-      <div
-        key={f}
-        style={{
-          position: 'absolute', left: 0, right: 0, top: y, height: 3,
-          background: 'linear-gradient(90deg, transparent, rgba(255,190,110,0.85), transparent)',
-          boxShadow: '0 0 40px 14px rgba(255,170,70,0.28)',
-          mixBlendMode: 'screen',
-          zIndex: 4, pointerEvents: 'none',
-        }}
-      />
-    );
-  });
-}
+// The glowing strips that used to mark the shaft between decks lived here. They
+// were a stand-in for fixtures that did not exist — a light with no lamp, drawn
+// in screen space in front of everything. The lamps at the half-floor levels do
+// the same job now, from inside the scene and at the right depth.
 
 function DeckHeading({ children }) {
   return (
@@ -1665,10 +1940,11 @@ export default function Dieselpunk() {
   const headInset = winW / 2 + (cageInset(winW) - winW / 2) * (CAM_PERSPECTIVE / (CAM_PERSPECTIVE - CAGE_FAR));
   const speed = Math.abs(velocity);
   const blurAmount = Math.min(16, speed * 5.5);
-  // between two decks the shaft is unlit, so the content genuinely goes dark
-  // mid-ride instead of sliding past in full view
-  const frac = pos - Math.floor(pos);
-  const darkness = moving ? Math.sin(frac * Math.PI) * 0.32 : 0;
+  // The lamps, for this position of the shaft. Everything that gets lit is
+  // handed this same list, so the cage, the fixtures and the haze cannot
+  // disagree about where the light is coming from — which is the entire reason
+  // for computing it once rather than painting it three times.
+  const lamps = lampsAt(winW, vh, pos, step);
   // the decks get a touch of the same vertical smear — razor-sharp text flying
   // past at speed is the giveaway that nothing is really moving
   const contentSmear = Math.min(3.2, speed * 1.1);
@@ -1712,6 +1988,7 @@ export default function Dieselpunk() {
         vw={winW} vh={vh} pos={pos}
         floorPx={floorPxWall} backFloorPx={step}
         blur={blurAmount}
+        lamps={lamps}
       />
 
       <div style={{ pointerEvents: 'auto' }}>
@@ -1767,16 +2044,17 @@ export default function Dieselpunk() {
         closure={closure} shake={shake} blur={blurAmount}
       />
 
-      <PassingLights pos={pos} vh={vh} step={step} gap={gap} />
-
-      {/* the shaft is unlit between decks */}
-      <div style={{ position: 'absolute', inset: 0, background: '#0b0705', opacity: darkness.toFixed(3), pointerEvents: 'none', zIndex: 3 }} />
+      {/* The blanket of black that used to be laid over everything mid-ride has
+          gone. It was there because the shaft had no lights, so "between floors
+          is dark" had to be asserted; with fixtures at the half-floor levels the
+          scene darkens and brightens on its own, and painting over it would only
+          hide the thing we just built. */}
 
       {/* the cage rides with us, not with the shaft, and draws in front of the
           content because it is nearer than the landing the content sits on */}
-      <CageFront vw={winW} vh={vh} />
+      <CageFront vw={winW} vh={vh} lamps={lamps} />
 
-      <Lighting ap={ap} closure={closure} />
+      <Lighting ap={ap} closure={closure} lamps={lamps} vw={winW} vh={vh} />
 
       {/* The selector is mounted on the cage, not above the landing door. A lift's
           floor buttons live in the cabin — and had they gone on the shaft wall
