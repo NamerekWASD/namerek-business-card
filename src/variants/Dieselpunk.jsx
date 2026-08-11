@@ -141,36 +141,50 @@ function useLift() {
   return { deck, pos, velocity, go, moving: !!ride, scrub, setScrub };
 }
 
-function Platform() {
+// The deck plate we are standing on. It belongs to the cage, not to any floor,
+// so it never rides with the shaft — which makes it the one fixed thing at the
+// bottom of the frame while everything behind it streams past. The taper runs
+// narrow at the far edge and full width at the near one, so its silhouette
+// meets the hazard stripe and front face without a step.
+function CabinFloor() {
   return (
-    <div style={{ position: 'relative', marginTop: '2.4rem', height: 76 }}>
+    <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 84, pointerEvents: 'none' }}>
       <div
         style={{
-          position: 'absolute', top: 0, left: 0, right: 0, height: 26,
+          position: 'absolute', top: 0, left: 0, right: 0, height: 30,
           backgroundImage: `linear-gradient(180deg, #8a683d, #4a3520), url(${rustBrass})`,
           backgroundSize: 'auto, 180px 180px',
           backgroundBlendMode: 'multiply',
-          clipPath: 'polygon(4% 0, 96% 0, 100% 100%, 0 100%)',
+          clipPath: 'polygon(5% 0, 95% 0, 100% 100%, 0 100%)',
           boxShadow: 'inset 0 2px 0 rgba(255,255,255,0.3)',
         }}
       />
       <div
         style={{
-          position: 'absolute', top: 24, left: 0, right: 0, height: 6,
+          position: 'absolute', top: 28, left: 0, right: 0, height: 7,
           backgroundImage: 'repeating-linear-gradient(45deg, #d9a531 0px, #d9a531 10px, #241a10 10px, #241a10 20px)',
           boxShadow: '0 1px 0 rgba(0,0,0,0.6)',
         }}
       />
       <div
         style={{
-          position: 'absolute', top: 30, left: 0, right: 0, bottom: 0, borderRadius: '0 0 3px 3px', overflow: 'hidden',
-          backgroundImage: `linear-gradient(180deg, #2e2013, #1c130b), url(${rustBrass})`,
+          position: 'absolute', top: 35, left: 0, right: 0, bottom: 0, overflow: 'hidden',
+          backgroundImage: `linear-gradient(180deg, #2e2013, #150e08), url(${rustBrass})`,
           backgroundSize: 'auto, 220px 220px',
           backgroundBlendMode: 'multiply',
-          boxShadow: '0 30px 44px -8px rgba(0,0,0,0.75), inset 0 1px 0 rgba(255,255,255,0.08)',
+          boxShadow: '0 -22px 34px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.08)',
         }}
       >
-        <Rivets />
+        {Array.from({ length: 40 }).map((_, i) => (
+          <span
+            key={i}
+            style={{
+              position: 'absolute', top: 10, left: `${(i + 0.5) * 2.5}%`, width: 6, height: 6, borderRadius: '50%',
+              background: 'var(--rivet)',
+              boxShadow: 'inset 0 1px 1px rgba(0,0,0,0.7), 0 1px 0 rgba(255,255,255,0.06)',
+            }}
+          />
+        ))}
       </div>
     </div>
   );
@@ -778,7 +792,7 @@ function LandingDoor({ top, height, no, innerEdge }) {
 // you only ever meet it once in a real lift.
 function Counterweight({ y, height }) {
   return (
-    <div style={{ position: 'absolute', top: y, height, left: '50%', width: 54, marginLeft: -27 }}>
+    <div style={{ position: 'absolute', top: y, height, left: '50%', width: 54, marginLeft: -34 }}>
       <div
         style={{
           position: 'absolute', inset: 0, borderRadius: 2,
@@ -793,7 +807,7 @@ function Counterweight({ y, height }) {
       <div
         style={{
           position: 'absolute', inset: '14px 5px 6px',
-          backgroundImage: 'repeating-linear-gradient(180deg, rgba(255,255,255,0.09) 0px, rgba(255,255,255,0.09) 1px, transparent 1px, transparent 17px)',
+          backgroundImage: 'repeating-linear-gradient(180deg, rgba(255,255,255,0.09) 0px, rgba(255,255,255,0.09) 1px, transparent 1px, transparent 26px)',
         }}
       />
       {/* the crosshead the ropes terminate in — without it the block is just a
@@ -811,7 +825,7 @@ function Counterweight({ y, height }) {
           style={{
             position: 'absolute', top: -22, left: `calc(50% + ${dx}px)`, marginLeft: -3.5,
             width: 7, height: 11, borderRadius: 2,
-            background: 'linear-gradient(90deg, #23282c, #99a4ac 50%, #23282c)',
+            background: 'linear-gradient(90deg, #23282c, #4b545a 50%, #23282c)',
           }}
         />
       ))}
@@ -819,18 +833,12 @@ function Counterweight({ y, height }) {
   );
 }
 
-// The ropes run from the sheave at the top of the shaft down to the
-// counterweight's crosshead and stop there — drawn past it they read as the
-// block dangling from below, which is backwards.
-function HoistRopes({ bottom }) {
-  const TOP = -4000;
-  const height = Math.max(0, bottom - TOP);
-  if (height <= 0) return null;
+function HoistRopes() {
   return [-13, 0, 13].map((dx) => (
     <div
       key={dx}
       style={{
-        position: 'absolute', top: TOP, height, left: `calc(50% + ${dx}px)`, width: 3, marginLeft: -1.5,
+        position: 'absolute', top: '-60%', height: '220%', left: `calc(60% + ${dx}px)`, width: 3, marginLeft: -9.5,
         background: 'linear-gradient(90deg, #14171a, #8f9aa2 50%, #14171a)',
         opacity: 0.85,
       }}
@@ -848,7 +856,7 @@ function ShaftRivets({ offset, edge, inset }) {
     <span
       key={i}
       style={{
-        position: 'absolute', top: i * PITCH - PITCH + shift, [edge]: inset,
+        position: 'absolute', top: i * PITCH - PITCH + shift, [edge]: inset + (edge === 'right' ? 6 : 0),
         width: 6, height: 6, borderRadius: '50%',
         background: 'var(--rivet)',
         boxShadow: 'inset 0 1px 1px rgba(0,0,0,0.7), 0 1px 0 rgba(255,255,255,0.06)',
@@ -1025,7 +1033,7 @@ function ControlPanel({ side, width = 70, simple = false, roomP = 1, pos = 0, fl
         >
           {simple ? (
             <>
-              <HoistRopes bottom={cwY - 12} />
+              <HoistRopes />
               <Counterweight y={cwY} height={cwHeight} />
             </>
           ) : (
@@ -1287,9 +1295,6 @@ function StartDeck({ lag, pos }) {
         Baue Systeme, die tragen &mdash; von der Datenbank bis zur Oberfl&auml;che.
         Offen f&uuml;r neue Aufgaben im Ruhrgebiet / NRW.
       </p>
-      <div style={{ transform: `translateY(${(lag * 1.6).toFixed(2)}px)` }}>
-        <Platform />
-      </div>
       </div>
 
       <div style={{ flex: '0 1 260px', display: 'flex', justifyContent: 'center', transform: `translateY(${(lag * 0.7).toFixed(2)}px)` }}>
@@ -1462,7 +1467,8 @@ export default function Dieselpunk() {
                 style={{
                   position: 'absolute', left: 0, right: 0, top: -i * step, height: vh,
                   display: 'flex', flexDirection: 'column', justifyContent: 'center',
-                  padding: '5.5rem 1.5rem 3rem',
+                  // bottom clears the cage floor so no deck sits on top of it
+                  padding: '5.5rem 1.5rem 7.5rem',
                   boxSizing: 'border-box',
                 }}
               >
@@ -1483,7 +1489,12 @@ export default function Dieselpunk() {
       {/* the cabin's own opening — decks slide away behind these edges rather
           than off a bare viewport boundary */}
       <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 90, background: 'linear-gradient(180deg, rgba(8,5,3,0.92), transparent)', pointerEvents: 'none', zIndex: 3 }} />
-      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 110, background: 'linear-gradient(0deg, rgba(8,5,3,0.92), transparent)', pointerEvents: 'none', zIndex: 3 }} />
+      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 150, background: 'linear-gradient(0deg, rgba(8,5,3,0.95), transparent)', pointerEvents: 'none', zIndex: 3 }} />
+
+      {/* the cage floor rides with us, not with the shaft */}
+      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 5, pointerEvents: 'none' }}>
+        <CabinFloor />
+      </div>
 
       {/* the selector rides with the cabin, not with the floor */}
       <div
