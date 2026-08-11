@@ -138,7 +138,21 @@ function useLift() {
     velocity = (ride.to - ride.from) * ((b - a) / (2 * d)) / (dur / 1000);
   }
 
-  return { deck, pos, velocity, go, moving: !!ride, scrub, setScrub };
+  // raw (un-eased) ride progress, which is what the doors key off: they need to
+  // track the phases of the trip, not the distance covered
+  return { deck, pos, velocity, go, moving: !!ride, scrub, setScrub, ridePhase: ride ? ride.p : null };
+}
+
+// Landing doors, folded into the ride rather than added to it. Closing runs over
+// the acceleration phase and opening over the braking phase, so the trip gains
+// no time at all — deliberately lengthening a transition to fit an animation in
+// is how a transition starts to feel like a toll.
+function doorClosure(phase) {
+  if (phase == null) return 0;
+  if (phase < ACCEL) return phase / ACCEL;
+  const openFrom = ACCEL + CRUISE;
+  if (phase < openFrom) return 1;
+  return 1 - (phase - openFrom) / DECEL;
 }
 
 // The deck plate we are standing on. It belongs to the cage, not to any floor,
@@ -670,38 +684,194 @@ function ShaftRivets({ offset, depth, span, nearEdge }) {
   ));
 }
 
-// The shaft-side landing door at each deck: what makes one stretch of shaft
-// distinguishable from the next as it goes by. Drawn flat on the wall plane, so
-// the camera foreshortens it for free — no hand-tuned squash.
-function LandingDoor({ top, height, depth, width, no, nearEdge }) {
+// ── the back of the shaft ────────────────────────────────────────────────────
+// Everything at the far end scales by this, so the aperture's position on screen
+// is known analytically and the flat content layer can be clipped to it exactly.
+const BACK_SCALE = CAM_PERSPECTIVE / (CAM_PERSPECTIVE + SHAFT_DEPTH);
+const DOOR_W = 0.78; // fraction of the shaft's width
+const DOOR_H = 0.78; // fraction of its height
+// The landing is a shallow recess, not a room. The recess is the whole point:
+// it gives the doorway a reveal — four surfaces at a grazing angle to the camera,
+// which is the one kind of surface that carries volume. A deep room would only
+// hang the flat content in a bigger void.
+const NICHE_D = 90;
+
+// One identifying object per landing, so a floor is somewhere rather than a
+// number. Parked low and to one side, clear of the centred content.
+// Parked low and to one side, clear of the centred content, and lit well above
+// the wall around it — a prop the eye can't find is not a landmark. The
+// brightness lives on this wrapper because `ironFace` sets `filter` itself, and
+// spreading it over the base style silently ate the value.
+function LandingProp({ idx }) {
   return (
-    <div style={{ position: 'absolute', top, height, [nearEdge]: depth, width }}>
-      <div style={{ position: 'absolute', left: -4, right: -4, top: -8, height: 8, ...ironFace(60, 1.5), boxShadow: '0 2px 5px rgba(0,0,0,0.7)' }} />
-      <div style={{ position: 'absolute', left: -4, right: -4, bottom: -8, height: 8, ...ironFace(60, 1.25), boxShadow: '0 -2px 5px rgba(0,0,0,0.7)' }} />
+    <div style={{ position: 'absolute', right: '7%', bottom: '6%', filter: 'brightness(1.85)' }}>
+      <PropBody idx={idx} />
+    </div>
+  );
+}
+
+function PropBody({ idx }) {
+  const base = { position: 'relative' };
+  if (idx === 1) {
+    // a tool board
+    return (
+      <div style={{ ...base, width: 150, height: 108, ...ironFace(60, 0.8), boxShadow: 'inset 0 0 0 2px rgba(0,0,0,0.5)' }}>
+        <div style={{ position: 'absolute', left: 0, right: 0, top: 26, height: 4, background: 'rgba(0,0,0,0.55)' }} />
+        {[14, 44, 74, 104].map((x, i) => (
+          <div
+            key={x}
+            style={{
+              position: 'absolute', left: x, top: 30, width: i % 2 ? 9 : 13, height: 44 + (i % 3) * 14,
+              background: 'linear-gradient(180deg, #7b848b, #2b3034)', borderRadius: 2,
+              boxShadow: '1px 2px 4px rgba(0,0,0,0.6)',
+            }}
+          />
+        ))}
+      </div>
+    );
+  }
+  if (idx === 2) {
+    // stacked crates, stencilled
+    return (
+      <div style={{ ...base, width: 170, height: 130 }}>
+        {[{ x: 0, y: 46, w: 100, h: 84 }, { x: 92, y: 66, w: 78, h: 64 }, { x: 22, y: 0, w: 70, h: 48 }].map((c, i) => (
+          <div
+            key={i}
+            style={{
+              position: 'absolute', left: c.x, top: c.y, width: c.w, height: c.h,
+              backgroundImage: `linear-gradient(170deg, #6b4f2c, #3a2914), url(${rustBrass})`,
+              backgroundSize: 'auto, 90px 90px', backgroundBlendMode: 'multiply',
+              boxShadow: 'inset 0 0 0 2px rgba(0,0,0,0.45), 2px 3px 7px rgba(0,0,0,0.55)',
+            }}
+          >
+            <div style={{ position: 'absolute', left: '10%', right: '10%', top: '42%', height: 3, background: 'rgba(216,178,110,0.4)' }} />
+            <div style={{ position: 'absolute', left: '10%', top: '14%', fontFamily: 'var(--mono)', fontSize: 11, color: 'rgba(216,178,110,0.5)' }}>MT</div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  if (idx === 3) {
+    // a pneumatic mail chute
+    return (
+      <div style={{ ...base, width: 96, height: 190 }}>
+        <div style={{ position: 'absolute', left: 26, top: 0, bottom: 34, width: 44, ...steelFace(50, 0.85), borderRadius: 4, boxShadow: 'inset -6px 0 10px rgba(0,0,0,0.5)' }} />
+        {[30, 78, 126].map((y) => (
+          <div key={y} style={{ position: 'absolute', left: 18, top: y, width: 60, height: 11, ...ironFace(40, 1.2), borderRadius: 3, boxShadow: '0 2px 4px rgba(0,0,0,0.6)' }} />
+        ))}
+        <div style={{ position: 'absolute', left: 8, bottom: 0, width: 80, height: 34, ...ironFace(52, 1.05), borderRadius: 3 }}>
+          <div style={{ position: 'absolute', inset: '9px 12px', background: 'rgba(0,0,0,0.75)', boxShadow: 'inset 0 2px 5px rgba(0,0,0,0.9)' }} />
+        </div>
+      </div>
+    );
+  }
+  // deck 01 — the landing's own floor plate
+  return (
+    <div style={{ ...base, width: 128, height: 84, ...ironFace(56, 1.15), borderRadius: 3, boxShadow: 'inset 0 0 0 2px rgba(0,0,0,0.45), 0 3px 8px rgba(0,0,0,0.5)' }}>
+      <div style={{ position: 'absolute', inset: 8, border: '2px solid rgba(216,178,110,0.35)' }} />
       <div
         style={{
-          position: 'absolute', inset: 0,
-          backgroundImage: `linear-gradient(180deg, #3d2e1e, #261c11), url(${rustBrass})`,
-          backgroundSize: 'auto, 150px 150px',
-          backgroundBlendMode: 'multiply',
-          boxShadow: 'inset 0 0 14px rgba(0,0,0,0.75), inset 0 0 0 1px rgba(150,113,63,0.5)',
+          position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontFamily: 'var(--mono)', fontSize: 34, fontWeight: 700, letterSpacing: 3,
+          color: 'rgba(216,178,110,0.55)', textShadow: '0 1px 0 rgba(0,0,0,0.7)',
         }}
-      />
-      <div style={{ position: 'absolute', top: 10, bottom: 26, left: '50%', width: 2, marginLeft: -1, background: 'rgba(0,0,0,0.8)', boxShadow: '1px 0 0 rgba(194,144,63,0.18)' }} />
+      >
+        EG
+      </div>
+    </div>
+  );
+}
+
+// One floor's doorway, drawn on the back plane. The leaves ride in their own
+// clipped, flattened layer so they vanish behind the jambs when they retract.
+function Landing({ vw, vh, top, no, idx, closure }) {
+  const w = vw * DOOR_W;
+  const h = vh * DOOR_H;
+  const left = (vw - w) / 2;
+  // The reveal has to be the brightest thing in the frame or the wall reads as a
+  // printed rectangle rather than something with thickness. Each jamb is graded
+  // along its own depth — bright at the opening where the cage lamp reaches it,
+  // falling off into the recess — which is the one lighting cue a flat face can
+  // carry honestly, because here the gradient really does run along the z axis.
+  const jambFace = (nearFirst) => ({
+    backgroundImage:
+      `linear-gradient(90deg, ${nearFirst ? '#c99a5c, #2b1e11' : '#2b1e11, #c99a5c'}), url(${rustBrass})`,
+    backgroundSize: `auto, 70px 70px`,
+    // soft-light, not multiply: multiplying a mid-tone rust tile over this crushes
+    // the very highlight the reveal exists to show
+    backgroundBlendMode: 'soft-light',
+  });
+  return (
+    <div style={{ position: 'absolute', left, top, width: w, height: h, transformStyle: 'preserve-3d' }}>
+      {/* the landing itself, recessed. Dark and warm: the content has to be
+          readable on it, and a busy rust tile behind body text is unreadable. */}
       <div
         style={{
-          position: 'absolute', left: 5, right: 5, bottom: 8, height: 9,
-          backgroundImage: 'repeating-linear-gradient(45deg, #b8862a 0px, #b8862a 7px, #241a10 7px, #241a10 14px)',
-          opacity: 0.8,
+          position: 'absolute', inset: 0, transform: `translateZ(${-NICHE_D}px)`,
+          backgroundImage:
+            'radial-gradient(ellipse 66% 52% at 50% 14%, rgba(74,50,26,0.42) 0%, rgba(0,0,0,0) 74%),'
+            + `linear-gradient(180deg, rgba(20,14,8,0.9), rgba(9,6,3,0.96)), url(${rustBrass})`,
+          backgroundSize: 'auto, auto, 200px 200px',
+          backgroundBlendMode: 'screen, normal, multiply',
+          boxShadow: 'inset 0 0 90px rgba(0,0,0,0.75)',
+          overflow: 'hidden',
         }}
-      />
+      >
+        <LandingProp idx={idx} />
+      </div>
+
+      {/* the reveal: four faces bridging the wall to the landing, every one of
+          them steeply angled to the camera */}
+      <div style={{ position: 'absolute', left: 0, top: 0, width: NICHE_D, height: h, transformOrigin: '0% 50%', transform: 'rotateY(90deg)', ...jambFace(true) }} />
+      <div style={{ position: 'absolute', right: 0, top: 0, width: NICHE_D, height: h, transformOrigin: '100% 50%', transform: 'rotateY(-90deg)', ...jambFace(false) }} />
+      {/* the head is a soffit we look up at, so it stays dark; the sill catches
+          the light square on */}
+      <div style={{ position: 'absolute', left: 0, top: 0, width: w, height: NICHE_D, transformOrigin: '50% 0%', transform: 'rotateX(-90deg)', ...ironFace(52, 0.4) }} />
+      <div style={{ position: 'absolute', left: 0, top: h, width: w, height: NICHE_D, transformOrigin: '50% 0%', transform: 'rotateX(-90deg)', ...ironFace(52, 1.7) }} />
+      {/* the lip of the opening itself */}
+      <div style={{ position: 'absolute', inset: -3, border: '3px solid rgba(150,113,63,0.32)', boxShadow: '0 0 14px rgba(0,0,0,0.8)' }} />
+
+      {/* the leaves */}
+      <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', transform: 'translateZ(5px)' }}>
+        {[0, 1].map((s) => (
+          <div
+            key={s}
+            style={{
+              position: 'absolute', top: 0, height: '100%', width: '50%',
+              left: s ? '50%' : 0,
+              transform: `translateX(${(s ? 1 - closure : closure - 1) * 100}%)`,
+              backgroundImage: `linear-gradient(${s ? '260deg' : '100deg'}, #46341f, #241a11), url(${rustBrass})`,
+              backgroundSize: 'auto, 170px 170px',
+              backgroundBlendMode: 'multiply',
+              boxShadow: `inset 0 0 26px rgba(0,0,0,0.7), ${s ? '-' : ''}3px 0 12px rgba(0,0,0,0.8)`,
+            }}
+          >
+            <div style={{ position: 'absolute', top: '7%', bottom: '7%', [s ? 'left' : 'right']: 9, width: 3, background: 'rgba(0,0,0,0.55)' }} />
+            <div
+              style={{
+                position: 'absolute', left: '8%', right: '8%', bottom: '7%', height: 12,
+                backgroundImage: 'repeating-linear-gradient(45deg, #b8862a 0px, #b8862a 9px, #241a10 9px, #241a10 18px)',
+                opacity: 0.75,
+              }}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* floor number, above the opening on the shaft wall itself */}
       <div
         style={{
-          position: 'absolute', top: -30, left: '50%', marginLeft: -19, width: 38, height: 19,
+          position: 'absolute', left: '50%', top: 14, marginLeft: -32, width: 64, height: 32,
+          // inside the head of the opening, and in front of the leaves. Above the
+          // opening it fouled the cage roof on short windows, and level with the
+          // wall it was buried by the spandrel of the slot above — same depth,
+          // drawn later. In front of the doors it also stays readable as a closed
+          // landing goes by.
+          transform: 'translateZ(9px)',
           background: 'var(--screen)', borderRadius: 2,
-          boxShadow: 'inset 0 1px 4px rgba(0,0,0,0.9), 0 0 0 1px rgba(96,73,44,0.55)',
-          fontFamily: 'var(--mono)', fontSize: 11, lineHeight: '19px', textAlign: 'center',
-          color: 'var(--glow)', textShadow: '0 0 6px rgba(255,180,84,0.7)',
+          boxShadow: 'inset 0 1px 5px rgba(0,0,0,0.9), 0 0 0 1px rgba(96,73,44,0.55)',
+          fontFamily: 'var(--mono)', fontSize: 19, lineHeight: '32px', textAlign: 'center',
+          color: 'var(--glow)', textShadow: '0 0 8px rgba(255,180,84,0.7)',
         }}
       >
         {no}
@@ -710,18 +880,72 @@ function LandingDoor({ top, height, depth, width, no, nearEdge }) {
   );
 }
 
+// The far wall of the shaft, carrying a doorway per floor. It scrolls at the
+// content's rate rather than the walls' — the walls keep their parallax cheat,
+// but a door has to stay glued to the content it frames.
+function ShaftBack({ vw, vh, pos, floorPx, closure, roomP }) {
+  const travelY = pos * floorPx;
+  const overscan = vh * 0.7;
+  const w = vw * DOOR_W;
+  const h = vh * DOOR_H;
+  const left = (vw - w) / 2;
+  const doorTop = (f) => overscan + travelY - f * floorPx + vh * CAM_ORIGIN_Y - h / 2;
+
+  // The blind wall is built from strips around the openings rather than one solid
+  // plane. It has to be an actual hole: the landing is recessed *behind* this
+  // plane, so a full-width background — however dark — simply occludes it, and
+  // the recess and everything standing in it never paint at all.
+  const wall = {
+    backgroundImage: `linear-gradient(180deg, rgba(9,6,3,0.88), rgba(9,6,3,0.88)), url(${rustBrass})`,
+    backgroundSize: `auto, 180px 180px`,
+    backgroundPosition: `0 0, 0 ${travelY.toFixed(1)}px`,
+    backgroundBlendMode: 'normal, multiply',
+  };
+  // one slot per floor plus dead shaft above and below, so the wall never runs out
+  const here = Math.round(pos);
+  const slots = [here - 3, here - 2, here - 1, here, here + 1, here + 2, here + 3];
+
+  return (
+    <div
+      style={{
+        position: 'absolute', left: 0, top: -overscan, width: vw, height: vh + overscan * 2,
+        transform: `translateZ(${-SHAFT_DEPTH}px)`,
+        transformStyle: 'preserve-3d',
+      }}
+    >
+      {/* the piers flanking every opening, continuous the whole way up */}
+      <div style={{ position: 'absolute', left: 0, top: 0, width: left, height: '100%', ...wall, boxShadow: 'inset -40px 0 60px rgba(0,0,0,0.75)' }} />
+      <div style={{ position: 'absolute', left: left + w, top: 0, width: vw - left - w, height: '100%', ...wall, boxShadow: 'inset 40px 0 60px rgba(0,0,0,0.75)' }} />
+
+      {slots.map((f) => {
+        const isDeck = f >= 0 && f < DECKS.length;
+        return (
+          <div key={f}>
+            {/* the spandrel between this opening and the one above it */}
+            <div style={{ position: 'absolute', left, top: doorTop(f) + h, width: w, height: floorPx - h, ...wall, boxShadow: 'inset 0 30px 50px rgba(0,0,0,0.7)' }} />
+            {isDeck ? (
+              <Landing vw={vw} vh={vh} top={doorTop(f)} no={DECKS[f].no} idx={f} closure={closure} />
+            ) : (
+              // dead shaft: no landing here, just more wall
+              <div style={{ position: 'absolute', left, top: doorTop(f), width: w, height: h, ...wall }} />
+            )}
+          </div>
+        );
+      })}
+
+      <div style={{ position: 'absolute', inset: 0, background: '#000', opacity: (0.7 * (1 - roomP)).toFixed(2), transform: 'translateZ(8px)' }} />
+    </div>
+  );
+}
+
 // One wall of the corridor: a plane hinged at the screen edge and swung a full
 // 90° so it genuinely runs away from the viewer. Its CSS width is depth, not
 // screen width — the camera decides how much of the screen it covers.
-function ShaftWall({ side, vw, vh, pos, floorPx, roomP }) {
+function ShaftWall({ side, vh, pos, floorPx, roomP }) {
   const isLeft = side === 'left';
   const travelY = pos * floorPx;
   const overscan = vh * 0.34;
   const span = vh + overscan * 2;
-  const nearFloors = DECKS.map((_, f) => f).filter((f) => Math.abs(f - pos) < 1.7);
-  // local y = 0 is the top of the overscanned plane, so deck coordinates (which
-  // are measured against the viewport) shift down by the overscan
-  const deckTop = (f) => overscan + travelY - f * floorPx;
   // the hinge is the screen edge, so for the left wall local x grows with depth
   // and for the right wall it shrinks — measure everything from the hinge side
   const nearEdge = isLeft ? 'left' : 'right';
@@ -747,35 +971,10 @@ function ShaftWall({ side, vw, vh, pos, floorPx, roomP }) {
         boxShadow: `inset ${isLeft ? '-' : ''}120px 0 140px -40px rgba(0,0,0,0.9)`,
       }}
     >
-      {/* everything on the wall is measured from its near (viewer-facing) edge.
-          Mirroring the whole layer instead would flip the numerals with it. */}
-      {nearFloors.map((f) => (
-        <LandingDoor
-          key={`door-${f}`}
-          top={deckTop(f) + vh * 0.47}
-          height={vh * 0.48}
-          depth={80}
-          width={185}
-          no={DECKS[f].no}
-          nearEdge={nearEdge}
-        />
-      ))}
-
-      {nearFloors.map((f) => (
-        <div
-          key={`no-${f}`}
-          style={{
-            position: 'absolute', top: deckTop(f) + floorPx * 0.46, [nearEdge]: 108, width: 130,
-            textAlign: 'center',
-            fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 54, lineHeight: 1, letterSpacing: 2,
-            color: 'rgba(0,0,0,0.5)', textShadow: '0 1px 0 rgba(194,144,63,0.2)',
-            transform: 'scaleY(1.3)',
-          }}
-        >
-          {DECKS[f].no}
-        </div>
-      ))}
-
+      {/* the doors used to live here. They mark floors, and a floor is a place
+          you arrive at, which is straight ahead — not something sliding past your
+          shoulder. The side walls are now just wall: rust, seams, and the sense
+          of speed that comes from them streaming. */}
       <div style={{ position: 'absolute', top: 0, bottom: 0, [nearEdge]: 66, width: 3, background: 'var(--brass)', opacity: 0.35 }} />
       <ShaftRivets offset={travelY} depth={50} span={span} nearEdge={nearEdge} />
       <ShaftRivets offset={travelY + 23} depth={76} span={span} nearEdge={nearEdge} />
@@ -915,9 +1114,12 @@ function HoistRopes({ bottom }) {
 // wrapper *outside* the perspective element on purpose: `filter` flattens the
 // 3D rendering context of the element it is applied to, so putting it any
 // deeper would collapse the whole scene back into decals.
-function Shaft({ vw, vh, pos, floorPx, roomP, blur }) {
+function Shaft({ vw, vh, pos, floorPx, backFloorPx, roomP, blur, closure }) {
   const travelY = pos * floorPx;
-  const dim = 0.35 + 0.65 * roomP;
+  // the rail and the counterweight are shaft furniture, not the subject. Pushed
+  // behind the cage bars and knocked back, they read as texture instead of
+  // demanding the attention a face-on vertical bar can never repay.
+  const dim = (0.35 + 0.65 * roomP) * 0.62;
   // the intro rides the camera forward and lets it settle back, instead of
   // animating a wall's width and hoping it reads as approach
   const sceneZ = 260 * (1 - roomP);
@@ -935,8 +1137,9 @@ function Shaft({ vw, vh, pos, floorPx, roomP, blur }) {
         }}
       >
         <div style={{ position: 'absolute', inset: 0, transformStyle: 'preserve-3d', transform: `translateZ(${sceneZ.toFixed(1)}px)` }}>
-          <ShaftWall side="left" vw={vw} vh={vh} pos={pos} floorPx={floorPx} roomP={roomP} />
-          <ShaftWall side="right" vw={vw} vh={vh} pos={pos} floorPx={floorPx} roomP={roomP} />
+          <ShaftBack vw={vw} vh={vh} pos={pos} floorPx={backFloorPx} closure={closure} roomP={roomP} />
+          <ShaftWall side="left" vh={vh} pos={pos} floorPx={floorPx} roomP={roomP} />
+          <ShaftWall side="right" vh={vh} pos={pos} floorPx={floorPx} roomP={roomP} />
 
           {/* the rail and its shoes, standing in the shaft clear of the wall */}
           <div
@@ -1135,6 +1338,45 @@ function CageFront({ vw, vh }) {
           <CageRail x={vw - inset} y={floorY - 300} dir={-1} />
         </div>
       </div>
+    </div>
+  );
+}
+
+// Two sources, each switchable on its own so they can be judged apart.
+const LIGHTS = { cage: true, landing: true };
+
+// The cage lamp is bolted to the cage, and the cage does not move relative to the
+// camera — so its falloff is static in screen space and costs one gradient rather
+// than a per-object calculation. It is also what finally gives the guide rail a
+// vertical gradient: the rail can't converge, so brightness varying along its
+// length is the only volume it will ever get.
+//
+// The landing light spills out of the doorway and therefore only exists while
+// the doors are open, which makes arrival read as arrival.
+function Lighting({ ap, closure }) {
+  const spill = 1 - closure;
+  return (
+    <div style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none' }}>
+      {LIGHTS.cage && (
+        <div
+          style={{
+            position: 'absolute', inset: 0,
+            background: `radial-gradient(ellipse 94% 86% at 50% ${(CAM_ORIGIN_Y * 100).toFixed(0)}%, rgba(0,0,0,0) 0%, rgba(0,0,0,0.22) 62%, rgba(6,4,2,0.8) 100%)`,
+          }}
+        />
+      )}
+      {LIGHTS.landing && spill > 0.01 && (
+        <div
+          style={{
+            position: 'absolute',
+            left: ap.left - ap.width * 0.3, top: ap.top - ap.height * 0.25,
+            width: ap.width * 1.6, height: ap.height * 1.5,
+            background: 'radial-gradient(ellipse at 50% 50%, rgba(255,186,104,0.20) 0%, rgba(255,170,80,0.07) 45%, rgba(0,0,0,0) 72%)',
+            mixBlendMode: 'screen',
+            opacity: spill.toFixed(3),
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -1450,7 +1692,7 @@ const DECK_BODIES = [StartDeck, LeistungenDeck, ProjekteDeck, KontaktDeck];
 
 export default function Dieselpunk() {
   const { t, setT, playing, play } = useScrub(DOOR_TOTAL_MS);
-  const { pos, deck, moving, velocity, go, scrub, setScrub } = useLift();
+  const { pos, deck, moving, velocity, go, scrub, setScrub, ridePhase } = useLift();
   const { vw: winW, vh } = useViewport();
   const roomP = computeRoomProgress(t);
   const contentScale = 0.7 + 0.3 * roomP;
@@ -1459,6 +1701,19 @@ export default function Dieselpunk() {
   const gap = vh * DECK_GAP;
   const step = vh + gap;
   const floorPxWall = step * WALL_PARALLAX;
+  const closure = doorClosure(ridePhase);
+
+  // Where the doorway lands on screen. A plane square to the camera is only a
+  // uniform scale, so this is exact — which is what lets the content stay a flat,
+  // crisp DOM layer and still sit convincingly inside the opening.
+  const apW = winW * DOOR_W * BACK_SCALE;
+  const apH = vh * DOOR_H * BACK_SCALE;
+  const ap = { left: (winW - apW) / 2, top: vh * CAM_ORIGIN_Y - apH / 2, width: apW, height: apH };
+  // the content travels at the doorway's on-screen rate, so a deck stays welded
+  // to the door that frames it
+  const contentStep = step * BACK_SCALE;
+  // the cage's rear frame, where the selector is mounted
+  const headInset = winW / 2 + (cageInset(winW) - winW / 2) * (CAM_PERSPECTIVE / (CAM_PERSPECTIVE - CAGE_FAR));
   const speed = Math.abs(velocity);
   const blurAmount = Math.min(16, speed * 5.5);
   // between two decks the shaft is unlit, so the content genuinely goes dark
@@ -1507,40 +1762,47 @@ export default function Dieselpunk() {
       <BigGear style={{ top: -60 + pos * vh * 0.06, left: -90 }} size={260} speed={50} />
       <BigGear style={{ bottom: -100 - pos * vh * 0.04, right: -110 }} size={320} speed={65} reverse />
 
-      <Shaft vw={winW} vh={vh} pos={pos} floorPx={floorPxWall} roomP={roomP} blur={blurAmount} />
+      <Shaft
+        vw={winW} vh={vh} pos={pos}
+        floorPx={floorPxWall} backFloorPx={step}
+        roomP={roomP} blur={blurAmount} closure={closure}
+      />
 
       <div style={{ pointerEvents: 'auto' }}>
         <DebugScrub t={t} setT={setT} playing={playing} play={play} scrub={scrub} setScrub={setScrub} />
       </div>
 
-      {/* the decks: one shaft-tall column that the camera travels along */}
+      {/* The decks, clipped to the doorway and streaming behind it. Keeping the
+          column moving rather than cross-fading is what makes a departing floor
+          read as leaving: text escaping through a narrowing gap is a floor going
+          away, where a fade is just a layer switching off. */}
       <div
         style={{
-          position: 'absolute', inset: 0, zIndex: 2,
-          transform: `scale(${contentScale})`,
-          transformOrigin: '50% 45%',
+          position: 'absolute',
+          left: ap.left, top: ap.top, width: ap.width, height: ap.height,
+          overflow: 'hidden', zIndex: 2,
           filter: [
             contentBlur > 0.05 ? `blur(${contentBlur.toFixed(2)}px)` : '',
             contentSmear > 0.2 ? 'url(#deckBlur)' : '',
           ].filter(Boolean).join(' ') || 'none',
         }}
       >
-        <div style={{ position: 'absolute', inset: 0, transform: `translateY(${(pos * step).toFixed(1)}px)` }}>
+        <div style={{ position: 'absolute', inset: 0, transform: `translateY(${(pos * contentStep).toFixed(1)}px)` }}>
           {DECKS.map((d, i) => {
-            if (Math.abs(i - pos) > 1.4) return null;
+            if (Math.abs(i - pos) > 1.2) return null;
             const Body = DECK_BODIES[i];
             return (
               <div
                 key={d.id}
                 style={{
-                  position: 'absolute', left: 0, right: 0, top: -i * step, height: vh,
+                  position: 'absolute', left: 0, right: 0, top: -i * contentStep, height: ap.height,
                   display: 'flex', flexDirection: 'column', justifyContent: 'center',
-                  // bottom clears the cage floor so no deck sits on top of it
-                  padding: '5.5rem 1.5rem 7.5rem',
+                  padding: '1.4rem 1.8rem',
                   boxSizing: 'border-box',
+                  transform: `scale(${contentScale})`,
                 }}
               >
-                <div style={{ width: '100%', maxWidth: 960, margin: '0 auto' }}>
+                <div style={{ width: '100%' }}>
                   <Body lag={lag} pos={pos} />
                 </div>
               </div>
@@ -1554,24 +1816,29 @@ export default function Dieselpunk() {
       {/* the shaft is unlit between decks */}
       <div style={{ position: 'absolute', inset: 0, background: '#0b0705', opacity: darkness.toFixed(3), pointerEvents: 'none', zIndex: 3 }} />
 
-      {/* the cabin's own opening — decks slide away behind these edges rather
-          than off a bare viewport boundary */}
-      <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 90, background: 'linear-gradient(180deg, rgba(8,5,3,0.92), transparent)', pointerEvents: 'none', zIndex: 3 }} />
-      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 150, background: 'linear-gradient(0deg, rgba(8,5,3,0.95), transparent)', pointerEvents: 'none', zIndex: 3 }} />
-
       {/* the cage rides with us, not with the shaft, and draws in front of the
           content because it is nearer than the landing the content sits on */}
       <CageFront vw={winW} vh={vh} />
 
-      {/* the selector rides with the cabin, not with the floor */}
+      <Lighting ap={ap} closure={closure} />
+
+      {/* The selector is mounted on the cage, not above the landing door. A lift's
+          floor buttons live in the cabin — and had they gone on the shaft wall
+          they would have ridden away with the floor you were trying to leave. */}
       <div
         style={{
-          position: 'absolute', top: 0, left: 0, right: 0, zIndex: 6,
+          position: 'absolute', top: 0, left: headInset, width: winW - headInset * 2, zIndex: 6,
           transform: `scale(${contentScale})`, transformOrigin: '50% 0%',
           filter: contentBlur > 0.05 ? `blur(${contentBlur.toFixed(2)}px)` : 'none',
         }}
       >
-        <div style={{ maxWidth: 960, margin: '0 auto', padding: '0 1.5rem' }}>
+        <div
+          style={{
+            padding: '0 1.1rem',
+            ...ironFace(70, 0.95),
+            boxShadow: 'inset 0 -2px 0 rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.09), 0 5px 14px rgba(0,0,0,0.6)',
+          }}
+        >
           <FloorSelector pos={pos} deck={deck} moving={moving} go={go} />
         </div>
       </div>
