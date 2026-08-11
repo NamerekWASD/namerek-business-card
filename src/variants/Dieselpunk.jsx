@@ -651,131 +651,100 @@ const skills = [
   { label: 'Architektur', tech: 'N-Tier · DDD · REST' },
 ];
 
-const steelFace = (scale = 46) => ({
+// ---------------------------------------------------------------------------
+// The shaft is a single 3D scene.
+//
+// Everything used to carry its own `transform: perspective(...)`, which gives
+// each element a vanishing point at its own transform-origin — four objects,
+// four vanishing points, a scene that never resolved. And a rotated <div> is
+// still one plane: a decal, not a solid. So the shaft is now one camera (the
+// `perspective` *property*, one shared `perspective-origin`) and every solid is
+// built from faces at different angles inside `preserve-3d`.
+//
+// Depth values below are world pixels at z = 0; -z runs away from the viewer.
+// ---------------------------------------------------------------------------
+
+const CAM_PERSPECTIVE = 1400;
+const CAM_ORIGIN_Y = 0.45;
+// how far the shaft walls run back. Deeper means the corridor eats more of the
+// screen: a wall's far edge lands at (viewportWidth / 2) * DEPTH / (P + DEPTH).
+const SHAFT_DEPTH = 340;
+const RAIL_Z = -150;
+const RAIL_X = 52;
+const CW_Z = -160;
+const CW_X = 44;
+
+// Flat, near-even steel. The old version had a strong specular band down the
+// middle, which is how you fake a cylinder on a single plane — exactly the
+// wrong cue now that the solids are built from real faces, because it made the
+// rail read as a pipe. Volume comes from the faces differing in tone (`shade`),
+// not from a highlight painted inside one of them.
+const steelFace = (scale = 46, shade = 1) => ({
   backgroundImage:
-    `linear-gradient(90deg, #0a0b0c 0%, #40474d 22%, #b9c3ca 50%, #40474d 78%, #0a0b0c 100%), url(${brushedSteel})`,
+    `linear-gradient(92deg, #1b1f22 0%, #6b747b 35%, #7d868d 70%, #22272a 100%), url(${brushedSteel})`,
   backgroundSize: `auto, ${scale}px ${scale}px`,
   backgroundBlendMode: 'multiply',
+  filter: shade === 1 ? undefined : `brightness(${shade})`,
 });
 
-// The T-section guide rail the cabin runs on: the one thing every lift shaft
-// actually has, and the one shape that survives a 70px-wide tilted strip —
-// it is vertical and continuous, so nothing about it reads as a blob.
-function GuideRail() {
-  return (
-    <>
-      <div
-        style={{
-          position: 'absolute', top: '-60%', height: '220%', left: '50%', width: 30, marginLeft: -15,
-          ...steelFace(64),
-          filter: 'brightness(0.52)',
-          boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.6)',
-        }}
-      />
-      <div
-        style={{
-          position: 'absolute', top: '-60%', height: '220%', left: '50%', width: 11, marginLeft: -5.5,
-          ...steelFace(38),
-          boxShadow: '0 0 6px rgba(0,0,0,0.7)',
-        }}
-      />
-    </>
-  );
-}
+const ironFace = (scale = 70, shade = 1) => ({
+  backgroundImage: `linear-gradient(180deg, #4a3b28, #241a11), url(${rustBrass})`,
+  backgroundSize: `auto, ${scale}px ${scale}px`,
+  backgroundBlendMode: 'multiply',
+  filter: shade === 1 ? undefined : `brightness(${shade})`,
+});
 
-// Bolted joints between rail sections. The rail itself is uniform, so without
-// these the shaft could be travelling at any speed or none — these are what
-// actually carry the sense of motion past the cabin.
-function RailClips({ offset }) {
-  const PITCH = 190;
+// A rivet seam running the full height of the shaft wall. Offsetting it modulo
+// the pitch makes it endless: the wall can travel any distance and the seam
+// never runs out or visibly restarts.
+function ShaftRivets({ offset, depth, span, nearEdge }) {
+  const PITCH = 46;
   const shift = ((offset % PITCH) + PITCH) % PITCH;
-  return Array.from({ length: 12 }).map((_, i) => (
-    <div
+  const rows = Math.ceil(span / PITCH) + 2;
+  return Array.from({ length: rows }).map((_, i) => (
+    <span
       key={i}
       style={{
-        position: 'absolute', top: i * PITCH - PITCH + shift, left: '50%', width: 38, marginLeft: -19, height: 15,
-        backgroundImage: `linear-gradient(180deg, #6c5836, #2b2115), url(${rustBrass})`,
-        backgroundSize: 'auto, 60px 60px',
-        backgroundBlendMode: 'multiply',
-        borderRadius: 2,
-        boxShadow: '0 2px 4px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12)',
+        position: 'absolute', top: i * PITCH - PITCH + shift, [nearEdge]: depth,
+        width: 7, height: 7, borderRadius: '50%',
+        background: 'var(--rivet)',
+        boxShadow: 'inset 0 1px 1px rgba(0,0,0,0.7), 0 1px 0 rgba(255,255,255,0.06)',
       }}
-    >
-      <span style={{ position: 'absolute', top: 5, left: 4, width: 5, height: 5, borderRadius: '50%', background: 'var(--rivet)', boxShadow: 'inset 0 1px 1px rgba(0,0,0,0.8)' }} />
-      <span style={{ position: 'absolute', top: 5, right: 4, width: 5, height: 5, borderRadius: '50%', background: 'var(--rivet)', boxShadow: 'inset 0 1px 1px rgba(0,0,0,0.8)' }} />
-    </div>
+    />
   ));
 }
 
-// The roller guides are bolted to the cabin, not the shaft, so they are the one
-// piece of hardware that must stay nailed to the screen while everything else
-// streams past. That contrast is the whole point of them.
-function RollerShoe({ top }) {
+// The shaft-side landing door at each deck: what makes one stretch of shaft
+// distinguishable from the next as it goes by. Drawn flat on the wall plane, so
+// the camera foreshortens it for free — no hand-tuned squash.
+function LandingDoor({ top, height, depth, width, no, nearEdge }) {
   return (
-    <div style={{ position: 'absolute', top, left: '50%', width: 44, marginLeft: -22, height: 52 }}>
+    <div style={{ position: 'absolute', top, height, [nearEdge]: depth, width }}>
+      <div style={{ position: 'absolute', left: -4, right: -4, top: -8, height: 8, ...ironFace(60, 1.5), boxShadow: '0 2px 5px rgba(0,0,0,0.7)' }} />
+      <div style={{ position: 'absolute', left: -4, right: -4, bottom: -8, height: 8, ...ironFace(60, 1.25), boxShadow: '0 -2px 5px rgba(0,0,0,0.7)' }} />
       <div
         style={{
-          position: 'absolute', inset: '6px 0',
-          backgroundImage: `linear-gradient(180deg, #3b3128, #1b1610), url(${rustBrass})`,
-          backgroundSize: 'auto, 70px 70px',
-          backgroundBlendMode: 'multiply',
-          borderRadius: 3,
-          boxShadow: '0 4px 10px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.14)',
-        }}
-      />
-      {[-15, 15].map((dx) => (
-        <span
-          key={dx}
-          style={{
-            position: 'absolute', top: 14, left: `calc(50% + ${dx}px)`, marginLeft: -8,
-            width: 16, height: 24, borderRadius: 8,
-            background: 'linear-gradient(90deg, #1a1d20, #7d878f 45%, #1a1d20)',
-            boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.7)',
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
-// The shaft-side landing door at each deck: what actually makes one floor
-// distinguishable from the next when you pass it.
-function LandingDoor({ top, height, no, innerEdge }) {
-  return (
-    // narrow enough to leave the riveted strip of wall beside it: the seams run
-    // past the doorway rather than across its leaves
-    <div style={{ position: 'absolute', top, height, [innerEdge]: 3, width: 44 }}>
-      {/* lintel and sill — at this width the frame is what reads as a doorway,
-          so it gets the contrast rather than the leaves */}
-      <div style={{ position: 'absolute', left: -3, right: -3, top: -7, height: 7, backgroundImage: `linear-gradient(180deg, #7d6136, #33261501), url(${rustBrass})`, backgroundSize: 'auto, 60px 60px', backgroundBlendMode: 'multiply', boxShadow: '0 2px 5px rgba(0,0,0,0.7)' }} />
-      <div style={{ position: 'absolute', left: -3, right: -3, bottom: -7, height: 7, backgroundImage: `linear-gradient(0deg, #6b5230, #2b2015), url(${rustBrass})`, backgroundSize: 'auto, 60px 60px', backgroundBlendMode: 'multiply', boxShadow: '0 -2px 5px rgba(0,0,0,0.7)' }} />
-      <div
-        style={{
-          position: 'absolute', inset: 0, borderRadius: 1,
-          // only a shade darker than the wall — a near-black fill turned half
-          // the shaft into a flat strip and swallowed the rust texture
+          position: 'absolute', inset: 0,
           backgroundImage: `linear-gradient(180deg, #3d2e1e, #261c11), url(${rustBrass})`,
-          backgroundSize: 'auto, 130px 130px',
+          backgroundSize: 'auto, 150px 150px',
           backgroundBlendMode: 'multiply',
-          boxShadow: 'inset 0 0 10px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(150,113,63,0.5), 0 0 12px rgba(0,0,0,0.5)',
+          boxShadow: 'inset 0 0 14px rgba(0,0,0,0.75), inset 0 0 0 1px rgba(150,113,63,0.5)',
         }}
       />
-      {/* the leaves meet here — the seam is what says "door" at this size */}
-      <div style={{ position: 'absolute', top: 8, bottom: 20, left: '50%', width: 2, marginLeft: -1, background: 'rgba(0,0,0,0.75)', boxShadow: '1px 0 0 rgba(194,144,63,0.16)' }} />
+      <div style={{ position: 'absolute', top: 10, bottom: 26, left: '50%', width: 2, marginLeft: -1, background: 'rgba(0,0,0,0.8)', boxShadow: '1px 0 0 rgba(194,144,63,0.18)' }} />
       <div
         style={{
-          position: 'absolute', left: 4, right: 4, bottom: 6, height: 7,
-          backgroundImage: 'repeating-linear-gradient(45deg, #b8862a 0px, #b8862a 6px, #241a10 6px, #241a10 12px)',
-          opacity: 0.75,
-          boxShadow: '0 1px 0 rgba(0,0,0,0.7)',
+          position: 'absolute', left: 5, right: 5, bottom: 8, height: 9,
+          backgroundImage: 'repeating-linear-gradient(45deg, #b8862a 0px, #b8862a 7px, #241a10 7px, #241a10 14px)',
+          opacity: 0.8,
         }}
       />
       <div
         style={{
-          position: 'absolute', top: -21, left: '50%', marginLeft: -14, width: 28, height: 15,
+          position: 'absolute', top: -30, left: '50%', marginLeft: -19, width: 38, height: 19,
           background: 'var(--screen)', borderRadius: 2,
           boxShadow: 'inset 0 1px 4px rgba(0,0,0,0.9), 0 0 0 1px rgba(96,73,44,0.55)',
-          fontFamily: 'var(--mono)', fontSize: 9, lineHeight: '15px', textAlign: 'center',
+          fontFamily: 'var(--mono)', fontSize: 11, lineHeight: '19px', textAlign: 'center',
           color: 'var(--glow)', textShadow: '0 0 6px rgba(255,180,84,0.7)',
         }}
       >
@@ -785,287 +754,263 @@ function LandingDoor({ top, height, no, innerEdge }) {
   );
 }
 
-// Hoist ropes and the counterweight. When the cabin rises the counterweight
-// drops, so on screen it runs the other way at twice the shaft's rate — it is
-// the only element here that doesn't just suggest movement but proves its
-// direction. It crosses the frame around the middle of the shaft, the same way
-// you only ever meet it once in a real lift.
-function Counterweight({ y, height }) {
+// One wall of the corridor: a plane hinged at the screen edge and swung a full
+// 90° so it genuinely runs away from the viewer. Its CSS width is depth, not
+// screen width — the camera decides how much of the screen it covers.
+function ShaftWall({ side, vw, vh, pos, floorPx, roomP }) {
+  const isLeft = side === 'left';
+  const travelY = pos * floorPx;
+  const overscan = vh * 0.34;
+  const span = vh + overscan * 2;
+  const nearFloors = DECKS.map((_, f) => f).filter((f) => Math.abs(f - pos) < 1.7);
+  // local y = 0 is the top of the overscanned plane, so deck coordinates (which
+  // are measured against the viewport) shift down by the overscan
+  const deckTop = (f) => overscan + travelY - f * floorPx;
+  // the hinge is the screen edge, so for the left wall local x grows with depth
+  // and for the right wall it shrinks — measure everything from the hinge side
+  const nearEdge = isLeft ? 'left' : 'right';
+
   return (
-    <div style={{ position: 'absolute', top: y, height, left: '50%', width: 54, marginLeft: -34 }}>
-      <div
-        style={{
-          position: 'absolute', inset: 0, borderRadius: 2,
-          ...steelFace(52),
-          // deliberately left bright: it crosses the frame exactly while the
-          // cabin is in the unlit stretch between decks, so a dimmed block
-          // would simply disappear into the dark it is meant to cut through
-          boxShadow: '0 0 24px rgba(0,0,0,0.85), inset 0 0 0 2px rgba(0,0,0,0.5), inset 0 0 0 3px rgba(190,200,208,0.25)',
-        }}
-      />
-      {/* the stack of weight plates */}
-      <div
-        style={{
-          position: 'absolute', inset: '14px 5px 6px',
-          backgroundImage: 'repeating-linear-gradient(180deg, rgba(255,255,255,0.09) 0px, rgba(255,255,255,0.09) 1px, transparent 1px, transparent 26px)',
-        }}
-      />
-      {/* the crosshead the ropes terminate in — without it the block is just a
-          bar sliding past and reads as nothing in particular */}
-      <div
-        style={{
-          position: 'absolute', top: -13, left: -9, right: -9, height: 15, borderRadius: 2,
-          ...steelFace(40),
-          boxShadow: '0 3px 7px rgba(0,0,0,0.75), inset 0 1px 0 rgba(255,255,255,0.2)',
-        }}
-      />
-      {[-13, 0, 13].map((dx) => (
-        <span
-          key={dx}
-          style={{
-            position: 'absolute', top: -22, left: `calc(50% + ${dx}px)`, marginLeft: -3.5,
-            width: 7, height: 11, borderRadius: 2,
-            background: 'linear-gradient(90deg, #23282c, #4b545a 50%, #23282c)',
-          }}
+    <div
+      style={{
+        position: 'absolute',
+        [isLeft ? 'left' : 'right']: 0,
+        top: -overscan,
+        width: SHAFT_DEPTH,
+        height: span,
+        transformOrigin: isLeft ? '0% 50%' : '100% 50%',
+        transform: `rotateY(${isLeft ? 90 : -90}deg)`,
+        overflow: 'hidden',
+        backgroundImage:
+          `linear-gradient(${isLeft ? '270deg' : '90deg'}, rgba(8,5,3,0.8), rgba(8,5,3,0) 60%),` +
+          `linear-gradient(0deg, rgba(20,13,8,0.55), rgba(20,13,8,0.55)), url(${rustBrass})`,
+        backgroundSize: `auto, auto, 260px 260px`,
+        backgroundPosition: `0 0, 0 0, 0 ${travelY.toFixed(1)}px`,
+        backgroundBlendMode: 'normal, multiply, multiply',
+        // the far end of the corridor falls away into the dark
+        boxShadow: `inset ${isLeft ? '-' : ''}120px 0 140px -40px rgba(0,0,0,0.9)`,
+      }}
+    >
+      {/* everything on the wall is measured from its near (viewer-facing) edge.
+          Mirroring the whole layer instead would flip the numerals with it. */}
+      {nearFloors.map((f) => (
+        <LandingDoor
+          key={`door-${f}`}
+          top={deckTop(f) + vh * 0.33}
+          height={vh * 0.48}
+          depth={96}
+          width={150}
+          no={DECKS[f].no}
+          nearEdge={nearEdge}
         />
       ))}
+
+      {nearFloors.map((f) => (
+        <div
+          key={`no-${f}`}
+          style={{
+            position: 'absolute', top: deckTop(f) + floorPx * 0.46, [nearEdge]: 108, width: 130,
+            textAlign: 'center',
+            fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 54, lineHeight: 1, letterSpacing: 2,
+            color: 'rgba(0,0,0,0.5)', textShadow: '0 1px 0 rgba(194,144,63,0.2)',
+            transform: 'scaleY(1.3)',
+          }}
+        >
+          {DECKS[f].no}
+        </div>
+      ))}
+
+      <div style={{ position: 'absolute', top: 0, bottom: 0, [nearEdge]: 66, width: 3, background: 'var(--brass)', opacity: 0.35 }} />
+      <ShaftRivets offset={travelY} depth={50} span={span} nearEdge={nearEdge} />
+      <ShaftRivets offset={travelY + 23} depth={76} span={span} nearEdge={nearEdge} />
+      <ShaftRivets offset={travelY + 11} depth={272} span={span} nearEdge={nearEdge} />
+
+      <div style={{ position: 'absolute', inset: 0, background: '#000', opacity: (0.62 * (1 - roomP)).toFixed(2) }} />
     </div>
   );
 }
 
-function HoistRopes() {
-  return [-13, 0, 13].map((dx) => (
+// The T-section guide rail, as an actual T: the flange lies across the shaft and
+// the blade stands out of it toward the cabin. Three faces at three angles —
+// that, and nothing else, is what makes it read as a beam instead of a stripe.
+function GuideRail({ dir, vh }) {
+  const H = vh * 2.4;
+  const top = -vh * 0.7;
+  const FLANGE_D = 40;
+  const BLADE_OUT = 20;
+  const BLADE_T = 13;
+  return (
+    <>
+      {/* flange — normal points across the shaft, so it is the face we look at */}
+      <div
+        style={{
+          position: 'absolute', top, height: H, left: -FLANGE_D / 2, width: FLANGE_D,
+          transform: `rotateY(${dir * 90}deg)`,
+          ...steelFace(70, 0.42),
+          boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.7)',
+        }}
+      />
+      {/* blade, face-on to the camera */}
+      <div
+        style={{
+          position: 'absolute', top, height: H, left: dir > 0 ? 0 : -BLADE_OUT, width: BLADE_OUT,
+          transform: `translateZ(${BLADE_T / 2}px)`,
+          ...steelFace(44, 0.78),
+        }}
+      />
+      {/* the blade's tip, edge-on — the highlight that gives the beam a corner */}
+      <div
+        style={{
+          position: 'absolute', top, height: H,
+          left: dir > 0 ? BLADE_OUT - BLADE_T / 2 : -BLADE_OUT - BLADE_T / 2, width: BLADE_T,
+          transform: `rotateY(${dir * 90}deg)`,
+          ...steelFace(30, 1.15),
+        }}
+      />
+    </>
+  );
+}
+
+// Bolted joints between rail sections. The rail is uniform, so without these the
+// shaft could be moving at any speed or none.
+function RailClips({ offset, dir, vh }) {
+  const PITCH = 210;
+  const shift = ((offset % PITCH) + PITCH) % PITCH;
+  const rows = Math.ceil((vh * 1.4) / PITCH) + 2;
+  const W = 46;
+  const D = 26;
+  const Hc = 17;
+  return Array.from({ length: rows }).map((_, i) => {
+    const top = i * PITCH - PITCH + shift - vh * 0.2;
+    return (
+      <div key={i} style={{ position: 'absolute', top, left: 0, width: 0, height: 0, transformStyle: 'preserve-3d' }}>
+        <div style={{ position: 'absolute', top: 0, left: dir > 0 ? -8 : -W + 8, width: W, height: Hc, transform: `translateZ(${D / 2}px)`, ...ironFace(50, 1.5), borderRadius: 2, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.16)' }} />
+        <div style={{ position: 'absolute', top: 0, left: dir > 0 ? W - 8 - D / 2 : -W + 8 - D / 2, width: D, height: Hc, transform: `rotateY(${dir * 90}deg)`, ...ironFace(40, 0.95) }} />
+        <div style={{ position: 'absolute', top: -D / 2, left: dir > 0 ? -8 : -W + 8, width: W, height: D, transform: `translateY(${Hc / 2}px) rotateX(90deg)`, ...ironFace(50, 1.9) }} />
+      </div>
+    );
+  });
+}
+
+// The roller guides are bolted to the cabin, not the shaft, so they are the one
+// piece of hardware that stays nailed to the screen while everything else
+// streams past. Built as a box: front, inboard side, underside.
+function RollerShoe({ top, dir }) {
+  const W = 46;
+  const D = 34;
+  const H = 56;
+  return (
+    <div style={{ position: 'absolute', top, left: 0, width: 0, height: 0, transformStyle: 'preserve-3d' }}>
+      <div style={{ position: 'absolute', top: 0, left: dir > 0 ? -10 : -W + 10, width: W, height: H, transform: `translateZ(${D / 2}px)`, ...ironFace(64, 1.45), borderRadius: 3, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.18)' }}>
+        {[0.3, 0.7].map((fy) => (
+          <span key={fy} style={{ position: 'absolute', top: fy * H - 11, left: dir > 0 ? 26 : 6, width: 14, height: 22, borderRadius: 7, background: 'linear-gradient(90deg, #191c1f, #7d878f 45%, #191c1f)', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.7)' }} />
+        ))}
+      </div>
+      <div style={{ position: 'absolute', top: 0, left: dir > 0 ? W - 10 - D / 2 : -W + 10 - D / 2, width: D, height: H, transform: `rotateY(${dir * 90}deg)`, ...ironFace(46, 0.9) }} />
+      <div style={{ position: 'absolute', top: H - D / 2, left: dir > 0 ? -10 : -W + 10, width: W, height: D, transform: `rotateX(-90deg)`, transformOrigin: '50% 0%', ...ironFace(50, 0.55) }} />
+    </div>
+  );
+}
+
+// The counterweight hangs on the other end of the ropes, so it runs opposite the
+// cabin: on screen that is twice the shaft's rate, in the same direction the
+// shaft appears to move. Anchored to hang into the top of the frame while the
+// cabin rests on deck 02 — at ride speed it is smeared past recognition, so it
+// needs one resting place where you can see what it is. A box, again: face,
+// inboard side, and the underside you actually look up at.
+function Counterweight({ y, height, dir }) {
+  const W = 62;
+  const D = 42;
+  const plates = 'repeating-linear-gradient(180deg, rgba(255,255,255,0.1) 0px, rgba(255,255,255,0.1) 1px, transparent 1px, transparent 18px)';
+  return (
+    <div style={{ position: 'absolute', top: y, left: 0, width: 0, height: 0, transformStyle: 'preserve-3d' }}>
+      <div style={{ position: 'absolute', top: 0, left: -W / 2, width: W, height, transform: `translateZ(${D / 2}px)`, ...steelFace(58, 0.85) }}>
+        <div style={{ position: 'absolute', inset: '16px 6px 6px', backgroundImage: plates }} />
+      </div>
+      <div style={{ position: 'absolute', top: 0, left: (dir > 0 ? W / 2 : -W / 2) - D / 2, width: D, height, transform: `rotateY(${dir * 90}deg)`, ...steelFace(46, 0.5) }}>
+        <div style={{ position: 'absolute', inset: '16px 4px 6px', backgroundImage: plates }} />
+      </div>
+      <div style={{ position: 'absolute', top: height - D / 2, left: -W / 2, width: W, height: D, transform: 'rotateX(-90deg)', transformOrigin: '50% 0%', ...steelFace(40, 0.3) }} />
+      {/* crosshead the ropes terminate in */}
+      <div style={{ position: 'absolute', top: -16, left: -W / 2 - 8, width: W + 16, height: 17, transform: `translateZ(${D / 2 + 3}px)`, ...steelFace(38, 1.1), borderRadius: 2, boxShadow: '0 3px 7px rgba(0,0,0,0.75)' }} />
+    </div>
+  );
+}
+
+// Ropes run from the sheave at the top of the shaft down to the crosshead and
+// stop there — drawn past it they read as the block dangling from below.
+function HoistRopes({ bottom }) {
+  const TOP = -6000;
+  const height = Math.max(0, bottom - TOP);
+  if (height <= 0) return null;
+  return [-16, 0, 16].map((dx) => (
     <div
       key={dx}
       style={{
-        position: 'absolute', top: '-60%', height: '220%', left: `calc(60% + ${dx}px)`, width: 3, marginLeft: -9.5,
-        background: 'linear-gradient(90deg, #14171a, #8f9aa2 50%, #14171a)',
-        opacity: 0.85,
+        position: 'absolute', top: TOP, height, left: dx - 2, width: 4,
+        transform: 'translateZ(22px)',
+        background: 'linear-gradient(90deg, #14171a, #98a3ab 50%, #14171a)',
       }}
     />
   ));
 }
 
-// A rivet seam running the full height of the shaft. Offsetting it modulo the
-// pitch makes it endless: the wall can travel any distance and the seam never
-// runs out or visibly restarts.
-function ShaftRivets({ offset, edge, inset }) {
-  const PITCH = 46;
-  const shift = ((offset % PITCH) + PITCH) % PITCH;
-  return Array.from({ length: 34 }).map((_, i) => (
-    <span
-      key={i}
-      style={{
-        position: 'absolute', top: i * PITCH - PITCH + shift, [edge]: inset + (edge === 'right' ? 6 : 0),
-        width: 6, height: 6, borderRadius: '50%',
-        background: 'var(--rivet)',
-        boxShadow: 'inset 0 1px 1px rgba(0,0,0,0.7), 0 1px 0 rgba(255,255,255,0.06)',
-      }}
-    />
-  ));
-}
-
-function ControlPanel({ side, width = 70, simple = false, roomP = 1, pos = 0, floorPx = 900, blur = 0, vh = 900 }) {
-  const isLeft = side === 'left';
-  // how far the wall has travelled, in its own (parallaxed) pixel space — at
-  // pos === f, floor f's instruments and stencil sit exactly at their rest spot
+// Everything that lives in the shaft, under one camera. The blur sits on the
+// wrapper *outside* the perspective element on purpose: `filter` flattens the
+// 3D rendering context of the element it is applied to, so putting it any
+// deeper would collapse the whole scene back into decals.
+function Shaft({ vw, vh, pos, floorPx, roomP, blur }) {
   const travelY = pos * floorPx;
-  const nearFloors = DECKS.map((_, f) => f).filter((f) => Math.abs(f - pos) < 1.7);
-  const wallFilter = blur > 0.25 ? `url(#shaftBlur) brightness(${(1 - Math.min(0.22, blur * 0.02)).toFixed(3)})` : 'none';
-  const instrumentScale = 0.85 + 0.15 * roomP;
   const dim = 0.35 + 0.65 * roomP;
-  // pushed outboard so the doorway, the brass insert and both rivet seams each
-  // get their own strip of wall instead of overlapping
-  const wallInsertInset = 58;
-  // x of the wall's left edge is always 0, so x of its right edge = 0 + width.
-  // Anchor the instruments a constant 3px in from that edge, so they stay glued
-  // to the wall as it animates and land exactly on the already-tuned 67px rest spot.
-  const wallRightEdge = width;
-  // sat right on the wall's inner edge, which made the wall look sliced open
-  // lengthwise. The rail (and the ropes) belong in the shaft, just clear of it.
-  const INSTRUMENT_ANCHOR = wallRightEdge + (simple ? 12 : 4);
-  const innerEdge = isLeft ? 'right' : 'left';
-  // The counterweight hangs on the other end of the ropes, so it runs opposite
-  // the cabin: on screen that is twice the shaft's own rate, in the same
-  // direction the shaft appears to move. It is level with the cabin halfway up
-  // the stack, which is where you meet it.
-  // Anchored so it hangs into the top of the frame while the cabin sits on deck
-  // 02: at full ride speed it is smeared past recognition, so it needs one
-  // resting place where you can actually see what it is.
+  // the intro rides the camera forward and lets it settle back, instead of
+  // animating a wall's width and hoping it reads as approach
+  const sceneZ = 260 * (1 - roomP);
   const cwHeight = vh * 1.15;
   const cwY = 132 - cwHeight + 2 * (pos - 1) * floorPx;
+  const wallFilter = blur > 0.25 ? `url(#shaftBlur) brightness(${(1 - Math.min(0.2, blur * 0.02)).toFixed(3)})` : 'none';
+
   return (
-    <>
-      <div style={{ position: 'absolute', top: 0, bottom: 0, [side]: 0, width, zIndex: 1, overflow: 'hidden', pointerEvents: 'none', filter: wallFilter }}>
-        {/* full-height surface stuff (texture, dark overlay, light pools, brass
-            line) — overshoots top/bottom well past the box's own bounds so that
-            even at the smallest scale (0.55) it still fully covers the box;
-            otherwise it pulls away from the origin and visibly "cuts off" before
-            reaching the real top/bottom edge. None of this needs to line up with
-            the instruments' exact pixel position, so the shifted local origin is
-            harmless here. */}
-        <div
-          style={{
-            position: 'absolute', top: '-30%', bottom: '-100%', left: 0, right: 0,
-            // tilted the same way as the instrument cluster (perspective + rotateY,
-            // hinged from the same content-facing edge) so the wall itself reads as
-            // viewed from the side too, not flat-on while the instruments are angled.
-            transform: `perspective(350px) rotateY(${isLeft ? 30 : -40}deg) scaleY(${instrumentScale.toFixed(3)})`,
-            transformOrigin: `${isLeft ? '100%' : '0%'} 20%`,
-          }}
-        >
-          <div
-            style={{
-              position: 'absolute', inset: 0,
-              backgroundImage:
-                `linear-gradient(${isLeft ? '90deg' : '270deg'}, #241a10 0%, #2e2116 25%, transparent 100%), url(${rustBrass})`,
-              backgroundSize: 'auto, 240px 240px',
-              // anchor the tiling to the wall's own right (content-facing) edge — the
-              // edge that's actually tracked/meaningful — instead of the default left
-              // edge, so the pattern stays glued there instead of appearing to drift
-              // as `width` animates.
-              // the vertical component rides `travelY`, so the shaft's own
-              // grain streams past instead of the wall staying a still backdrop
-              backgroundPosition: `${isLeft ? '100%' : '0%'} ${travelY.toFixed(1)}px`,
-              backgroundBlendMode: 'multiply',
-              boxShadow: isLeft ? '16px 0 26px rgba(0,0,0,0.5)' : '-16px 0 26px rgba(0,0,0,0.5)',
-            }}
-          />
-
-          {/* uneven light pools that brighten unevenly as the room is reached */}
-          <div
-            style={{
-              position: 'absolute', inset: 0,
-              mixBlendMode: 'screen',
-              opacity: (0.15 + 0.85 * roomP).toFixed(2),
-            }}
-          />
-          <div style={{ position: 'absolute', inset: 0, background: '#000', opacity: (0.6 * (1 - roomP)).toFixed(2) }} />
-
-          <div style={{ position: 'absolute', top: 0, bottom: 0, [isLeft ? 'right' : 'left']: wallInsertInset, width: 2, background: 'var(--brass)', opacity: 0.4 }} />
-        </div>
-
-        {/* rivets (+ shadow, when present) — kept in their own non-overshot
-            wrapper (same scale/origin/tilt as the surface above, but exact
-            inset:0) so gaugeTop/valveTop/gauge2Top still line up correctly, and
-            so the rivets ride with the wall's own zoom instead of staying pinned
-            to the viewport while the surface moves under them. */}
-        <div
-          style={{
-            position: 'absolute', inset: 0,
-            transform: `perspective(550px) rotateY(${isLeft ? 40 : -40}deg) scaleY(${instrumentScale.toFixed(3)})`,
-            transformOrigin: `${isLeft ? '100%' : '0%'} 20%`,
-          }}
-        >
-          {/* the shaft hardware bolted to the content-facing edge casts back
-              onto the wall — confined to this clipped box, so it never spills
-              onto the background past the wall */}
-          <div
-            style={{
-              position: 'absolute', top: 0, bottom: 0, [innerEdge]: 0, width: 34,
-              background: `linear-gradient(${isLeft ? '270deg' : '90deg'}, rgba(0,0,0,0.55), transparent)`,
-              opacity: (0.4 + 0.6 * roomP).toFixed(2),
-            }}
-          />
-
-          {/* the landing door of each deck — without them one stretch of shaft
-              is indistinguishable from the next as it goes by */}
-          {nearFloors.map((f) => (
-            <LandingDoor
-              key={`door-${f}`}
-              // sized off the viewport, not the floor pitch: the wall's pitch is
-              // parallaxed and a door scaled to it ends up taller than the screen
-              top={travelY - f * floorPx + vh * 0.33}
-              height={vh * 0.48}
-              no={DECKS[f].no}
-              innerEdge={innerEdge}
-            />
-          ))}
-
-          {/* deck numbers stencilled on the shaft wall — the only thing that
-              tells you how far you actually travelled, and the reason a long
-              ride reads as long rather than just slow */}
-          {nearFloors.map((f) => (
-            <div
-              key={f}
-              style={{
-                position: 'absolute',
-                top: travelY - f * floorPx + floorPx * 0.46,
-                // measured from the content-facing edge, like the rivet seams,
-                // so it doesn't drift while the wall opens up during the intro
-                [innerEdge]: 4,
-                width: 62,
-                textAlign: 'center',
-                fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 34, lineHeight: 1,
-                letterSpacing: 1,
-                color: 'rgba(0,0,0,0.5)',
-                textShadow: '0 1px 0 rgba(194,144,63,0.22)',
-                transform: 'scaleY(1.35)',
-              }}
-            >
-              {DECKS[f].no}
-            </div>
-          ))}
-
-          {/* both seams straddle the brass insert and are measured from the
-              content-facing edge. Measuring the outer seam from the *outer*
-              edge made it roll across the wall while `width` animates open
-              during the intro, instead of staying bolted to the insert. */}
-          <ShaftRivets offset={travelY} edge={innerEdge} inset={wallInsertInset - 7} />
-          <ShaftRivets offset={travelY + 23} edge={innerEdge} inset={wallInsertInset + 5} />
-        </div>
-      </div>
-
+    <div style={{ position: 'absolute', inset: 0, zIndex: 1, pointerEvents: 'none', filter: wallFilter }}>
       <div
         style={{
-          position: 'absolute', top: 0, bottom: 0, [side]: 0, width: 0, zIndex: 1, overflow: 'visible', pointerEvents: 'none',
-          filter: wallFilter,
+          position: 'absolute', inset: 0,
+          perspective: `${CAM_PERSPECTIVE}px`,
+          perspectiveOrigin: `50% ${CAM_ORIGIN_Y * 100}%`,
         }}
       >
-        <div id="instrument"
-          style={{
-            position: 'absolute', top: 0, height: '100%', width: 0,
-            [isLeft ? 'left' : 'right']: INSTRUMENT_ANCHOR,
-            transform: `perspective(550px) rotateY(${isLeft ? 40 : -40}deg) scale(${instrumentScale.toFixed(3)})`,
-            transformOrigin: '0 20%',
-            filter: `brightness(${dim.toFixed(2)})`,
-          }}
-        >
-          {simple ? (
-            <>
-              <HoistRopes />
-              <Counterweight y={cwY} height={cwHeight} />
-            </>
-          ) : (
-            <>
-              <GuideRail />
-              {/* the clips belong to the shaft and stream past… */}
-              <RailClips offset={travelY} />
-            </>
-          )}
-        </div>
+        <div style={{ position: 'absolute', inset: 0, transformStyle: 'preserve-3d', transform: `translateZ(${sceneZ.toFixed(1)}px)` }}>
+          <ShaftWall side="left" vw={vw} vh={vh} pos={pos} floorPx={floorPx} roomP={roomP} />
+          <ShaftWall side="right" vw={vw} vh={vh} pos={pos} floorPx={floorPx} roomP={roomP} />
 
-        {/* The roller shoes are bolted to the cabin and never move, so they get
-            their own layer hinged at mid-height. Sharing the rail's origin at
-            20% left the lower shoe far enough down the perspective to be
-            visibly squashed; symmetric placement about the hinge keeps both
-            reading as the same part. */}
-        {!simple && (
+          {/* the rail and its shoes, standing in the shaft clear of the wall */}
           <div
+            id="instrument"
             style={{
-              position: 'absolute', top: 0, height: '100%', width: 0,
-              [isLeft ? 'left' : 'right']: INSTRUMENT_ANCHOR,
-              transform: `perspective(550px) rotateY(${isLeft ? 40 : -40}deg) scale(${instrumentScale.toFixed(3)})`,
-              transformOrigin: '0 50%',
+              position: 'absolute', top: 0, left: RAIL_X, width: 0, height: 0,
+              transformStyle: 'preserve-3d', transform: `translateZ(${RAIL_Z}px)`,
               filter: `brightness(${dim.toFixed(2)})`,
             }}
           >
-            <RollerShoe top={vh * 0.28} />
-            <RollerShoe top={vh * 0.72} />
+            <GuideRail dir={1} vh={vh} />
+            <RailClips offset={travelY} dir={1} vh={vh} />
+            <RollerShoe top={vh * 0.28} dir={1} />
+            <RollerShoe top={vh * 0.72} dir={1} />
           </div>
-        )}
+
+          {/* the counterweight runs in its own guides on the far side */}
+          <div
+            style={{
+              position: 'absolute', top: 0, left: vw - CW_X, width: 0, height: 0,
+              transformStyle: 'preserve-3d', transform: `translateZ(${CW_Z}px)`,
+              filter: `brightness(${dim.toFixed(2)})`,
+            }}
+          >
+            <HoistRopes bottom={cwY - 15} />
+            <Counterweight y={cwY} height={cwHeight} dir={-1} />
+          </div>
+        </div>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -1383,7 +1328,6 @@ export default function Dieselpunk() {
   const { pos, deck, moving, velocity, go, scrub, setScrub } = useLift();
   const { vw: winW, vh } = useViewport();
   const roomP = computeRoomProgress(t);
-  const wallWidth = 70 + 7 * (1 - roomP) * (winW / 100);
   const contentScale = 0.7 + 0.3 * roomP;
   const contentBlur = 4 * (1 - roomP);
 
@@ -1438,8 +1382,7 @@ export default function Dieselpunk() {
       <BigGear style={{ top: -60 + pos * vh * 0.06, left: -90 }} size={260} speed={50} />
       <BigGear style={{ bottom: -100 - pos * vh * 0.04, right: -110 }} size={320} speed={65} reverse />
 
-      <ControlPanel side="left" width={wallWidth} roomP={roomP} pos={pos} floorPx={floorPxWall} blur={blurAmount} vh={vh} />
-      <ControlPanel side="right" width={wallWidth} simple roomP={roomP} pos={pos} floorPx={floorPxWall} blur={blurAmount} vh={vh} />
+      <Shaft vw={winW} vh={vh} pos={pos} floorPx={floorPxWall} roomP={roomP} blur={blurAmount} />
 
       <div style={{ pointerEvents: 'auto' }}>
         <DebugScrub t={t} setT={setT} playing={playing} play={play} scrub={scrub} setScrub={setScrub} />
