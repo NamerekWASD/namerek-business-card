@@ -484,7 +484,7 @@ const SHAFT_DEPTH = 340;
 // window width and only appeared when the window was narrowed — furniture you
 // can never see is furniture you did not build.
 const RAIL_Z = -150;
-const RAIL_X = 185;
+const RAIL_X = 215;
 const CW_Z = -160;
 const CW_X = 190;
 
@@ -739,72 +739,168 @@ const DOOR_H = 0.94; // fraction of its height
 // the wall around it — a prop the eye can't find is not a landmark. The
 // brightness lives on this wrapper because `ironFace` sets `filter` itself, and
 // spreading it over the base style silently ate the value.
+// The corridor has its own fitting overhead, so its contents are lit from above
+// and a little in front — not from the shaft lamps, which are on the other side
+// of a wall. One fixed direction is enough here: these objects do not move, and
+// what they need is not a changing light but three faces that disagree.
+const ROOM_LIGHT = [0.18, -0.88, 0.44];
+
+// The range is wide on purpose. These props used to carry brightness(1.85) on
+// the wrapper above them, which is what made them visible at all; that had to go
+// because a filter flattens everything under it, so the whole of it lives here
+// now — spread across the faces instead of applied to the object.
+function roomLit(n) {
+  const c = n[0] * ROOM_LIGHT[0] + n[1] * ROOM_LIGHT[1] + n[2] * ROOM_LIGHT[2];
+  return 0.6 + 1.55 * Math.max(0, (c + 0.3) / 1.3);
+}
+
+// A box with three faces showing: the one facing us, the top, and the side
+// turned toward the middle of the corridor.
+//
+// It is turned on its axis, and that is the load-bearing part. Built square to
+// the camera these came out as flat rectangles, and the reason is worth writing
+// down: the corridor is about four hundred pixels behind a camera a thousand
+// four hundred out, so the projection there is very nearly orthographic. A box
+// square to the wall converges by three percent — its side face works out at
+// seven pixels and its top at two. The geometry was right and the picture was
+// unchanged. Convergence is not available at that distance, so what makes a
+// distant solid read is the *corner*: two faces at a real angle, in two
+// different tones. Yaw supplies the angle, `roomLit` supplies the tones, and
+// perspective contributes nothing either way.
+function Box({ left, top, w, h, d, dir = -1, yaw = 30, tex = ironFace, scale = 50, tint = 1, children }) {
+  const r = (yaw * Math.PI) / 180;
+  const s = Math.sin(r);
+  const c = Math.cos(r);
+  const f = (n) => tex(scale, roomLit(n) * tint);
+  return (
+    <div style={{ position: 'absolute', left, top, width: 0, height: 0, transformStyle: 'preserve-3d', transform: `rotateY(${yaw}deg)` }}>
+      <div style={{ position: 'absolute', left: 0, top: 0, width: w, height: h, transform: `translateZ(${d}px)`, ...f([s, 0, c]), boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.45)' }}>
+        {children}
+      </div>
+      <div style={{ position: 'absolute', left: 0, top: 0, width: w, height: d, transformOrigin: '50% 0%', transform: 'rotateX(90deg)', ...f([0, -1, 0]) }} />
+      <div
+        style={{
+          position: 'absolute', left: (dir > 0 ? w : 0) - d / 2, top: 0, width: d, height: h,
+          transform: `translateZ(${d / 2}px) rotateY(${dir * 90}deg)`,
+          ...f([dir * c, 0, -dir * s]),
+        }}
+      />
+    </div>
+  );
+}
+
 function LandingProp({ idx }) {
   return (
-    <div style={{ position: 'absolute', right: '15%', bottom: '15%', filter: 'brightness(1.85)' }}>
+    // no `filter` on this wrapper any more: it flattens the 3D context of
+    // everything below it, which would quietly turn every box back into the
+    // decal it used to be. The brightness lives in each face's own shade.
+    <div style={{ position: 'absolute', right: '15%', bottom: '15%', transformStyle: 'preserve-3d' }}>
       <PropBody idx={idx} />
     </div>
   );
 }
 
+// The stencil every one of these carries, so the landings belong to the same
+// building rather than each being a separate still life.
+function Stencil({ children, size = 11, style }) {
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        fontFamily: 'var(--mono)', fontSize: size, letterSpacing: 1.5,
+        color: 'rgba(226,192,132,0.5)', textShadow: '0 1px 0 rgba(0,0,0,0.7)',
+        ...style,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 function PropBody({ idx }) {
-  const base = { position: 'relative' };
+  // A workbench. The old one was a flat board with flat spanners on it, which
+  // at this size is a rectangle with grey marks — the top slab is what makes it
+  // furniture, because a horizontal surface is the only thing here the eye can
+  // measure the room against.
   if (idx === 1) {
-    // a tool board
     return (
-      <div style={{ ...base, width: 150, height: 108, ...ironFace(60, 0.8), boxShadow: 'inset 0 0 0 2px rgba(0,0,0,0.5)' }}>
-        <div style={{ position: 'absolute', left: 0, right: 0, top: 26, height: 4, background: 'rgba(0,0,0,0.55)' }} />
-        {[14, 44, 74, 104].map((x, i) => (
+      <div style={{ position: 'relative', width: 172, height: 128, transformStyle: 'preserve-3d' }}>
+        {/* the board on the wall, and what hangs off it */}
+        <div style={{ position: 'absolute', left: 18, top: -46, width: 124, height: 52, ...ironFace(50, roomLit([0, 0, 1]) * 0.8), boxShadow: 'inset 0 0 0 2px rgba(0,0,0,0.5)' }}>
+          {[12, 40, 66, 96].map((x, i) => (
+            <div
+              key={x}
+              style={{
+                position: 'absolute', left: x, top: 12, width: i % 2 ? 6 : 9, height: 26 + (i % 3) * 8,
+                background: 'linear-gradient(180deg, #8b949b, #2b3034)', borderRadius: 2,
+                boxShadow: '1px 2px 4px rgba(0,0,0,0.6)',
+              }}
+            />
+          ))}
+        </div>
+        <Box left={0} top={26} w={172} h={82} d={56} dir={-1} scale={52} />
+        {/* the top slab, overhanging the carcass on every side */}
+        <Box left={-6} top={16} w={184} h={12} d={66} dir={-1} tex={steelFace} scale={40} tint={1.05} />
+        <Stencil style={{ left: 14, top: 44 }}>WERKBANK II</Stencil>
+      </div>
+    );
+  }
+
+  // Crates. Three boxes at three depths, which is the cheapest legible object
+  // there is: the moment two of them overlap with their tops lit, the stack has
+  // an order and the corridor has a floor.
+  if (idx === 2) {
+    return (
+      <div style={{ position: 'relative', width: 190, height: 150, transformStyle: 'preserve-3d' }}>
+        <Box left={0} top={62} w={104} h={88} d={70} dir={-1} scale={64} tint={0.92}>
+          <Stencil style={{ left: 10, top: 12 }}>MT / 04</Stencil>
+          <div style={{ position: 'absolute', left: '8%', right: '8%', top: '52%', height: 3, background: 'rgba(216,178,110,0.35)' }} />
+        </Box>
+        <Box left={104} top={86} w={82} h={64} d={48} dir={-1} scale={54} tint={0.8}>
+          <Stencil style={{ left: 8, top: 9 }} size={10}>MT / 11</Stencil>
+        </Box>
+        <Box left={20} top={0} w={74} h={56} d={52} dir={-1} scale={48} tint={1.08}>
+          <Stencil style={{ left: 8, top: 8 }} size={10}>MT / 02</Stencil>
+        </Box>
+      </div>
+    );
+  }
+
+  // A post box on a pedestal. It replaced a pneumatic chute, which was a pipe
+  // with three rings round it — legible only if you already knew what it was
+  // meant to be. A slot at hand height and a hood over it is not ambiguous, and
+  // it says the same thing about the floor it stands on.
+  if (idx === 3) {
+    return (
+      <div style={{ position: 'relative', width: 116, height: 200, transformStyle: 'preserve-3d' }}>
+        <Box left={22} top={128} w={64} h={72} d={44} dir={-1} scale={44} tint={0.78} />
+        <Box left={4} top={36} w={100} h={96} d={62} dir={-1} tex={steelFace} scale={50} tint={0.95}>
           <div
-            key={x}
             style={{
-              position: 'absolute', left: x, top: 30, width: i % 2 ? 9 : 13, height: 44 + (i % 3) * 14,
-              background: 'linear-gradient(180deg, #7b848b, #2b3034)', borderRadius: 2,
-              boxShadow: '1px 2px 4px rgba(0,0,0,0.6)',
+              position: 'absolute', left: '14%', right: '14%', top: '26%', height: 13,
+              background: 'rgba(0,0,0,0.82)',
+              boxShadow: 'inset 0 3px 6px rgba(0,0,0,0.9), 0 1px 0 rgba(232,196,132,0.28)',
             }}
           />
-        ))}
+          <Stencil style={{ left: '16%', bottom: 12 }} size={10}>POST</Stencil>
+        </Box>
+        {/* the hood, sloped so it catches the corridor light square on */}
+        <div
+          style={{
+            position: 'absolute', left: 0, top: 36, width: 108, height: 34,
+            transformOrigin: '50% 100%', transform: 'translateZ(62px) rotateX(58deg)',
+            ...steelFace(40, roomLit([0, -0.85, 0.53]) * 1.05),
+            boxShadow: '0 3px 8px rgba(0,0,0,0.6)',
+          }}
+        />
       </div>
     );
   }
-  if (idx === 2) {
-    // stacked crates, stencilled
-    return (
-      <div style={{ ...base, width: 170, height: 130 }}>
-        {[{ x: 0, y: 46, w: 100, h: 84 }, { x: 92, y: 66, w: 78, h: 64 }, { x: 22, y: 0, w: 70, h: 48 }].map((c, i) => (
-          <div
-            key={i}
-            style={{
-              position: 'absolute', left: c.x, top: c.y, width: c.w, height: c.h,
-              backgroundImage: `linear-gradient(170deg, #6b4f2c, #3a2914), url(${rustBrass})`,
-              backgroundSize: 'auto, 90px 90px', backgroundBlendMode: 'multiply',
-              boxShadow: 'inset 0 0 0 2px rgba(0,0,0,0.45), 2px 3px 7px rgba(0,0,0,0.55)',
-            }}
-          >
-            <div style={{ position: 'absolute', left: '10%', right: '10%', top: '42%', height: 3, background: 'rgba(216,178,110,0.4)' }} />
-            <div style={{ position: 'absolute', left: '10%', top: '14%', fontFamily: 'var(--mono)', fontSize: 11, color: 'rgba(216,178,110,0.5)' }}>MT</div>
-          </div>
-        ))}
-      </div>
-    );
-  }
-  if (idx === 3) {
-    // a pneumatic mail chute
-    return (
-      <div style={{ ...base, width: 96, height: 190 }}>
-        <div style={{ position: 'absolute', left: 26, top: 0, bottom: 34, width: 44, ...steelFace(50, 0.85), borderRadius: 4, boxShadow: 'inset -6px 0 10px rgba(0,0,0,0.5)' }} />
-        {[30, 78, 126].map((y) => (
-          <div key={y} style={{ position: 'absolute', left: 18, top: y, width: 60, height: 11, ...ironFace(40, 1.2), borderRadius: 3, boxShadow: '0 2px 4px rgba(0,0,0,0.6)' }} />
-        ))}
-        <div style={{ position: 'absolute', left: 8, bottom: 0, width: 80, height: 34, ...ironFace(52, 1.05), borderRadius: 3 }}>
-          <div style={{ position: 'absolute', inset: '9px 12px', background: 'rgba(0,0,0,0.75)', boxShadow: 'inset 0 2px 5px rgba(0,0,0,0.9)' }} />
-        </div>
-      </div>
-    );
-  }
-  // deck 01 — the landing's own floor plate
+
+  // EG — the floor plate. This one already read, so it keeps its face and only
+  // gains the thickness it always implied.
   return (
-    <div style={{ ...base, width: 128, height: 84, ...ironFace(56, 1.15), borderRadius: 3, boxShadow: 'inset 0 0 0 2px rgba(0,0,0,0.45), 0 3px 8px rgba(0,0,0,0.5)' }}>
+    <Box left={0} top={0} w={132} h={88} d={16} dir={-1} scale={56} tint={1.1}>
       <div style={{ position: 'absolute', inset: 8, border: '2px solid rgba(216,178,110,0.35)' }} />
       <div
         style={{
@@ -815,7 +911,7 @@ function PropBody({ idx }) {
       >
         EG
       </div>
-    </div>
+    </Box>
   );
 }
 
@@ -1008,7 +1104,10 @@ function ShaftBack({ vw, vh, pos, floorPx }) {
                 {/* the landing, set back and lit on its own terms */}
                 <div
                   style={{
-                    position: 'absolute', inset: 0, overflow: 'hidden',
+                    // preserve-3d rather than overflow:hidden. The clip was
+                    // flattening everything in the corridor into the wall, so
+                    // nothing standing on that floor could have a side to it.
+                    position: 'absolute', inset: 0, transformStyle: 'preserve-3d',
                     transform: `translateZ(${-LANDING_D}px)`,
                     ...surface(SURFACES.landing),
                     // the shadow the head of the opening throws into the room
@@ -1106,7 +1205,7 @@ function ShaftWall({ side, vh, pos, floorPx }) {
 // The T-section guide rail, as an actual T: the flange lies across the shaft and
 // the blade stands out of it toward the cabin. Three faces at three angles —
 // that, and nothing else, is what makes it read as a beam instead of a stripe.
-function GuideRail({ dir, vh }) {
+function GuideRail({ dir, vh, shade }) {
   const H = vh * 2.4;
   const top = -vh * 0.7;
   const FLANGE_D = 40;
@@ -1119,7 +1218,7 @@ function GuideRail({ dir, vh }) {
         style={{
           position: 'absolute', top, height: H, left: -FLANGE_D / 2, width: FLANGE_D,
           transform: `rotateY(${dir * 90}deg)`,
-          ...steelFace(70, 0.42),
+          ...steelFace(70, 0.42 * shade.side),
           boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.7)',
         }}
       />
@@ -1128,7 +1227,7 @@ function GuideRail({ dir, vh }) {
         style={{
           position: 'absolute', top, height: H, left: dir > 0 ? 0 : -BLADE_OUT, width: BLADE_OUT,
           transform: `translateZ(${BLADE_T / 2}px)`,
-          ...steelFace(44, 0.78),
+          ...steelFace(44, 0.78 * shade.front),
         }}
       />
       {/* the blade's tip, edge-on — the highlight that gives the beam a corner */}
@@ -1137,7 +1236,7 @@ function GuideRail({ dir, vh }) {
           position: 'absolute', top, height: H,
           left: dir > 0 ? BLADE_OUT - BLADE_T / 2 : -BLADE_OUT - BLADE_T / 2, width: BLADE_T,
           transform: `rotateY(${dir * 90}deg)`,
-          ...steelFace(30, 1.15),
+          ...steelFace(30, 1.15 * shade.side),
         }}
       />
     </>
@@ -1146,7 +1245,7 @@ function GuideRail({ dir, vh }) {
 
 // Bolted joints between rail sections. The rail is uniform, so without these the
 // shaft could be moving at any speed or none.
-function RailClips({ offset, dir, vh }) {
+function RailClips({ offset, dir, vh, shade }) {
   const PITCH = 210;
   const shift = ((offset % PITCH) + PITCH) % PITCH;
   const rows = Math.ceil((vh * 1.4) / PITCH) + 2;
@@ -1157,9 +1256,9 @@ function RailClips({ offset, dir, vh }) {
     const top = i * PITCH - PITCH + shift - vh * 0.2;
     return (
       <div key={i} style={{ position: 'absolute', top, left: 0, width: 0, height: 0, transformStyle: 'preserve-3d' }}>
-        <div style={{ position: 'absolute', top: 0, left: dir > 0 ? -8 : -W + 8, width: W, height: Hc, transform: `translateZ(${D / 2}px)`, ...ironFace(50, 1.5), borderRadius: 2, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.16)' }} />
-        <div style={{ position: 'absolute', top: 0, left: dir > 0 ? W - 8 - D / 2 : -W + 8 - D / 2, width: D, height: Hc, transform: `rotateY(${dir * 90}deg)`, ...ironFace(40, 0.95) }} />
-        <div style={{ position: 'absolute', top: -D / 2, left: dir > 0 ? -8 : -W + 8, width: W, height: D, transform: `translateY(${Hc / 2}px) rotateX(90deg)`, ...ironFace(50, 1.9) }} />
+        <div style={{ position: 'absolute', top: 0, left: dir > 0 ? -8 : -W + 8, width: W, height: Hc, transform: `translateZ(${D / 2}px)`, ...ironFace(50, 1.5 * shade.front), borderRadius: 2, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.16)' }} />
+        <div style={{ position: 'absolute', top: 0, left: dir > 0 ? W - 8 - D / 2 : -W + 8 - D / 2, width: D, height: Hc, transform: `rotateY(${dir * 90}deg)`, ...ironFace(40, 0.95 * shade.side) }} />
+        <div style={{ position: 'absolute', top: -D / 2, left: dir > 0 ? -8 : -W + 8, width: W, height: D, transform: `translateY(${Hc / 2}px) rotateX(90deg)`, ...ironFace(50, 1.9 * shade.top) }} />
       </div>
     );
   });
@@ -1168,19 +1267,19 @@ function RailClips({ offset, dir, vh }) {
 // The roller guides are bolted to the cabin, not the shaft, so they are the one
 // piece of hardware that stays nailed to the screen while everything else
 // streams past. Built as a box: front, inboard side, underside.
-function RollerShoe({ top, dir }) {
+function RollerShoe({ top, dir, shade }) {
   const W = 46;
   const D = 34;
   const H = 56;
   return (
     <div style={{ position: 'absolute', top, left: 0, width: 0, height: 0, transformStyle: 'preserve-3d' }}>
-      <div style={{ position: 'absolute', top: 0, left: dir > 0 ? -10 : -W + 10, width: W, height: H, transform: `translateZ(${D / 2}px)`, ...ironFace(64, 1.45), borderRadius: 3, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.18)' }}>
+      <div style={{ position: 'absolute', top: 0, left: dir > 0 ? -10 : -W + 10, width: W, height: H, transform: `translateZ(${D / 2}px)`, ...ironFace(64, 1.45 * shade.front), borderRadius: 3, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.18)' }}>
         {[0.3, 0.7].map((fy) => (
           <span key={fy} style={{ position: 'absolute', top: fy * H - 11, left: dir > 0 ? 26 : 6, width: 14, height: 22, borderRadius: 7, background: 'linear-gradient(90deg, #191c1f, #7d878f 45%, #191c1f)', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.7)' }} />
         ))}
       </div>
-      <div style={{ position: 'absolute', top: 0, left: dir > 0 ? W - 10 - D / 2 : -W + 10 - D / 2, width: D, height: H, transform: `rotateY(${dir * 90}deg)`, ...ironFace(46, 0.9) }} />
-      <div style={{ position: 'absolute', top: H - D / 2, left: dir > 0 ? -10 : -W + 10, width: W, height: D, transform: `rotateX(-90deg)`, transformOrigin: '50% 0%', ...ironFace(50, 0.55) }} />
+      <div style={{ position: 'absolute', top: 0, left: dir > 0 ? W - 10 - D / 2 : -W + 10 - D / 2, width: D, height: H, transform: `rotateY(${dir * 90}deg)`, ...ironFace(46, 0.9 * shade.side) }} />
+      <div style={{ position: 'absolute', top: H - D / 2, left: dir > 0 ? -10 : -W + 10, width: W, height: D, transform: `rotateX(-90deg)`, transformOrigin: '50% 0%', ...ironFace(50, 0.55 * shade.under) }} />
     </div>
   );
 }
@@ -1191,38 +1290,60 @@ function RollerShoe({ top, dir }) {
 // cabin rests on deck 02 — at ride speed it is smeared past recognition, so it
 // needs one resting place where you can see what it is. A box, again: face,
 // inboard side, and the underside you actually look up at.
-function Counterweight({ y, height, dir }) {
+function Counterweight({ y, height, dir, shade }) {
   const W = 62;
   const D = 42;
-  const plates = 'repeating-linear-gradient(180deg, rgba(255,255,255,0.1) 0px, rgba(255,255,255,0.1) 1px, transparent 1px, transparent 18px)';
+  const PITCH = 34;
+  // Only the bottom of the block is ever in frame — it hangs down into the top
+  // of the picture — so the plates are built where they can be seen and the rest
+  // of the column stays a plain face.
+  const SHOWN = 460;
+  const plates = Math.floor(SHOWN / PITCH);
   return (
     <div style={{ position: 'absolute', top: y, left: 0, width: 0, height: 0, transformStyle: 'preserve-3d' }}>
-      <div style={{ position: 'absolute', top: 0, left: -W / 2, width: W, height, transform: `translateZ(${D / 2}px)`, ...steelFace(58, 0.85) }}>
-        <div style={{ position: 'absolute', inset: '16px 6px 6px', backgroundImage: plates }} />
-      </div>
-      <div style={{ position: 'absolute', top: 0, left: (dir > 0 ? W / 2 : -W / 2) - D / 2, width: D, height, transform: `rotateY(${dir * 90}deg)`, ...steelFace(46, 0.5) }}>
-        <div style={{ position: 'absolute', inset: '16px 4px 6px', backgroundImage: plates }} />
-      </div>
-      <div style={{ position: 'absolute', top: height - D / 2, left: -W / 2, width: W, height: D, transform: 'rotateX(-90deg)', transformOrigin: '50% 0%', ...steelFace(40, 0.3) }} />
+      <div style={{ position: 'absolute', top: 0, left: -W / 2, width: W, height, transform: `translateZ(${D / 2}px)`, ...steelFace(58, 0.85 * shade.front) }} />
+      <div style={{ position: 'absolute', top: 0, left: (dir > 0 ? W / 2 : -W / 2) - D / 2, width: D, height, transform: `rotateY(${dir * 90}deg)`, ...steelFace(46, 0.5 * shade.side) }} />
+      <div style={{ position: 'absolute', top: height - D / 2, left: -W / 2, width: W, height: D, transform: 'rotateX(-90deg)', transformOrigin: '50% 0%', ...steelFace(40, 0.3 * shade.under) }} />
+
+      {/* The joints between the plates, as actual ledges rather than a hairline
+          in a repeating gradient. A stack of iron is only legible as a stack if
+          the top of each plate catches something the face of it does not, and a
+          1px white line inside one flat plane can never do that. */}
+      {Array.from({ length: plates }).map((_, k) => (
+        <div
+          key={k}
+          style={{
+            position: 'absolute', top: height - SHOWN + k * PITCH, left: -W / 2 + 5, width: W - 10, height: 5,
+            transformOrigin: '50% 100%',
+            transform: `translateZ(${D / 2}px) rotateX(64deg)`,
+            ...steelFace(26, 1.55 * shade.top),
+            boxShadow: '0 2px 4px rgba(0,0,0,0.7)',
+          }}
+        />
+      ))}
+
       {/* crosshead the ropes terminate in */}
-      <div style={{ position: 'absolute', top: -16, left: -W / 2 - 8, width: W + 16, height: 17, transform: `translateZ(${D / 2 + 3}px)`, ...steelFace(38, 1.1), borderRadius: 2, boxShadow: '0 3px 7px rgba(0,0,0,0.75)' }} />
+      <div style={{ position: 'absolute', top: -16, left: -W / 2 - 8, width: W + 16, height: 17, transform: `translateZ(${D / 2 + 3}px)`, ...steelFace(38, 1.1 * shade.front), borderRadius: 2, boxShadow: '0 3px 7px rgba(0,0,0,0.75)' }} />
     </div>
   );
 }
 
 // Ropes run from the sheave at the top of the shaft down to the crosshead and
 // stop there — drawn past it they read as the block dangling from below.
-function HoistRopes({ bottom }) {
+function HoistRopes({ bottom, dim = 1 }) {
   const TOP = -6000;
   const height = Math.max(0, bottom - TOP);
   if (height <= 0) return null;
+  const k = (c) => Math.round(c * dim);
   return [-16, 0, 16].map((dx) => (
     <div
       key={dx}
       style={{
         position: 'absolute', top: TOP, height, left: dx - 2, width: 4,
         transform: 'translateZ(22px)',
-        background: 'linear-gradient(90deg, #14171a, #98a3ab 50%, #14171a)',
+        // A rope is the one thing here that is genuinely a line, so it keeps its
+        // painted highlight — there is no third face on a 4px cable to find.
+        background: `linear-gradient(90deg, rgb(${k(20)},${k(23)},${k(26)}), rgb(${k(152)},${k(163)},${k(171)}) 50%, rgb(${k(20)},${k(23)},${k(26)}))`,
       }}
     />
   ));
@@ -1234,13 +1355,29 @@ function HoistRopes({ bottom }) {
 // deeper would collapse the whole scene back into decals.
 function Shaft({ vw, vh, pos, floorPx, backFloorPx, blur, lamps }) {
   const travelY = pos * floorPx;
-  // the rail and the counterweight are shaft furniture, not the subject. Pushed
-  // behind the cage bars and knocked back, they read as texture instead of
-  // demanding the attention a face-on vertical bar can never repay.
+  // the rail and the counterweight are shaft furniture, not the subject. Knocked
+  // back, they read as texture instead of demanding the attention a face-on
+  // vertical bar can never repay.
   const dim = 0.62;
   const cwHeight = vh * 1.15;
   const cwY = 132 - cwHeight + 2 * (pos - 1) * floorPx;
   const wallFilter = blur > 0.25 ? `url(#shaftBlur) brightness(${(1 - Math.min(0.2, blur * 0.02)).toFixed(3)})` : 'none';
+
+  // This is where `dim` used to be applied — as a `filter` on the group holding
+  // each object. That was the bug underneath both of them. A filter forces the
+  // used value of transform-style to flat, so those two groups have been
+  // rendering with their 3D collapsed this whole time: every face I built for
+  // the rail and the counterweight was being drawn into a single plane, which is
+  // exactly why neither ever read as a solid however the tones were tuned. It
+  // has to travel with the faces instead.
+  const shadeAt = (at, dir) => ({
+    front: (lit(at, [0, 0, 1], lamps) / 0.8) * dim,
+    side: (lit(at, [dir, 0, 0], lamps) / 0.8) * dim,
+    top: (lit(at, [0, -1, 0], lamps) / 0.8) * dim,
+    under: (lit(at, [0, 1, 0], lamps) / 0.8) * dim,
+  });
+  const railShade = shadeAt([RAIL_X, vh * 0.5, RAIL_Z], 1);
+  const cwShade = shadeAt([vw - CW_X, Math.max(0, cwY + cwHeight - 200), CW_Z], -1);
 
   return (
     <div style={{ position: 'absolute', inset: 0, zIndex: 1, pointerEvents: 'none', filter: wallFilter }}>
@@ -1264,13 +1401,12 @@ function Shaft({ vw, vh, pos, floorPx, backFloorPx, blur, lamps }) {
             style={{
               position: 'absolute', top: 0, left: RAIL_X, width: 0, height: 0,
               transformStyle: 'preserve-3d', transform: `translateZ(${RAIL_Z}px)`,
-              filter: `brightness(${dim.toFixed(2)})`,
             }}
           >
-            <GuideRail dir={1} vh={vh} />
-            <RailClips offset={travelY} dir={1} vh={vh} />
-            <RollerShoe top={vh * 0.28} dir={1} />
-            <RollerShoe top={vh * 0.72} dir={1} />
+            <GuideRail dir={1} vh={vh} shade={railShade} />
+            <RailClips offset={travelY} dir={1} vh={vh} shade={railShade} />
+            <RollerShoe top={vh * 0.28} dir={1} shade={railShade} />
+            <RollerShoe top={vh * 0.72} dir={1} shade={railShade} />
           </div>
 
           {/* the counterweight runs in its own guides on the far side */}
@@ -1278,11 +1414,10 @@ function Shaft({ vw, vh, pos, floorPx, backFloorPx, blur, lamps }) {
             style={{
               position: 'absolute', top: 0, left: vw - CW_X, width: 0, height: 0,
               transformStyle: 'preserve-3d', transform: `translateZ(${CW_Z}px)`,
-              filter: `brightness(${dim.toFixed(2)})`,
             }}
           >
-            <HoistRopes bottom={cwY - 15} />
-            <Counterweight y={cwY} height={cwHeight} dir={-1} />
+            <HoistRopes bottom={cwY - 15} dim={dim} />
+            <Counterweight y={cwY} height={cwHeight} dir={-1} shade={cwShade} />
           </div>
 
           {/* the lamps, bolted to the far wall either side of every doorway.
