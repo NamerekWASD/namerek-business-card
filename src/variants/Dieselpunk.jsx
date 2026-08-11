@@ -146,50 +146,6 @@ function useLift() {
 // bottom of the frame while everything behind it streams past. The taper runs
 // narrow at the far edge and full width at the near one, so its silhouette
 // meets the hazard stripe and front face without a step.
-function CabinFloor() {
-  return (
-    <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 84, pointerEvents: 'none' }}>
-      <div
-        style={{
-          position: 'absolute', top: 0, left: 0, right: 0, height: 30,
-          backgroundImage: `linear-gradient(180deg, #8a683d, #4a3520), url(${rustBrass})`,
-          backgroundSize: 'auto, 180px 180px',
-          backgroundBlendMode: 'multiply',
-          clipPath: 'polygon(5% 0, 95% 0, 100% 100%, 0 100%)',
-          boxShadow: 'inset 0 2px 0 rgba(255,255,255,0.3)',
-        }}
-      />
-      <div
-        style={{
-          position: 'absolute', top: 28, left: 0, right: 0, height: 7,
-          backgroundImage: 'repeating-linear-gradient(45deg, #d9a531 0px, #d9a531 10px, #241a10 10px, #241a10 20px)',
-          boxShadow: '0 1px 0 rgba(0,0,0,0.6)',
-        }}
-      />
-      <div
-        style={{
-          position: 'absolute', top: 35, left: 0, right: 0, bottom: 0, overflow: 'hidden',
-          backgroundImage: `linear-gradient(180deg, #2e2013, #150e08), url(${rustBrass})`,
-          backgroundSize: 'auto, 220px 220px',
-          backgroundBlendMode: 'multiply',
-          boxShadow: '0 -22px 34px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.08)',
-        }}
-      >
-        {Array.from({ length: 40 }).map((_, i) => (
-          <span
-            key={i}
-            style={{
-              position: 'absolute', top: 10, left: `${(i + 0.5) * 2.5}%`, width: 6, height: 6, borderRadius: '50%',
-              background: 'var(--rivet)',
-              boxShadow: 'inset 0 1px 1px rgba(0,0,0,0.7), 0 1px 0 rgba(255,255,255,0.06)',
-            }}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function BigGear({ style, size = 260, speed = 40, reverse }) {
   const teeth = Array.from({ length: 16 });
   return (
@@ -681,7 +637,7 @@ const CW_X = 44;
 // not from a highlight painted inside one of them.
 const steelFace = (scale = 46, shade = 1) => ({
   backgroundImage:
-    `linear-gradient(92deg, #1b1f22 0%, #6b747b 35%, #7d868d 70%, #22272a 100%), url(${brushedSteel})`,
+    `linear-gradient(90deg, #363c41 0%, #4c545a 45%, #3a4045 100%), url(${brushedSteel})`,
   backgroundSize: `auto, ${scale}px ${scale}px`,
   backgroundBlendMode: 'multiply',
   filter: shade === 1 ? undefined : `brightness(${shade})`,
@@ -796,10 +752,10 @@ function ShaftWall({ side, vw, vh, pos, floorPx, roomP }) {
       {nearFloors.map((f) => (
         <LandingDoor
           key={`door-${f}`}
-          top={deckTop(f) + vh * 0.33}
+          top={deckTop(f) + vh * 0.47}
           height={vh * 0.48}
-          depth={96}
-          width={150}
+          depth={80}
+          width={185}
           no={DECKS[f].no}
           nearEdge={nearEdge}
         />
@@ -1008,6 +964,175 @@ function Shaft({ vw, vh, pos, floorPx, roomP, blur }) {
             <HoistRopes bottom={cwY - 15} />
             <Counterweight y={cwY} height={cwHeight} dir={-1} />
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── the cage ─────────────────────────────────────────────────────────────────
+// An open goods-lift cage riding inside the shaft, so it is narrower than the
+// shaft and the walls stream past outside its posts.
+//
+// Its roof and floor are the point of the exercise: they are the first genuinely
+// horizontal surfaces in this camera. A vertical bar facing the viewer has no
+// convergence available to it and can only ever be shaded, which is why the
+// guide rail reads flat. A horizontal plane seen at a grazing angle converges
+// hard and reads as depth for nothing.
+const CAGE_NEAR = 300; // z of the cage's front, behind the camera
+const CAGE_FAR = -40; // z of the rear opening we look out through
+const CAGE_DEPTH = CAGE_NEAR - CAGE_FAR;
+// How far the cage runs clear of the shaft wall, so the wall stays visible past
+// its posts. Proportional, not fixed: a constant 190px is a tenth of a wide
+// window and a fifth of a narrow one, which strangles the opening on laptops.
+const cageInset = (vw) => Math.max(84, Math.min(190, vw * 0.12));
+const CAGE_ROOF_Y = 84;
+const CAGE_FLOOR_Y = 0.91; // fraction of vh
+// staggered along the depth so the row of posts converges — that convergence is
+// the depth cue, not the posts themselves
+const POST_Z = [CAGE_FAR, 45, 130, 215, CAGE_NEAR];
+
+// A horizontal deck — roof or floor. Hinged at one end and swung 90°, so its CSS
+// height becomes depth and its local y axis reads as distance from the viewer.
+function CageDeck({ y, vw, kind }) {
+  const isRoof = kind === 'roof';
+  const ribs = [0.16, 0.38, 0.6, 0.82];
+  const inset = cageInset(vw);
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        top: y, left: inset, width: vw - inset * 2, height: CAGE_DEPTH,
+        transformOrigin: '50% 0%',
+        // the roof hangs from its near edge and runs back; the floor is hinged at
+        // its far edge and runs toward us, so each one faces the viewer
+        transform: isRoof
+          ? `translateZ(${CAGE_NEAR}px) rotateX(-90deg)`
+          : `translateZ(${CAGE_FAR}px) rotateX(90deg)`,
+        ...ironFace(isRoof ? 110 : 150, isRoof ? 0.62 : 1.1),
+        boxShadow: isRoof
+          ? 'inset 0 0 80px rgba(0,0,0,0.8)'
+          : 'inset 0 0 80px rgba(0,0,0,0.55)',
+      }}
+    >
+      {/* cross members: evenly spaced in depth, so on screen they bunch up toward
+          the far end. Nothing else in the scene shows recession this plainly. */}
+      {ribs.map((r) => (
+        <div
+          key={r}
+          style={{
+            position: 'absolute', left: 0, right: 0, top: `${r * 100}%`, height: 9,
+            ...ironFace(40, isRoof ? 0.92 : 1.35),
+            boxShadow: '0 2px 6px rgba(0,0,0,0.6)',
+          }}
+        />
+      ))}
+      {!isRoof && (
+        <>
+          {/* the lip of the floor, at the far edge where you'd step off */}
+          <div
+            style={{
+              position: 'absolute', left: 0, right: 0, top: 0, height: 11,
+              backgroundImage: 'repeating-linear-gradient(45deg, #d9a531 0px, #d9a531 12px, #241a10 12px, #241a10 24px)',
+              opacity: 0.85,
+            }}
+          />
+          {[0.26, 0.7].map((r) => (
+            <div key={r} style={{ position: 'absolute', left: 0, right: 0, top: `${r * 100}%`, height: 7 }}>
+              {Array.from({ length: 22 }).map((_, i) => (
+                <span
+                  key={i}
+                  style={{
+                    position: 'absolute', left: `${(i + 0.5) * 4.55}%`, top: 0, width: 7, height: 7,
+                    borderRadius: '50%', background: 'var(--rivet)',
+                    boxShadow: 'inset 0 1px 1px rgba(0,0,0,0.7), 0 1px 0 rgba(255,255,255,0.07)',
+                  }}
+                />
+              ))}
+            </div>
+          ))}
+        </>
+      )}
+    </div>
+  );
+}
+
+// A corner post. Two faces: the one pointing at the camera and the inboard side,
+// which is the one that actually varies as the post moves along the depth.
+function CagePost({ z, x, top, height, dir }) {
+  const W = 15;
+  const D = 20;
+  return (
+    <div
+      style={{
+        position: 'absolute', top, left: x, width: 0, height: 0,
+        transformStyle: 'preserve-3d', transform: `translateZ(${z}px)`,
+      }}
+    >
+      <div style={{ position: 'absolute', top: 0, left: -W / 2, width: W, height, transform: `translateZ(${D / 2}px)`, ...ironFace(58, 1.3) }} />
+      <div style={{ position: 'absolute', top: 0, left: (dir > 0 ? W / 2 : -W / 2) - D / 2, width: D, height, transform: `rotateY(${dir * 90}deg)`, ...ironFace(44, 0.55) }} />
+    </div>
+  );
+}
+
+// A hand rail running the length of the cage. Built the same way as a shaft wall:
+// a plane hinged at the near end and swung 90°, so its CSS width is depth.
+function CageRail({ x, y, dir, h = 13 }) {
+  const D = 18;
+  const hinge = dir > 0 ? '0% 50%' : '100% 50%';
+  return (
+    <>
+      <div
+        style={{
+          position: 'absolute', top: y, left: dir > 0 ? x : x - CAGE_DEPTH,
+          width: CAGE_DEPTH, height: h,
+          transformOrigin: hinge,
+          transform: `translateZ(${CAGE_NEAR}px) rotateY(${dir * 90}deg)`,
+          ...ironFace(48, 0.9),
+        }}
+      />
+      {/* the rail sits below eye level, so the face we look at is its top */}
+      <div
+        style={{
+          position: 'absolute', top: y, left: x - D / 2, width: D, height: CAGE_DEPTH,
+          transformOrigin: '50% 0%',
+          transform: `translateZ(${CAGE_FAR}px) rotateX(90deg)`,
+          ...ironFace(38, 1.5),
+        }}
+      />
+    </>
+  );
+}
+
+// The cage draws in its own camera, in front of the content layer. Two
+// `perspective` containers with identical parameters are the same camera, so the
+// cage and the shaft line up exactly despite the flat content sandwiched between
+// them. It carries no motion blur on purpose: the cage rides with us, so it
+// staying sharp while the shaft smears is what sells the fact that we're in it.
+function CageFront({ vw, vh }) {
+  const floorY = vh * CAGE_FLOOR_Y;
+  const postH = floorY - CAGE_ROOF_Y;
+  const inset = cageInset(vw);
+  return (
+    <div style={{ position: 'absolute', inset: 0, zIndex: 4, pointerEvents: 'none' }}>
+      <div
+        style={{
+          position: 'absolute', inset: 0,
+          perspective: `${CAM_PERSPECTIVE}px`,
+          perspectiveOrigin: `50% ${CAM_ORIGIN_Y * 100}%`,
+        }}
+      >
+        <div style={{ position: 'absolute', inset: 0, transformStyle: 'preserve-3d' }}>
+          <CageDeck kind="roof" y={CAGE_ROOF_Y} vw={vw} />
+          <CageDeck kind="floor" y={floorY} vw={vw} />
+          {POST_Z.map((z) => (
+            <CagePost key={`l${z}`} z={z} x={inset} top={CAGE_ROOF_Y} height={postH} dir={1} />
+          ))}
+          {POST_Z.map((z) => (
+            <CagePost key={`r${z}`} z={z} x={vw - inset} top={CAGE_ROOF_Y} height={postH} dir={-1} />
+          ))}
+          <CageRail x={inset} y={floorY - 300} dir={1} />
+          <CageRail x={vw - inset} y={floorY - 300} dir={-1} />
         </div>
       </div>
     </div>
@@ -1434,10 +1559,9 @@ export default function Dieselpunk() {
       <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 90, background: 'linear-gradient(180deg, rgba(8,5,3,0.92), transparent)', pointerEvents: 'none', zIndex: 3 }} />
       <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 150, background: 'linear-gradient(0deg, rgba(8,5,3,0.95), transparent)', pointerEvents: 'none', zIndex: 3 }} />
 
-      {/* the cage floor rides with us, not with the shaft */}
-      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 5, pointerEvents: 'none' }}>
-        <CabinFloor />
-      </div>
+      {/* the cage rides with us, not with the shaft, and draws in front of the
+          content because it is nearer than the landing the content sits on */}
+      <CageFront vw={winW} vh={vh} />
 
       {/* the selector rides with the cabin, not with the floor */}
       <div
