@@ -76,11 +76,15 @@ function surface(s, shade = 1) {
 // Every tab is a deck of the same shaft: switching tabs is a lift ride, so the
 // decks have an order and a direction — going from Kontakt back to Start rides
 // *down*, and a three-floor hop takes longer than a neighbouring one.
+// Named the way the building names them, not the way an array indexes them: the
+// ground floor plate already reads EG, so 01..04 alongside it was the site
+// inventing a second numbering for the same four floors. `tick` is the short
+// form for the dial, where a full "1. OG" would not fit between the marks.
 const DECKS = [
-  { id: 'start', label: 'Start', no: '01' },
-  { id: 'leistungen', label: 'Leistungen', no: '02' },
-  { id: 'projekte', label: 'Projekte', no: '03' },
-  { id: 'kontakt', label: 'Kontakt', no: '04' },
+  { id: 'start', label: 'Start', no: 'EG', tick: 'EG' },
+  { id: 'leistungen', label: 'Leistungen', no: '1. OG', tick: '1' },
+  { id: 'projekte', label: 'Projekte', no: '2. OG', tick: '2' },
+  { id: 'kontakt', label: 'Kontakt', no: '3. OG', tick: '3' },
 ];
 
 // The three depth planes travel at different rates, which is what sells "the
@@ -203,32 +207,6 @@ function doorClosure(phase) {
   const openFrom = ACCEL + CRUISE;
   if (phase < openFrom) return 1;
   return 1 - (phase - openFrom) / DECEL;
-}
-
-// The deck plate we are standing on. It belongs to the cage, not to any floor,
-// so it never rides with the shaft — which makes it the one fixed thing at the
-// bottom of the frame while everything behind it streams past. The taper runs
-// narrow at the far edge and full width at the near one, so its silhouette
-// meets the hazard stripe and front face without a step.
-function BigGear({ style, size = 260, speed = 40, reverse }) {
-  const teeth = Array.from({ length: 16 });
-  return (
-    <motion.svg
-      width={size}
-      height={size}
-      viewBox="0 0 200 200"
-      style={{ position: 'absolute', opacity: 0.08, ...style }}
-      animate={{ rotate: reverse ? -360 : 360 }}
-      transition={{ duration: speed, repeat: Infinity, ease: 'linear' }}
-    >
-      <circle cx="100" cy="100" r="78" fill="none" stroke="var(--brass)" strokeWidth="4" />
-      <circle cx="100" cy="100" r="30" fill="none" stroke="var(--brass)" strokeWidth="3" />
-      {teeth.map((_, i) => {
-        const a = (i / teeth.length) * 360;
-        return <rect key={i} x="94" y="6" width="12" height="20" fill="var(--brass)" transform={`rotate(${a} 100 100)`} />;
-      })}
-    </motion.svg>
-  );
 }
 
 function Rivets() {
@@ -553,7 +531,7 @@ const DOOR_H = 0.94; // fraction of its height
 // spreading it over the base style silently ate the value.
 function LandingProp({ idx }) {
   return (
-    <div style={{ position: 'absolute', right: '7%', bottom: '6%', filter: 'brightness(1.85)' }}>
+    <div style={{ position: 'absolute', right: '15%', bottom: '15%', filter: 'brightness(1.85)' }}>
       <PropBody idx={idx} />
     </div>
   );
@@ -642,7 +620,7 @@ const BACK_OVERSCAN = 0.7;
 // The doorway of one floor: architrave, leaves, indicator. It lives in its own
 // layer in front of the content, because the content sits on the landing wall
 // and doors that cannot cover it are not doors.
-function Doorway({ vw, vh, top, no, closure, shake }) {
+function Doorway({ vw, vh, top, closure, shake }) {
   const w = vw * DOOR_W;
   const h = vh * DOOR_H;
   const left = (vw - w) / 2;
@@ -734,22 +712,6 @@ function Doorway({ vw, vh, top, no, closure, shake }) {
           ))}
         </div>
       ))}
-
-      {/* Floor number, inside the head of the opening and in front of the leaves.
-          On the architrave itself it fouled the cage roof on short windows, and
-          in front of the doors it stays readable as a shut landing goes past. */}
-      <div
-        style={{
-          position: 'absolute', left: '50%', top: 16, marginLeft: -32, width: 64, height: 26,
-          transform: `translateZ(${(FRAME_D * 0.34 + 6).toFixed(1)}px)`,
-          background: 'var(--screen)', borderRadius: 2,
-          boxShadow: 'inset 0 1px 5px rgba(0,0,0,0.9), 0 0 0 1px rgba(96,73,44,0.55)',
-          fontFamily: 'var(--mono)', fontSize: 16, lineHeight: '26px', textAlign: 'center',
-          color: 'var(--glow)', textShadow: '0 0 8px rgba(255,180,84,0.7)',
-        }}
-      >
-        {no}
-      </div>
     </div>
   );
 }
@@ -780,7 +742,6 @@ function Doorways({ vw, vh, pos, floorPx, closure, shake, blur }) {
                 vw={vw}
                 vh={vh}
                 top={overscan + travelY - f * floorPx + vh * CAM_ORIGIN_Y - (vh * DOOR_H) / 2}
-                no={DECKS[f].no}
                 closure={closure}
                 shake={shake}
               />
@@ -844,6 +805,10 @@ function ShaftBack({ vw, vh, pos, floorPx }) {
                     boxShadow: 'inset 0 70px 90px -30px rgba(0,0,0,0.85), inset 0 0 130px rgba(0,0,0,0.6)',
                   }}
                 >
+                  {/* the skirting, running out of sight both ways — one straight
+                      line at a known height is what tells you the floor keeps
+                      going after the light stops */}
+                  <div style={{ position: 'absolute', left: 0, right: 0, bottom: '13%', height: 9, ...surface(SURFACES.landing, 1.5), boxShadow: '0 2px 6px rgba(0,0,0,0.6)' }} />
                   {LIGHTS.landing && (
                     <div
                       style={{
@@ -854,12 +819,21 @@ function ShaftBack({ vw, vh, pos, floorPx }) {
                     />
                   )}
                   <LandingProp idx={f} />
+                  {/* the two branches. There is no wall at either end, so the
+                      corridor simply runs out of light — which is the only thing
+                      that ever tells you a passage continues rather than stops. */}
+                  <div
+                    style={{
+                      position: 'absolute', inset: 0, pointerEvents: 'none',
+                      background:
+                        'linear-gradient(90deg, rgba(4,3,2,0.97) 0%, rgba(4,3,2,0.8) 6%, rgba(4,3,2,0) 24%, rgba(4,3,2,0) 80%, rgba(4,3,2,0.8) 95%, rgba(4,3,2,0.97) 100%)',
+                    }}
+                  />
                 </div>
-                {/* the reveal into the room: four faces bridging wall to landing.
-                    Drawn here, behind the content, so they frame it rather than
-                    crossing it. */}
-                <div style={{ position: 'absolute', left: 0, top: 0, width: LANDING_D, height: h, transformOrigin: '0% 50%', transform: 'rotateY(90deg)', ...surface(SURFACES.landing, 0.5) }} />
-                <div style={{ position: 'absolute', right: 0, top: 0, width: LANDING_D, height: h, transformOrigin: '100% 50%', transform: 'rotateY(-90deg)', ...surface(SURFACES.landing, 0.5) }} />
+                {/* The reveal into the corridor: head and floor only. The jambs
+                    are gone on purpose — with all four faces this was a room the
+                    size of a doorway, and a lift that opens into a cupboard has
+                    nowhere to go. */}
                 <div style={{ position: 'absolute', left: 0, top: 0, width: w, height: LANDING_D, transformOrigin: '50% 0%', transform: 'rotateX(-90deg)', ...surface(SURFACES.landing, 0.3) }} />
                 <div style={{ position: 'absolute', left: 0, top: h, width: w, height: LANDING_D, transformOrigin: '50% 0%', transform: 'rotateX(-90deg)', ...surface(SURFACES.landing, 0.85) }} />
               </div>
@@ -1388,7 +1362,7 @@ function FloorSelector({ pos, deck, moving, go }) {
           style={{
             fontFamily: 'var(--mono)', fontSize: 15, letterSpacing: 1,
             background: 'var(--screen)', color: 'var(--glow)',
-            padding: '2px 8px', borderRadius: 2, minWidth: 34, textAlign: 'center',
+            padding: '2px 8px', borderRadius: 2, minWidth: 54, textAlign: 'center',
             boxShadow: 'inset 0 2px 5px rgba(0,0,0,0.85)',
             textShadow: '0 0 8px rgba(255,180,84,0.75)',
           }}
@@ -1519,7 +1493,7 @@ function FloorDial({ pos, size = 260 }) {
                 opacity={0.45 + 0.55 * lit}
                 style={lit > 0.05 ? { filter: `drop-shadow(0 0 ${4 * lit}px rgba(255,180,84,0.9))` } : undefined}
               >
-                {d.no}
+                {d.tick}
               </text>
             </g>
           );
@@ -1733,8 +1707,6 @@ export default function Dieselpunk() {
           background: 'linear-gradient(180deg, rgba(255,205,150,0.07) 0%, transparent 65%, transparent 75%, rgba(0,0,0,0.2) 85%, rgba(0,0,0,0.42) 100%)',
         }}
       />
-      <BigGear style={{ top: -60 + pos * vh * 0.06, left: -90 }} size={260} speed={50} />
-      <BigGear style={{ bottom: -100 - pos * vh * 0.04, right: -110 }} size={320} speed={65} reverse />
 
       <Shaft
         vw={winW} vh={vh} pos={pos}
