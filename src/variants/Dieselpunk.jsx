@@ -1233,7 +1233,7 @@ function Doorways({ vw, vh, pos, floorPx, ride, deck, intro, shake, blur }) {
   const filter = blur > 0.25 ? 'url(#shaftBlur)' : 'none';
 
   return (
-    <div style={{ position: 'absolute', inset: 0, zIndex: 3, pointerEvents: 'none', filter }}>
+    <div style={{ position: 'absolute', inset: 0, zIndex: 3, pointerEvents: 'none', overflow: 'hidden', filter }}>
       <div style={{ position: 'absolute', inset: 0, perspective: `${CAM_PERSPECTIVE}px`, perspectiveOrigin: `50% ${CAM_ORIGIN_Y * 100}%` }}>
         <div style={{ position: 'absolute', inset: 0, transformStyle: 'preserve-3d' }}>
           <div
@@ -1276,7 +1276,7 @@ const LANDING_D = 78;
 // plane would simply occlude it. Both are now the same family of surface, so the
 // cut is invisible — which is the whole trick: a continuous wall to the eye, an
 // actual hole to the compositor.
-function ShaftBack({ vw, vh, pos, floorPx }) {
+function ShaftBack({ vw, vh, pos, floorPx, ride, deck, intro }) {
   const travelY = pos * floorPx;
   const overscan = vh * BACK_OVERSCAN;
   const w = vw * DOOR_W;
@@ -1306,11 +1306,13 @@ function ShaftBack({ vw, vh, pos, floorPx }) {
 
       {slots.map((f) => {
         const isDeck = f >= 0 && f < DECKS.length;
-        // The masonry runs two floors either way so nothing pops in at speed,
-        // but a corridor two floors off is behind a shut door and a wall. Its
-        // fitting and its prop are a couple of hundred nodes each; build them
-        // only where they can be seen.
-        const furnished = Math.abs(f - pos) < 1.25;
+        // The masonry runs two floors either way so nothing pops in at speed.
+        // The furniture does not: a corridor is only ever seen through an open
+        // door, so a shut one is a wall and everything behind it is work done
+        // for nobody. Mid-ride that is every floor at once, which is exactly the
+        // stretch that could least afford it.
+        const shut = ride ? doorClosureAt(f, ride, deck) : Math.max(doorClosureAt(f, null, deck), f === deck ? intro : 1);
+        const furnished = Math.abs(f - pos) < 1.25 && shut < 0.985;
         const top = doorTop(f);
         return (
           <div key={f} style={{ transformStyle: 'preserve-3d' }}>
@@ -1529,9 +1531,16 @@ function Counterweight({ y, height, dir, shade }) {
 
 // Ropes run from the sheave at the top of the shaft down to the crosshead and
 // stop there — drawn past it they read as the block dangling from below.
-function HoistRopes({ bottom, dim = 1 }) {
-  const TOP = -6000;
-  const height = Math.max(0, bottom - TOP);
+function HoistRopes({ bottom, vh, dim = 1 }) {
+  // Bounded to a little either side of the viewport. These were eight thousand
+  // pixels tall and their height was rewritten every frame — and they sit inside
+  // the subtree the motion blur filters, so that height is not just a big
+  // element, it is the size of the texture the blur has to rasterise before it
+  // can convolve anything. A rope you cannot see is still a rope the compositor
+  // has to draw.
+  const TOP = -320;
+  const end = Math.min(bottom, vh + 240);
+  const height = Math.max(0, end - TOP);
   if (height <= 0) return null;
   const k = (c) => Math.round(c * dim);
   return [-16, 0, 16].map((dx) => (
@@ -1552,7 +1561,7 @@ function HoistRopes({ bottom, dim = 1 }) {
 // wrapper *outside* the perspective element on purpose: `filter` flattens the
 // 3D rendering context of the element it is applied to, so putting it any
 // deeper would collapse the whole scene back into decals.
-function Shaft({ vw, vh, pos, floorPx, backFloorPx, blur, lamps }) {
+function Shaft({ vw, vh, pos, floorPx, backFloorPx, blur, lamps, ride, deck, intro }) {
   // the counterweight is shaft furniture, not the subject. Knocked back, it
   // reads as texture instead of demanding attention it cannot repay.
   const dim = 0.62;
@@ -1575,7 +1584,15 @@ function Shaft({ vw, vh, pos, floorPx, backFloorPx, blur, lamps }) {
   const cwShade = shadeAt([vw - CW_X, Math.max(0, cwY + cwHeight - 200), CW_Z], -1);
 
   return (
-    <div style={{ position: 'absolute', inset: 0, zIndex: 1, pointerEvents: 'none', filter: wallFilter }}>
+    // `overflow: hidden` is here for the filter, not for the layout. A CSS
+    // filter has to rasterise the element's rendered content before it can
+    // convolve it, and that content is not the screen — it is everything the
+    // subtree paints, including a back wall overscanned to 2.4 viewports and the
+    // hoist ropes. Clipping first means the blur works on a screen-sized texture
+    // instead of whatever the scene happens to sprawl to. Safe on this element
+    // because it carries neither a transform nor preserve-3d; the camera is on
+    // the child.
+    <div style={{ position: 'absolute', inset: 0, zIndex: 1, pointerEvents: 'none', overflow: 'hidden', filter: wallFilter }}>
       <div
         style={{
           position: 'absolute', inset: 0,
@@ -1586,7 +1603,7 @@ function Shaft({ vw, vh, pos, floorPx, backFloorPx, blur, lamps }) {
         {/* no camera move on the intro: we are already standing in the cage, so
             riding forward into it was describing an approach that never happens */}
         <div style={{ position: 'absolute', inset: 0, transformStyle: 'preserve-3d' }}>
-          <ShaftBack vw={vw} vh={vh} pos={pos} floorPx={backFloorPx} />
+          <ShaftBack vw={vw} vh={vh} pos={pos} floorPx={backFloorPx} ride={ride} deck={deck} intro={intro} />
           <ShaftWall side="left" vh={vh} pos={pos} floorPx={floorPx} />
           <ShaftWall side="right" vh={vh} pos={pos} floorPx={floorPx} />
 
@@ -1602,7 +1619,7 @@ function Shaft({ vw, vh, pos, floorPx, backFloorPx, blur, lamps }) {
               transformStyle: 'preserve-3d', transform: `translateZ(${CW_Z}px)`,
             }}
           >
-            <HoistRopes bottom={cwY - 15} dim={dim} />
+            <HoistRopes bottom={cwY - 15} vh={vh} dim={dim} />
             <Counterweight y={cwY} height={cwHeight} dir={-1} shade={cwShade} />
           </div>
 
@@ -1890,7 +1907,7 @@ function CageFront({ vw, vh, lamps }) {
 // is also the only one that is pure garnish — nothing is unreadable without it.
 // So it is the first thing to give up. 'auto' measures and decides; true and
 // false override.
-const QUALITY = { blur: 'auto' };
+const QUALITY = { blur: 'off' };
 
 // Frames longer than this are under 25fps and you can see it.
 const SLOW_FRAME_MS = 40;
@@ -1908,9 +1925,13 @@ function useBlurBudget(moving) {
     let last = 0;
     const tick = (t) => {
       // the first sample spans the gap since the ride began, so it is not a frame
-      if (last && t - last > SLOW_FRAME_MS) slow.current += 1;
+      const dt = last ? t - last : 0;
+      if (dt > SLOW_FRAME_MS) slow.current += 1;
       last = t;
-      if (slow.current >= 6) {
+      // Four slow frames, or one frame so long it is a visible hitch on its own.
+      // The old threshold of six needed several rides to trip, which meant the
+      // machines that needed this most spent the longest not getting it.
+      if (slow.current >= 4 || dt > 80) {
         setAfford(false);
         return;
       }
@@ -2367,6 +2388,7 @@ export default function Dieselpunk() {
         floorPx={floorPxWall} backFloorPx={step}
         blur={blurAmount}
         lamps={lamps}
+        ride={ride} deck={deck} intro={introClosure(t)}
       />
 
       <div style={{ pointerEvents: 'auto' }}>
@@ -2392,7 +2414,11 @@ export default function Dieselpunk() {
         }}
       >
         <div style={{ position: 'absolute', inset: 0, transform: `translateY(${(pos * contentStep).toFixed(1)}px)` }}>
-          {DECKS.map((d, i) => {
+          {/* Behind a shut door there is nothing to see, so there is nothing to
+              build. The leaves are opaque and they cover the whole aperture, so
+              the deck underneath is not dimmed or clipped — it is invisible, and
+              at 0.985 it has been invisible for a few frames already. */}
+          {closure < 0.985 && DECKS.map((d, i) => {
             if (Math.abs(i - pos) > 1.2) return null;
             const Body = DECK_BODIES[i];
             return (
