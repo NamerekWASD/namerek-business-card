@@ -51,25 +51,39 @@ const SURFACES = {
   steel: { from: '#3f454a', to: '#1e2225', tile: 'steel', scale: 46, tex: 0.34 },
 };
 
-function rgba(hex, a) {
+function channels(hex, k) {
   const n = parseInt(hex.slice(1), 16);
-  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+  const c = (v) => Math.max(0, Math.min(255, Math.round(v * k)));
+  return [c((n >> 16) & 255), c((n >> 8) & 255), c(n & 255)];
 }
+
+const rgb = (hex, k = 1) => `rgb(${channels(hex, k).join(', ')})`;
+const rgba = (hex, a, k = 1) => `rgba(${channels(hex, k).join(', ')}, ${a})`;
 
 // Composites one surface. The texture is muted by washing a flat coat of the
 // surface's own shadow colour back over it — a genuine scalar, where blend modes
 // alone only ever give you two or three fixed strengths.
+//
+// `shade` is folded into the colours rather than applied as
+// `filter: brightness()`, and that is not a stylistic preference. A filter puts
+// its element into a rasterisation buffer of its own; there were a hundred and
+// seventy-six of them standing in this scene at rest, every one re-rastered on
+// every frame of a ride. It also forces the used value of transform-style to
+// flat, which is the trap that quietly flattened the counterweight, the old
+// guide rail and the landing props for weeks. Multiplying the stops costs
+// nothing and cannot do either.
+//
+// The tile follows along for free: it sits under the gradient in multiply, so
+// scaling the gradient scales the product.
 function surface(s, shade = 1) {
-  const brightness = shade === 1 ? undefined : `brightness(${shade})`;
-  const base = `linear-gradient(180deg, ${s.from}, ${s.to})`;
+  const base = `linear-gradient(180deg, ${rgb(s.from, shade)}, ${rgb(s.to, shade)})`;
   const tile = TILES[s.tile];
-  if (!tile || s.tex <= 0) return { backgroundImage: base, filter: brightness };
-  const wash = rgba(s.to, 1 - s.tex);
+  if (!tile || s.tex <= 0) return { backgroundImage: base };
+  const wash = rgba(s.to, 1 - s.tex, shade);
   return {
     backgroundImage: `linear-gradient(${wash}, ${wash}), ${base}, url(${tile})`,
     backgroundSize: `auto, auto, ${s.scale}px ${s.scale}px`,
     backgroundBlendMode: 'normal, multiply, multiply',
-    filter: brightness,
   };
 }
 
@@ -369,6 +383,44 @@ function LiftScrub({ scrub, setScrub, deckCount }) {
   );
 }
 
+// A frame meter, so the cost of a change is a number rather than an impression.
+// It keeps its own state and updates twice a second, which is the whole point:
+// it must not be able to re-render the scene it is measuring.
+function FpsMeter() {
+  const [read, setRead] = useState({ fps: 0, worst: 0 });
+  useEffect(() => {
+    let id;
+    let last = 0;
+    let n = 0;
+    let sum = 0;
+    let worst = 0;
+    let since = performance.now();
+    const tick = (now) => {
+      if (last) {
+        const dt = now - last;
+        n += 1;
+        sum += dt;
+        if (dt > worst) worst = dt;
+      }
+      last = now;
+      if (now - since > 500 && n) {
+        setRead({ fps: Math.round(1000 / (sum / n)), worst: Math.round(worst) });
+        n = 0; sum = 0; worst = 0; since = now;
+      }
+      id = requestAnimationFrame(tick);
+    };
+    id = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(id);
+  }, []);
+  const bad = read.fps > 0 && read.fps < 45;
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', color: bad ? '#ff9d5c' : '#8de08d' }}>
+      <span>frame</span>
+      <span>{read.fps} fps · worst {read.worst}ms</span>
+    </div>
+  );
+}
+
 function DebugScrub({ t, setT, playing, play, scrub, setScrub }) {
   return (
     <div
@@ -390,6 +442,7 @@ function DebugScrub({ t, setT, playing, play, scrub, setScrub }) {
         color: '#fff',
       }}
     >
+      <FpsMeter />
       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
         <span>door intro debug</span>
         <span>{Math.round(t)}ms / {DOOR_TOTAL_MS}ms</span>
@@ -721,17 +774,25 @@ function ShaftRivets({ offset, depth, span, nearEdge }) {
   const PITCH = 46;
   const shift = ((offset % PITCH) + PITCH) % PITCH;
   const rows = Math.ceil(span / PITCH) + 2;
-  return Array.from({ length: rows }).map((_, i) => (
-    <span
-      key={i}
-      style={{
-        position: 'absolute', top: i * PITCH - PITCH + shift, [nearEdge]: depth,
-        width: 7, height: 7, borderRadius: '50%',
-        background: 'var(--rivet)',
-        boxShadow: 'inset 0 1px 1px rgba(0,0,0,0.7), 0 1px 0 rgba(255,255,255,0.06)',
-      }}
-    />
-  ));
+  // The rivets hold still and the seam they are on slides. Writing a new `top`
+  // to each of forty spans per seam meant six seams' worth of per-element style
+  // churn on every frame; one transform on the group says the same thing and
+  // leaves the spans alone.
+  return (
+    <div style={{ position: 'absolute', inset: 0, transform: `translateY(${shift.toFixed(1)}px)` }}>
+      {Array.from({ length: rows }).map((_, i) => (
+        <span
+          key={i}
+          style={{
+            position: 'absolute', top: i * PITCH - PITCH, [nearEdge]: depth,
+            width: 7, height: 7, borderRadius: '50%',
+            background: 'var(--rivet)',
+            boxShadow: 'inset 0 1px 1px rgba(0,0,0,0.7), 0 1px 0 rgba(255,255,255,0.06)',
+          }}
+        />
+      ))}
+    </div>
+  );
 }
 
 // ── the back of the shaft ────────────────────────────────────────────────────
@@ -752,6 +813,24 @@ const DOOR_H = 0.94; // fraction of its height
 // of a wall. One fixed direction is enough here: these objects do not move, and
 // what they need is not a changing light but three faces that disagree.
 const ROOM_LIGHT = [0.18, -0.88, 0.44];
+
+// How far each landing's object is turned on its own axis, in degrees, EG first.
+// This is the lever for "is it facing me or looking off sideways", and it is
+// worth knowing exactly what it trades.
+//
+// The corridor sits about four hundred pixels behind a camera fourteen hundred
+// out, so the projection there is very nearly orthographic: a box square to the
+// wall converges by around three percent, which is a side face a few pixels
+// wide. Yaw buys that corner back, and the arithmetic is simple — the side face
+// is `d · sin(yaw)` across. On a 56-deep box that is 28px at 30°, 9px at 9°, and
+// nothing worth having below about 5°.
+//
+// So the pairing to remember: **shallow yaw wants more depth**. If you want
+// something squarer to the camera, drop its yaw and raise its `d` rather than
+// turning it further — that keeps the corner without making the object look like
+// it is addressing the wall. A negative yaw turns it the other way and the
+// visible side swaps over on its own.
+const PROP_YAW = [0, 9, 15, 14];
 
 // The range is wide on purpose. These props used to carry brightness(1.85) on
 // the wrapper above them, which is what made them visible at all; that had to go
@@ -775,7 +854,7 @@ function roomLit(n) {
 // distant solid read is the *corner*: two faces at a real angle, in two
 // different tones. Yaw supplies the angle, `roomLit` supplies the tones, and
 // perspective contributes nothing either way.
-function Box({ left, top, w, h, d, dir = -1, yaw = 30, tex = ironFace, scale = 50, tint = 1, children }) {
+function Box({ left, top, w, h, d, yaw = 14, dir = yaw >= 0 ? -1 : 1, tex = ironFace, scale = 50, tint = 1, children, extras }) {
   const r = (yaw * Math.PI) / 180;
   const s = Math.sin(r);
   const c = Math.cos(r);
@@ -792,7 +871,7 @@ function Box({ left, top, w, h, d, dir = -1, yaw = 30, tex = ironFace, scale = 5
       style={{
         position: 'absolute', left, top, width: 0, height: 0,
         transformStyle: 'preserve-3d',
-        transform: `translateZ(${(w * s).toFixed(1)}px) rotateY(${yaw}deg)`,
+        transform: `translateZ(${(w * Math.abs(s)).toFixed(1)}px) rotateY(${yaw}deg)`,
       }}
     >
       <div style={{ position: 'absolute', left: 0, top: 0, width: w, height: h, transform: `translateZ(${d}px)`, ...f([s, 0, c]), boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.45)' }}>
@@ -806,6 +885,10 @@ function Box({ left, top, w, h, d, dir = -1, yaw = 30, tex = ironFace, scale = 5
           ...f([dir * c, 0, -dir * s]),
         }}
       />
+      {/* Anything bolted to this box rather than standing near it. It goes inside
+          the yawed wrapper on purpose, so it inherits the turn and the stand-off
+          and cannot drift away from the thing it belongs to when either changes. */}
+      {extras}
     </div>
   );
 }
@@ -815,7 +898,10 @@ function LandingProp({ idx }) {
     // no `filter` on this wrapper any more: it flattens the 3D context of
     // everything below it, which would quietly turn every box back into the
     // decal it used to be. The brightness lives in each face's own shade.
-    <div style={{ position: 'absolute', right: '20%', bottom: '15%', transformStyle: 'preserve-3d' }}>
+    <div style={{ position: 'absolute',
+        left: idx === 0 ?  '80%' : '10%',
+        bottom: idx === 0 ? '20%' : '10%',
+        transformStyle: 'preserve-3d' }}>
       <PropBody idx={idx} />
     </div>
   );
@@ -839,10 +925,13 @@ function Stencil({ children, size = 11, style }) {
 }
 
 function PropBody({ idx }) {
-  // A workbench. The old one was a flat board with flat spanners on it, which
-  // at this size is a rectangle with grey marks — the top slab is what makes it
-  // furniture, because a horizontal surface is the only thing here the eye can
-  // measure the room against.
+  const yaw = PROP_YAW[idx] ?? 0;
+
+  // A workbench, and the one deliberately held square to the camera. Its yaw is
+  // small, so the corner it would otherwise get from turning has to come from
+  // depth instead — hence the deep carcass and the slab overhanging it by a long
+  // way. The slab is the piece doing the work: a horizontal surface is the only
+  // thing in this corridor the eye can measure the room against.
   if (idx === 1) {
     return (
       <div style={{ position: 'relative', width: 172, height: 128, transformStyle: 'preserve-3d' }}>
@@ -859,9 +948,9 @@ function PropBody({ idx }) {
             />
           ))}
         </div>
-        <Box left={0} top={26} w={172} h={82} d={56} dir={-1} scale={52} />
+        <Box left={0} top={26} w={172} h={82} d={86} yaw={yaw} scale={52} />
         {/* the top slab, overhanging the carcass on every side */}
-        <Box left={-6} top={16} w={184} h={12} d={66} dir={-1} tex={steelFace} scale={40} tint={1.05} />
+        <Box left={-6} top={16} w={184} h={12} d={100} yaw={yaw} tex={steelFace} scale={40} tint={1.05} />
         <Stencil style={{ left: 14, top: 44 }}>WERKBANK II</Stencil>
       </div>
     );
@@ -873,14 +962,14 @@ function PropBody({ idx }) {
   if (idx === 2) {
     return (
       <div style={{ position: 'relative', width: 190, height: 150, transformStyle: 'preserve-3d' }}>
-        <Box left={0} top={62} w={104} h={88} d={70} dir={-1} scale={64} tint={0.92}>
+        <Box left={0} top={62} w={104} h={88} d={80} yaw={yaw} scale={64} tint={0.92}>
           <Stencil style={{ left: 10, top: 12 }}>MT / 04</Stencil>
           <div style={{ position: 'absolute', left: '8%', right: '8%', top: '52%', height: 3, background: 'rgba(216,178,110,0.35)' }} />
         </Box>
-        <Box left={104} top={86} w={82} h={64} d={48} dir={-1} scale={54} tint={0.8}>
+        <Box left={104} top={86} w={82} h={64} d={60} yaw={yaw} scale={54} tint={0.8}>
           <Stencil style={{ left: 8, top: 9 }} size={10}>MT / 11</Stencil>
         </Box>
-        <Box left={20} top={0} w={74} h={56} d={52} dir={-1} scale={48} tint={1.08}>
+        <Box left={20} top={0} w={74} h={56} d={62} yaw={yaw} scale={48} tint={1.08}>
           <Stencil style={{ left: 8, top: 8 }} size={10}>MT / 02</Stencil>
         </Box>
       </div>
@@ -889,31 +978,41 @@ function PropBody({ idx }) {
 
   // A post box on a pedestal. It replaced a pneumatic chute, which was a pipe
   // with three rings round it — legible only if you already knew what it was
-  // meant to be. A slot at hand height and a hood over it is not ambiguous, and
-  // it says the same thing about the floor it stands on.
+  // meant to be. A slot at hand height and a hood over it is not ambiguous.
   if (idx === 3) {
     return (
       <div style={{ position: 'relative', width: 116, height: 200, transformStyle: 'preserve-3d' }}>
-        <Box left={22} top={128} w={64} h={72} d={44} dir={-1} scale={44} tint={0.78} />
-        <Box left={4} top={36} w={100} h={96} d={62} dir={-1} tex={steelFace} scale={50} tint={0.95}>
+        <Box left={22} top={158} w={64} h={82} d={64} yaw={yaw} scale={44} tint={0.78} />
+        <Box
+          left={4} top={66} w={100} h={96} d={78} yaw={yaw} tex={steelFace} scale={50} tint={0.95}
+          extras={
+            // The hood, hinged just above the slot and tipped out so it hangs
+            // over it — which is the whole point of a hood and what the reference
+            // shows. It rides *inside* the box rather than beside it: as a
+            // sibling it carried its own hand-set translateZ and yaw, so every
+            // time either changed on the box it drifted off somewhere on its own.
+            // Bolted on here it cannot.
+            <div
+              style={{
+                position: 'absolute', left: 8, top: 16, width: 84, height: 26,
+                transformOrigin: '50% 0%',
+                transform: 'translateZ(79px) rotateX(-34deg)',
+                ...steelFace(34, roomLit([0, -0.82, 0.57]) * 1.1),
+                borderRadius: '2px 2px 0 0',
+                boxShadow: '0 4px 9px rgba(0,0,0,0.7)',
+              }}
+            />
+          }
+        >
           <div
             style={{
-              position: 'absolute', left: '14%', right: '14%', top: '26%', height: 13,
-              background: 'rgba(0,0,0,0.82)',
+              position: 'absolute', left: '14%', right: '14%', top: '30%', height: 13,
+              background: 'rgba(0,0,0,0.86)',
               boxShadow: 'inset 0 3px 6px rgba(0,0,0,0.9), 0 1px 0 rgba(232,196,132,0.28)',
             }}
           />
           <Stencil style={{ left: '16%', bottom: 12 }} size={10}>POST</Stencil>
         </Box>
-        {/* the hood, sloped so it catches the corridor light square on */}
-        <div
-          style={{
-            position: 'absolute', left: 0, top: 36, width: 108, height: 34,
-            transformOrigin: '50% 100%', transform: 'translateZ(62px) rotateX(58deg)',
-            ...steelFace(40, roomLit([0, -0.85, 0.53]) * 1.05),
-            boxShadow: '0 3px 8px rgba(0,0,0,0.6)',
-          }}
-        />
       </div>
     );
   }
@@ -931,7 +1030,7 @@ function PropBody({ idx }) {
       {/* No yaw on this one. It is a plate bolted flat to the wall, so turning
           it would be wrong even where it helps — and it does not help: a sign
           reads by its face, not by its corner. */}
-      <Box left={0} top={0} w={132} h={88} d={14} dir={-1} yaw={0} scale={56} tint={1.1}>
+      <Box left={0} top={0} w={132} h={88} d={14} yaw={PROP_YAW[0]} scale={56} tint={1.1}>
         <div style={{ position: 'absolute', inset: 8, border: '2px solid rgba(216,178,110,0.35)' }} />
         <div
           style={{
@@ -1113,7 +1212,12 @@ function ShaftBack({ vw, vh, pos, floorPx }) {
   const here = Math.round(pos);
   const slots = [here - 2, here - 1, here, here + 1, here + 2];
   const doorTop = (f) => overscan + travelY - f * floorPx + vh * CAM_ORIGIN_Y - h / 2;
-  const wall = { ...surface(SURFACES.backWall), backgroundPosition: `0 0, 0 0, 0 ${travelY.toFixed(1)}px` };
+  // The far wall's texture used to scroll with the shaft. Changing
+  // background-position repaints the whole surface, and this style is on nine
+  // large blend-mode elements — nine full repaints a frame to move a grain you
+  // cannot see at four hundred pixels of depth behind a doorway. The side walls
+  // keep their scroll, because that is where the sense of speed actually lives.
+  const wall = surface(SURFACES.backWall);
 
   return (
     <div
@@ -1129,6 +1233,11 @@ function ShaftBack({ vw, vh, pos, floorPx }) {
 
       {slots.map((f) => {
         const isDeck = f >= 0 && f < DECKS.length;
+        // The masonry runs two floors either way so nothing pops in at speed,
+        // but a corridor two floors off is behind a shut door and a wall. Its
+        // fitting and its prop are a couple of hundred nodes each; build them
+        // only where they can be seen.
+        const furnished = Math.abs(f - pos) < 1.25;
         const top = doorTop(f);
         return (
           <div key={f} style={{ transformStyle: 'preserve-3d' }}>
@@ -1159,10 +1268,10 @@ function ShaftBack({ vw, vh, pos, floorPx }) {
                       showed. Same fixture as the shaft, smaller, lit from the
                       room instead of from the lamps it cannot see, and its own
                       pool on the wall is now the light in here. */}
-                  {LIGHTS.landing && (
+                  {LIGHTS.landing && furnished && (
                     <Lamp p={{ x: w * 0.5, y: h * 0.14, z: 18 }} lamps={[]} size={64} fixed={1.15} />
                   )}
-                  <LandingProp idx={f} />
+                  {furnished && <LandingProp idx={f} />}
                   {/* the two branches. There is no wall at either end, so the
                       corridor simply runs out of light — which is the only thing
                       that ever tells you a passage continues rather than stops. */}
@@ -1492,7 +1601,10 @@ function CageDeck({ y, vw, kind, shade, pool }) {
           key={r}
           style={{
             position: 'absolute', left: 0, right: 0, top: `${r * 100}%`, height: 9,
-            ...ironFace(40, isRoof ? 0.92 : 1.35),
+            // multiplied by the deck's own shade explicitly. It used to come for
+            // free because a filter on the parent applies to its descendants;
+            // now that the shade is in the colours, nothing is inherited.
+            ...ironFace(40, (isRoof ? 0.92 : 1.35) * shade),
             boxShadow: '0 2px 6px rgba(0,0,0,0.6)',
           }}
         />
@@ -1694,6 +1806,43 @@ function CageFront({ vw, vh, lamps }) {
   );
 }
 
+// Quality. The vertical motion blur is an SVG filter over a full-viewport 3D
+// subtree, which is far and away the most expensive thing in this scene, and it
+// is also the only one that is pure garnish — nothing is unreadable without it.
+// So it is the first thing to give up. 'auto' measures and decides; true and
+// false override.
+const QUALITY = { blur: 'auto' };
+
+// Frames longer than this are under 25fps and you can see it.
+const SLOW_FRAME_MS = 40;
+
+// Watches what frames actually cost while the lift is moving, and gives the blur
+// up for good once the machine has shown it cannot afford it. Measured rather
+// than guessed from the user agent, because the thing that matters is this
+// machine drawing this scene, not what it says it is.
+function useBlurBudget(moving) {
+  const [afford, setAfford] = useState(true);
+  const slow = useRef(0);
+  useEffect(() => {
+    if (QUALITY.blur !== 'auto' || !moving || !afford) return undefined;
+    let id;
+    let last = 0;
+    const tick = (t) => {
+      // the first sample spans the gap since the ride began, so it is not a frame
+      if (last && t - last > SLOW_FRAME_MS) slow.current += 1;
+      last = t;
+      if (slow.current >= 6) {
+        setAfford(false);
+        return;
+      }
+      id = requestAnimationFrame(tick);
+    };
+    id = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(id);
+  }, [moving, afford]);
+  return QUALITY.blur === 'auto' ? afford : QUALITY.blur;
+}
+
 // The remaining switches. `cage` is gone: it was never a light. It was a black
 // ellipse over the whole frame, which is why switching it off made the picture
 // brighter — a vignette wearing a lamp's name. It is called what it is now, and
@@ -1766,11 +1915,15 @@ function MotionBlurDef({ amount, contentAmount }) {
   return (
     <svg width="0" height="0" style={{ position: 'absolute', pointerEvents: 'none' }} aria-hidden>
       <defs>
-        <filter id="shaftBlur" x="-10%" y="-30%" width="120%" height="160%">
-          <feGaussianBlur stdDeviation={`0 ${amount.toFixed(2)}`} />
+        {/* The regions were 120%×160% and 110%×140% of the filtered subtree —
+            nearly twice the viewport rastered and convolved per frame for a
+            smear that never reaches past a few dozen pixels. A vertical-only
+            blur needs no horizontal margin at all. */}
+        <filter id="shaftBlur" x="0%" y="-6%" width="100%" height="112%">
+          <feGaussianBlur stdDeviation={`0 ${amount}`} />
         </filter>
-        <filter id="deckBlur" x="-5%" y="-20%" width="110%" height="140%">
-          <feGaussianBlur stdDeviation={`0 ${contentAmount.toFixed(2)}`} />
+        <filter id="deckBlur" x="0%" y="-4%" width="100%" height="108%">
+          <feGaussianBlur stdDeviation={`0 ${contentAmount}`} />
         </filter>
       </defs>
     </svg>
@@ -2080,7 +2233,12 @@ export default function Dieselpunk() {
   // the cage's rear frame, where the selector is mounted
   const headInset = winW / 2 + (cageInset(winW) - winW / 2) * (CAM_PERSPECTIVE / (CAM_PERSPECTIVE - CAGE_FAR));
   const speed = Math.abs(velocity);
-  const blurAmount = Math.min(16, speed * 5.5);
+  // Quantised into steps. Every distinct stdDeviation is a different filter as
+  // far as the compositor is concerned, so a continuously varying one threw away
+  // the cached result on every single frame; nine buckets look identical in
+  // motion and let it be reused.
+  const blurAllowed = useBlurBudget(moving);
+  const blurAmount = blurAllowed ? Math.round(Math.min(16, speed * 5.5) / 2) * 2 : 0;
   // The lamps, for this position of the shaft. Everything that gets lit is
   // handed this same list, so the cage, the fixtures and the haze cannot
   // disagree about where the light is coming from — which is the entire reason
@@ -2088,7 +2246,7 @@ export default function Dieselpunk() {
   const lamps = lampsAt(winW, vh, pos, step);
   // the decks get a touch of the same vertical smear — razor-sharp text flying
   // past at speed is the giveaway that nothing is really moving
-  const contentSmear = Math.min(3.2, speed * 1.1);
+  const contentSmear = blurAllowed ? Math.round(Math.min(3.2, speed * 1.1)) : 0;
   // loose objects trail the cabin's motion and settle a beat after it stops
   const lag = Math.max(-17, Math.min(17, -velocity * 4.6));
 
@@ -2164,7 +2322,7 @@ export default function Dieselpunk() {
                 style={{
                   position: 'absolute', left: 0, right: 0, top: -i * contentStep, height: ap.height,
                   display: 'flex', flexDirection: 'column', justifyContent: 'center',
-                  padding: '1.4rem 1.8rem',
+                  padding: '1.4rem 5.8rem',
                   boxSizing: 'border-box',
                   transform: `scale(${contentScale})`,
                 }}
