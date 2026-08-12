@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import Grain from './shared/Grain';
 import rustBrass from '../assets/textures/rust-brass.jpg';
@@ -789,27 +789,35 @@ function Lamp({ p, lamps, size = LAMPS.size, fixed }) {
 // A rivet seam running the full height of the shaft wall. Offsetting it modulo
 // the pitch makes it endless: the wall can travel any distance and the seam
 // never runs out or visibly restarts.
+const RIVET_PITCH = 46;
+
+// The spans themselves, built once. Their props only change when the window
+// resizes, so between resizes React does not walk them at all.
+const RivetSeam = memo(function RivetSeam({ depth, span, nearEdge }) {
+  const rows = Math.ceil(span / RIVET_PITCH) + 2;
+  return Array.from({ length: rows }).map((_, i) => (
+    <span
+      key={i}
+      style={{
+        position: 'absolute', top: i * RIVET_PITCH - RIVET_PITCH, [nearEdge]: depth,
+        width: 7, height: 7, borderRadius: '50%',
+        background: 'var(--rivet)',
+        boxShadow: 'inset 0 1px 1px rgba(0,0,0,0.7), 0 1px 0 rgba(255,255,255,0.06)',
+      }}
+    />
+  ));
+});
+
+// The rivets hold still and the seam they are on slides, so the movement is one
+// transform on the group. The memo above is the other half of that, and it is
+// the half that mattered: writing a new `top` to each span was cheap next to
+// *creating* thirty style objects per seam, six seams a wall, on every frame,
+// only for React to conclude that nothing had changed.
 function ShaftRivets({ offset, depth, span, nearEdge }) {
-  const PITCH = 46;
-  const shift = ((offset % PITCH) + PITCH) % PITCH;
-  const rows = Math.ceil(span / PITCH) + 2;
-  // The rivets hold still and the seam they are on slides. Writing a new `top`
-  // to each of forty spans per seam meant six seams' worth of per-element style
-  // churn on every frame; one transform on the group says the same thing and
-  // leaves the spans alone.
+  const shift = ((offset % RIVET_PITCH) + RIVET_PITCH) % RIVET_PITCH;
   return (
     <div style={{ position: 'absolute', inset: 0, transform: `translateY(${shift.toFixed(1)}px)` }}>
-      {Array.from({ length: rows }).map((_, i) => (
-        <span
-          key={i}
-          style={{
-            position: 'absolute', top: i * PITCH - PITCH, [nearEdge]: depth,
-            width: 7, height: 7, borderRadius: '50%',
-            background: 'var(--rivet)',
-            boxShadow: 'inset 0 1px 1px rgba(0,0,0,0.7), 0 1px 0 rgba(255,255,255,0.06)',
-          }}
-        />
-      ))}
+      <RivetSeam depth={depth} span={span} nearEdge={nearEdge} />
     </div>
   );
 }
@@ -849,7 +857,7 @@ const ROOM_LIGHT = [0.18, -0.88, 0.44];
 // turning it further — that keeps the corner without making the object look like
 // it is addressing the wall. A negative yaw turns it the other way and the
 // visible side swaps over on its own.
-const PROP_YAW = [0, 9, 15, 14];
+const PROP_YAW = [0, 0, 15, 3];
 
 // The range is wide on purpose. These props used to carry brightness(1.85) on
 // the wrapper above them, which is what made them visible at all; that had to go
@@ -926,7 +934,20 @@ function Box({ left, top, w, h, d, yaw = 14, tex = ironFace, scale = 50, tint = 
   );
 }
 
-function LandingProp({ idx }) {
+// The corridor's fitting, taking numbers rather than an object so it can be
+// memoized at all. It is lit from the room and never from the lamp list, so
+// nothing about it changes between frames — but `p={{…}}` is a fresh object
+// every render, and a fresh object defeats every memo there is. Three of these
+// were being rebuilt per frame, twenty-five nodes each.
+const NO_LAMPS = [];
+const CorridorLamp = memo(function CorridorLamp({ x, y }) {
+  return <Lamp p={{ x, y, z: 18 }} lamps={NO_LAMPS} size={64} fixed={1.15} />;
+});
+
+// Memoized on the floor number, which is the only thing it depends on. These are
+// static objects standing in a static room; they were being rebuilt at sixty
+// hertz because their parent was.
+const LandingProp = memo(function LandingProp({ idx }) {
   return (
     // no `filter` on this wrapper any more: it flattens the 3D context of
     // everything below it, which would quietly turn every box back into the
@@ -938,7 +959,7 @@ function LandingProp({ idx }) {
       <PropBody idx={idx} />
     </div>
   );
-}
+});
 
 // The stencil every one of these carries, so the landings belong to the same
 // building rather than each being a separate still life.
@@ -969,7 +990,7 @@ function PropBody({ idx }) {
     return (
       <div style={{ position: 'relative', width: 172, height: 128, transformStyle: 'preserve-3d' }}>
         {/* the board on the wall, and what hangs off it */}
-        <div style={{ position: 'absolute', left: 18, top: -46, width: 124, height: 52, ...ironFace(50, roomLit([0, 0, 1]) * 0.8), boxShadow: 'inset 0 0 0 2px rgba(0,0,0,0.5)' }}>
+        <div style={{ position: 'absolute', left: 18, top: -76, width: 124, height: 52, ...ironFace(50, roomLit([0, 0, 1]) * 0.8), boxShadow: 'inset 0 0 0 2px rgba(0,0,0,0.5)' }}>
           {[12, 40, 66, 96].map((x, i) => (
             <div
               key={x}
@@ -981,9 +1002,9 @@ function PropBody({ idx }) {
             />
           ))}
         </div>
-        <Box left={0} top={26} w={172} h={82} d={86} yaw={yaw} scale={52} />
+        <Box left={0} top={26} w={172} h={82} d={116} yaw={yaw} scale={52} />
         {/* the top slab, overhanging the carcass on every side */}
-        <Box left={-6} top={16} w={184} h={12} d={100} yaw={yaw} tex={steelFace} scale={40} tint={1.05} />
+        <Box left={-6} top={16} w={184} h={12} d={130} yaw={yaw} tex={steelFace} scale={40} tint={1.05} />
         <Stencil style={{ left: 14, top: 44 }}>WERKBANK II</Stencil>
       </div>
     );
@@ -1016,7 +1037,7 @@ function PropBody({ idx }) {
     return (
       <div style={{ position: 'relative', width: 116, height: 200, transformStyle: 'preserve-3d' }}>
         <Box
-          left={16} top={-44} w={125} h={136} d={68} yaw={yaw} tex={steelFace} scale={50} tint={0.95}
+          left={316} top={-94} w={125} h={136} d={78} yaw={yaw} tex={steelFace} scale={50} tint={0.95}
           extras={
             // The hood, hinged just above the slot and tipped out so it hangs
             // over it — which is the whole point of a hood and what the reference
@@ -1028,7 +1049,7 @@ function PropBody({ idx }) {
               style={{
                 position: 'absolute', left: 8, top: 16, width: 104, height: 26,
                 transformOrigin: '50% 0%',
-                transform: 'translateZ(69px) rotateX(-34deg)',
+                transform: 'translateZ(79px) rotateX(-34deg)',
                 ...steelFace(34, roomLit([0, -0.82, 0.57]) * 1.1),
                 borderRadius: '2px 2px 0 0',
                 boxShadow: '0 4px 9px rgba(0,0,0,0.7)',
@@ -1086,6 +1107,51 @@ const FRAME_D = 58;
 const FRAME_M = 34; // width of an architrave member
 const BACK_OVERSCAN = 0.7;
 
+// The architrave, standing proud of the wall. It is a separate memoized piece
+// because it is the heaviest static thing in the scene and it was being rebuilt
+// on every frame for nothing: four members carrying forty-four bolts, three
+// doorways in view, a hundred and thirty-two elements and their style objects
+// created per frame so that React could compare them and find them identical.
+// Its geometry depends on the viewport and nothing else — the `top` that moves
+// belongs to the container above it.
+const Architrave = memo(function Architrave({ vw, vh }) {
+  const w = vw * DOOR_W;
+  const h = vh * DOOR_H;
+  const left = (vw - w) / 2;
+  const face = surface(SURFACES.doorFrame);
+  return [
+    { l: left - FRAME_M, t: -FRAME_M, w: w + FRAME_M * 2, h: FRAME_M },
+    { l: left - FRAME_M, t: h, w: w + FRAME_M * 2, h: FRAME_M },
+    { l: left - FRAME_M, t: 0, w: FRAME_M, h },
+    { l: left + w, t: 0, w: FRAME_M, h },
+  ].map((b, i) => (
+    <div
+      key={i}
+      style={{
+        position: 'absolute', left: b.l, top: b.t, width: b.w, height: b.h,
+        transform: `translateZ(${FRAME_D}px)`,
+        ...face,
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), inset 0 0 0 1px rgba(0,0,0,0.5), 0 6px 22px rgba(0,0,0,0.75)',
+      }}
+    >
+      {/* bolts down the member, spaced along whichever way it runs */}
+      {Array.from({ length: b.w > b.h ? 14 : 8 }).map((_, k, arr) => (
+        <span
+          key={k}
+          style={{
+            position: 'absolute',
+            left: b.w > b.h ? `${((k + 0.5) / arr.length) * 100}%` : '50%',
+            top: b.w > b.h ? '50%' : `${((k + 0.5) / arr.length) * 100}%`,
+            width: 8, height: 8, marginLeft: -4, marginTop: -4, borderRadius: '50%',
+            background: 'var(--rivet)',
+            boxShadow: 'inset 0 1px 1px rgba(0,0,0,0.7), 0 1px 0 rgba(255,255,255,0.08)',
+          }}
+        />
+      ))}
+    </div>
+  ));
+});
+
 // The doorway of one floor: architrave, leaves, indicator. It lives in its own
 // layer in front of the content, because the content sits on the landing wall
 // and doors that cannot cover it are not doors.
@@ -1093,7 +1159,6 @@ function Doorway({ vw, vh, top, closure, shake }) {
   const w = vw * DOOR_W;
   const h = vh * DOOR_H;
   const left = (vw - w) / 2;
-  const face = surface(SURFACES.doorFrame);
   // The returns are graded along their own depth — bright at the front edge
   // where the cage lamp reaches them, dark where they meet the wall. This is the
   // one lighting cue a flat face can carry honestly, because here the gradient
@@ -1152,38 +1217,7 @@ function Doorway({ vw, vh, top, closure, shake }) {
       <div style={{ position: 'absolute', left, top: 0, width: w, height: FRAME_D, transformOrigin: '50% 0%', transform: `translateZ(${FRAME_D}px) rotateX(-90deg)`, ...ret(true, true) }} />
       <div style={{ position: 'absolute', left, top: h, width: w, height: FRAME_D, transformOrigin: '50% 0%', transform: 'rotateX(90deg)', ...ret(false, true) }} />
 
-      {/* the architrave itself, standing proud of the wall */}
-      {[
-        { l: left - FRAME_M, t: -FRAME_M, w: w + FRAME_M * 2, h: FRAME_M },
-        { l: left - FRAME_M, t: h, w: w + FRAME_M * 2, h: FRAME_M },
-        { l: left - FRAME_M, t: 0, w: FRAME_M, h },
-        { l: left + w, t: 0, w: FRAME_M, h },
-      ].map((b, i) => (
-        <div
-          key={i}
-          style={{
-            position: 'absolute', left: b.l, top: b.t, width: b.w, height: b.h,
-            transform: `translateZ(${FRAME_D}px)`,
-            ...face,
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), inset 0 0 0 1px rgba(0,0,0,0.5), 0 6px 22px rgba(0,0,0,0.75)',
-          }}
-        >
-          {/* bolts down the member, spaced along whichever way it runs */}
-          {Array.from({ length: b.w > b.h ? 14 : 8 }).map((_, k, arr) => (
-            <span
-              key={k}
-              style={{
-                position: 'absolute',
-                left: b.w > b.h ? `${((k + 0.5) / arr.length) * 100}%` : '50%',
-                top: b.w > b.h ? '50%' : `${((k + 0.5) / arr.length) * 100}%`,
-                width: 8, height: 8, marginLeft: -4, marginTop: -4, borderRadius: '50%',
-                background: 'var(--rivet)',
-                boxShadow: 'inset 0 1px 1px rgba(0,0,0,0.7), 0 1px 0 rgba(255,255,255,0.08)',
-              }}
-            />
-          ))}
-        </div>
-      ))}
+      <Architrave vw={vw} vh={vh} />
     </div>
   );
 }
@@ -1307,9 +1341,7 @@ function ShaftBack({ vw, vh, pos, floorPx }) {
                       showed. Same fixture as the shaft, smaller, lit from the
                       room instead of from the lamps it cannot see, and its own
                       pool on the wall is now the light in here. */}
-                  {LIGHTS.landing && furnished && (
-                    <Lamp p={{ x: w * 0.5, y: h * 0.14, z: 18 }} lamps={[]} size={64} fixed={1.15} />
-                  )}
+                  {LIGHTS.landing && furnished && <CorridorLamp x={w * 0.5} y={h * 0.14} />}
                   {furnished && <LandingProp idx={f} />}
                   {/* the two branches. There is no wall at either end, so the
                       corridor simply runs out of light — which is the only thing
@@ -1648,35 +1680,43 @@ function CageDeck({ y, vw, kind, shade, pool }) {
           }}
         />
       ))}
-      {!isRoof && (
-        <>
-          {/* the lip of the floor, at the far edge where you'd step off */}
-          <div
-            style={{
-              position: 'absolute', left: 0, right: 0, top: 0, height: 11,
-              backgroundImage: 'repeating-linear-gradient(45deg, #d9a531 0px, #d9a531 12px, #241a10 12px, #241a10 24px)',
-              opacity: 0.85,
-            }}
-          />
-          {[0.26, 0.7].map((r) => (
-            <div key={r} style={{ position: 'absolute', left: 0, right: 0, top: `${r * 100}%`, height: 7 }}>
-              {Array.from({ length: 22 }).map((_, i) => (
-                <span
-                  key={i}
-                  style={{
-                    position: 'absolute', left: `${(i + 0.5) * 4.55}%`, top: 0, width: 7, height: 7,
-                    borderRadius: '50%', background: 'var(--rivet)',
-                    boxShadow: 'inset 0 1px 1px rgba(0,0,0,0.7), 0 1px 0 rgba(255,255,255,0.07)',
-                  }}
-                />
-              ))}
-            </div>
-          ))}
-        </>
-      )}
+      {!isRoof && <DeckPlating />}
     </div>
   );
 }
+
+// The hazard lip and the rivet rows on the cage floor. Forty-five elements that
+// have never once changed — the cage rides with us, so nothing about it moves —
+// and were being rebuilt on every frame regardless. It takes no props at all,
+// which is the cheapest possible memo.
+const DeckPlating = memo(function DeckPlating() {
+  return (
+    <>
+      {/* the lip of the floor, at the far edge where you'd step off */}
+      <div
+        style={{
+          position: 'absolute', left: 0, right: 0, top: 0, height: 11,
+          backgroundImage: 'repeating-linear-gradient(45deg, #d9a531 0px, #d9a531 12px, #241a10 12px, #241a10 24px)',
+          opacity: 0.85,
+        }}
+      />
+      {[0.26, 0.7].map((r) => (
+        <div key={r} style={{ position: 'absolute', left: 0, right: 0, top: `${r * 100}%`, height: 7 }}>
+          {Array.from({ length: 22 }).map((_, i) => (
+            <span
+              key={i}
+              style={{
+                position: 'absolute', left: `${(i + 0.5) * 4.55}%`, top: 0, width: 7, height: 7,
+                borderRadius: '50%', background: 'var(--rivet)',
+                boxShadow: 'inset 0 1px 1px rgba(0,0,0,0.7), 0 1px 0 rgba(255,255,255,0.07)',
+              }}
+            />
+          ))}
+        </div>
+      ))}
+    </>
+  );
+});
 
 // A corner post. Two faces: the one pointing at the camera and the inboard side,
 // which is the one that actually varies as the post moves along the depth.
