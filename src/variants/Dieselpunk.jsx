@@ -208,7 +208,7 @@ function useLift() {
 
   // raw (un-eased) ride progress, which is what the doors key off: they need to
   // track the phases of the trip, not the distance covered
-  return { deck, pos, velocity, go, moving: !!ride, scrub, setScrub, ridePhase: ride ? ride.p : null };
+  return { deck, pos, velocity, go, moving: !!ride, scrub, setScrub, ride, ridePhase: ride ? ride.p : null };
 }
 
 // Landing doors, folded into the ride rather than added to it. Closing runs over
@@ -221,6 +221,22 @@ function doorClosure(phase) {
   const openFrom = ACCEL + CRUISE;
   if (phase < openFrom) return 1;
   return 1 - (phase - openFrom) / DECEL;
+}
+
+// …and which floor's doors those phases belong to. Exactly two floors have
+// anything to do in a ride: the one being left, which shuts over the
+// acceleration, and the one being arrived at, which opens over the braking.
+// Every floor in between is one the lift is going past, and a lift going past a
+// landing does not open its doors at it — riding one to four used to open three
+// of them.
+function doorClosureAt(f, ride, deck) {
+  if (!ride) return f === deck ? 0 : 1;
+  if (f === ride.from) return ride.p < ACCEL ? ride.p / ACCEL : 1;
+  if (f === ride.to) {
+    const openFrom = ACCEL + CRUISE;
+    return ride.p < openFrom ? 1 : 1 - (ride.p - openFrom) / DECEL;
+  }
+  return 1;
 }
 
 function Rivets() {
@@ -386,7 +402,7 @@ function LiftScrub({ scrub, setScrub, deckCount }) {
 // A frame meter, so the cost of a change is a number rather than an impression.
 // It keeps its own state and updates twice a second, which is the whole point:
 // it must not be able to re-render the scene it is measuring.
-function FpsMeter() {
+function FpsMeter({ blur }) {
   const [read, setRead] = useState({ fps: 0, worst: 0 });
   useEffect(() => {
     let id;
@@ -415,13 +431,16 @@ function FpsMeter() {
   const bad = read.fps > 0 && read.fps < 45;
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', color: bad ? '#ff9d5c' : '#8de08d' }}>
-      <span>frame</span>
+      {/* whether the blur is currently on is stated, not implied — when the
+          frame rate suddenly changes, the first thing worth knowing is whether
+          the auto-downgrade did it */}
+      <span>frame · blur {blur ? 'on' : 'off'}</span>
       <span>{read.fps} fps · worst {read.worst}ms</span>
     </div>
   );
 }
 
-function DebugScrub({ t, setT, playing, play, scrub, setScrub }) {
+function DebugScrub({ t, setT, playing, play, scrub, setScrub, blur }) {
   return (
     <div
       style={{
@@ -442,7 +461,7 @@ function DebugScrub({ t, setT, playing, play, scrub, setScrub }) {
         color: '#fff',
       }}
     >
-      <FpsMeter />
+      <FpsMeter blur={blur} />
       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
         <span>door intro debug</span>
         <span>{Math.round(t)}ms / {DOOR_TOTAL_MS}ms</span>
@@ -854,11 +873,27 @@ function roomLit(n) {
 // distant solid read is the *corner*: two faces at a real angle, in two
 // different tones. Yaw supplies the angle, `roomLit` supplies the tones, and
 // perspective contributes nothing either way.
-function Box({ left, top, w, h, d, yaw = 14, dir = yaw >= 0 ? -1 : 1, tex = ironFace, scale = 50, tint = 1, children, extras }) {
+function Box({ left, top, w, h, d, yaw = 14, tex = ironFace, scale = 50, tint = 1, children, extras }) {
   const r = (yaw * Math.PI) / 180;
   const s = Math.sin(r);
   const c = Math.cos(r);
   const f = (n) => tex(scale, roomLit(n) * tint);
+  // Every face is built and the browser decides which ones you see, via
+  // backface-visibility — which is just back-face culling under another name.
+  //
+  // Picking the visible side by hand was wrong and could not be made right. It
+  // was chosen from the sign of the yaw, but which side shows depends just as
+  // much on which side of the camera axis the object stands: an object left of
+  // centre is looked at from its right, however it is turned. Move a prop across
+  // the corridor and the hand-picked side becomes the hidden one, leaving an
+  // open corner. The GPU already knows the answer to this.
+  const cull = { backfaceVisibility: 'hidden' };
+  const side = (which) => ({
+    position: 'absolute', left: (which > 0 ? w : 0) - d / 2, top: 0, width: d, height: h,
+    transform: `translateZ(${d / 2}px) rotateY(${which * 90}deg)`,
+    ...f([which * c, 0, -which * s]),
+    ...cull,
+  });
   return (
     // Stood off the wall by exactly how far the yaw swings its far corner back.
     // Without this a turned box sinks into the wall behind it: the corner goes to
@@ -877,14 +912,12 @@ function Box({ left, top, w, h, d, yaw = 14, dir = yaw >= 0 ? -1 : 1, tex = iron
       <div style={{ position: 'absolute', left: 0, top: 0, width: w, height: h, transform: `translateZ(${d}px)`, ...f([s, 0, c]), boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.45)' }}>
         {children}
       </div>
+      {/* the top. Not culled and no underside built to match: every one of these
+          stands below the camera, so the underside is a face nobody can reach.
+          Raise a prop above eye level and it will want one. */}
       <div style={{ position: 'absolute', left: 0, top: 0, width: w, height: d, transformOrigin: '50% 0%', transform: 'rotateX(90deg)', ...f([0, -1, 0]) }} />
-      <div
-        style={{
-          position: 'absolute', left: (dir > 0 ? w : 0) - d / 2, top: 0, width: d, height: h,
-          transform: `translateZ(${d / 2}px) rotateY(${dir * 90}deg)`,
-          ...f([dir * c, 0, -dir * s]),
-        }}
-      />
+      <div style={side(-1)} />
+      <div style={side(1)} />
       {/* Anything bolted to this box rather than standing near it. It goes inside
           the yawed wrapper on purpose, so it inherits the turn and the stand-off
           and cannot drift away from the thing it belongs to when either changes. */}
@@ -982,9 +1015,8 @@ function PropBody({ idx }) {
   if (idx === 3) {
     return (
       <div style={{ position: 'relative', width: 116, height: 200, transformStyle: 'preserve-3d' }}>
-        <Box left={22} top={158} w={64} h={82} d={64} yaw={yaw} scale={44} tint={0.78} />
         <Box
-          left={4} top={66} w={100} h={96} d={78} yaw={yaw} tex={steelFace} scale={50} tint={0.95}
+          left={16} top={-44} w={125} h={136} d={68} yaw={yaw} tex={steelFace} scale={50} tint={0.95}
           extras={
             // The hood, hinged just above the slot and tipped out so it hangs
             // over it — which is the whole point of a hood and what the reference
@@ -994,9 +1026,9 @@ function PropBody({ idx }) {
             // Bolted on here it cannot.
             <div
               style={{
-                position: 'absolute', left: 8, top: 16, width: 84, height: 26,
+                position: 'absolute', left: 8, top: 16, width: 104, height: 26,
                 transformOrigin: '50% 0%',
-                transform: 'translateZ(79px) rotateX(-34deg)',
+                transform: 'translateZ(69px) rotateX(-34deg)',
                 ...steelFace(34, roomLit([0, -0.82, 0.57]) * 1.1),
                 borderRadius: '2px 2px 0 0',
                 boxShadow: '0 4px 9px rgba(0,0,0,0.7)',
@@ -1159,7 +1191,7 @@ function Doorway({ vw, vh, top, closure, shake }) {
 // The doorways, in their own camera in front of the content. Two `perspective`
 // containers with identical parameters are one camera, so these line up exactly
 // with the wall they stand on despite the flat content layer between them.
-function Doorways({ vw, vh, pos, floorPx, closure, shake, blur }) {
+function Doorways({ vw, vh, pos, floorPx, ride, deck, intro, shake, blur }) {
   const travelY = pos * floorPx;
   const overscan = vh * BACK_OVERSCAN;
   const here = Math.round(pos);
@@ -1176,16 +1208,23 @@ function Doorways({ vw, vh, pos, floorPx, closure, shake, blur }) {
               transform: `translateZ(${-SHAFT_DEPTH}px)`, transformStyle: 'preserve-3d',
             }}
           >
-            {slots.map((f) => (
-              <Doorway
-                key={f}
-                vw={vw}
-                vh={vh}
-                top={overscan + travelY - f * floorPx + vh * CAM_ORIGIN_Y - (vh * DOOR_H) / 2}
-                closure={closure}
-                shake={shake}
-              />
-            ))}
+            {slots.map((f) => {
+              // The intro concerns only the floor we are standing at, and only
+              // while standing: mid-ride `deck` is still the floor we left, so
+              // folding the intro in unconditionally would hold the destination
+              // shut all the way to it.
+              const shut = doorClosureAt(f, ride, deck);
+              return (
+                <Doorway
+                  key={f}
+                  vw={vw}
+                  vh={vh}
+                  top={overscan + travelY - f * floorPx + vh * CAM_ORIGIN_Y - (vh * DOOR_H) / 2}
+                  closure={!ride && f === deck ? Math.max(shut, intro) : shut}
+                  shake={shake}
+                />
+              );
+            })}
           </div>
         </div>
       </div>
@@ -2204,7 +2243,7 @@ const DECK_BODIES = [StartDeck, LeistungenDeck, ProjekteDeck, KontaktDeck];
 
 export default function Dieselpunk() {
   const { t, setT, playing, play } = useScrub(DOOR_TOTAL_MS);
-  const { pos, deck, moving, velocity, go, scrub, setScrub, ridePhase } = useLift();
+  const { pos, deck, moving, velocity, go, scrub, setScrub, ride, ridePhase } = useLift();
   const { vw: winW, vh } = useViewport();
   // No approach and no zoom on the intro. Now that the intro is just the landing
   // doors opening, scaling the room up meant the cage grew around us while we
@@ -2291,7 +2330,7 @@ export default function Dieselpunk() {
       />
 
       <div style={{ pointerEvents: 'auto' }}>
-        <DebugScrub t={t} setT={setT} playing={playing} play={play} scrub={scrub} setScrub={setScrub} />
+        <DebugScrub t={t} setT={setT} playing={playing} play={play} scrub={scrub} setScrub={setScrub} blur={blurAllowed} />
       </div>
 
       {/* The decks, clipped to the doorway and streaming behind it. Keeping the
@@ -2340,7 +2379,8 @@ export default function Dieselpunk() {
           so leaves that cannot cover it are not doors */}
       <Doorways
         vw={winW} vh={vh} pos={pos} floorPx={step}
-        closure={closure} shake={shake} blur={blurAmount}
+        ride={ride} deck={deck} intro={introClosure(t)}
+        shake={shake} blur={blurAmount}
       />
 
       {/* The blanket of black that used to be laid over everything mid-ride has
