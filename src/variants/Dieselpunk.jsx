@@ -17,9 +17,31 @@ const vars = {
   '--brass-deep': '#8b5e22',
   '--glow': '#ffb454',
   '--rivet': '#4a3623',
-  '--serif': "'Bitter', serif",
+  // Enamel. The one family of colour in here that is painted rather than
+  // corroded. Interwar industry marked itself with vitreous enamel — steel
+  // dipped in coloured glass and fired — which is why the surviving plates are
+  // still saturated while everything bolted next to them has gone to rust, and
+  // it is the reason a 1930s stairwell is not brown the whole way through.
+  // Two fields and one cream, so they read as one signage system.
+  '--enamel-red': '#8c2f26',
+  '--enamel-green': '#1e4034',
+  '--enamel-cream': '#e9dfc6',
+  // The display face. It was Bitter, a slab serif, which belongs to
+  // nineteenth-century printing rather than to this building — the era this
+  // scene is set in signed itself in heavy grotesques and geometric sans.
+  '--display': "'Archivo Black', 'Space Grotesk', sans-serif",
+  // The shared stylesheet aims h1–h3 at --serif. There is no serif in this
+  // variant, so it aims at the same face rather than falling through to the
+  // Renaissance one the others use.
+  '--serif': "'Archivo Black', 'Space Grotesk', sans-serif",
   '--mono': "'Space Mono', monospace",
 };
+
+// The enamel fields as raw hex, because everything inside the shaft has to be
+// multiplied by the light reaching it and `rgb()` needs the components. The CSS
+// custom properties above are the same colours for the flat UI, which is lit by
+// nothing and can take them straight.
+const ENAMEL = { red: '#8c2f26', green: '#1e4034', cream: '#e9dfc6' };
 
 // ── surfaces ─────────────────────────────────────────────────────────────────
 // Every large plane in the scene is described here rather than inline, so the
@@ -984,6 +1006,51 @@ function Stencil({ children, size = 11, style }) {
   );
 }
 
+// A vitreous enamel plate: the counterpart to the stencil above, and the
+// distinction between them is not decorative. A crate gets stencilled, because
+// a crate is consumable and the mark is sprayed through a card. A doorway, a
+// machine or a letter box gets an enamel plate, because the mark has to outlive
+// the paint around it. Using one where the other belongs is the quickest way to
+// make a set of props look art-directed rather than used.
+//
+// `shade` multiplies the colours instead of filtering the element, for the same
+// reason every other surface in this file does: a filter would collapse the 3D
+// context the plate is standing in.
+// `roomLit` runs from 0.6 in the dark to about 2.15 held flat to the corridor
+// light; a face square to the wall sits at 1.48. The enamel colours above are
+// authored as they should look on that face, so a caller's shade is measured
+// against it — which is what lets a plate darken with the thing it is bolted to
+// instead of glowing off it. Flat UI passes nothing and gets the colours as
+// written.
+const LIT_REF = 1.48;
+
+function EnamelPlate({ children, colour = 'green', shade = LIT_REF, size = 13, style }) {
+  const field = ENAMEL[colour];
+  const k = shade / LIT_REF;
+  return (
+    <div
+      style={{
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        padding: '5px 11px',
+        fontFamily: 'var(--display)', fontSize: size, letterSpacing: 2,
+        color: rgb(ENAMEL.cream, Math.min(1.06, k)),
+        background: `linear-gradient(168deg, ${rgb(field, k * 1.22)}, ${rgb(field, k * 0.74)})`,
+        boxShadow: [
+          // the keyline printed just inside the edge, which every one of these
+          // plates has and which is most of why they read as enamel at a glance
+          `inset 0 0 0 1px ${rgba(ENAMEL.cream, 0.5, k)}`,
+          // the rolled edge, where the glass thins and the steel comes through
+          `inset 0 0 0 4px ${rgba(field, 0.85, k * 0.55)}`,
+          `0 2px 5px rgba(0,0,0,0.6)`,
+        ].join(', '),
+        ...style,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 function PropBody({ idx }) {
   const yaw = PROP_YAW[idx] ?? 0;
 
@@ -1011,7 +1078,17 @@ function PropBody({ idx }) {
         <Box left={0} top={26} w={172} h={82} d={116} yaw={yaw} scale={52} />
         {/* the top slab, overhanging the carcass on every side */}
         <Box left={-6} top={16} w={184} h={12} d={130} yaw={yaw} tex={steelFace} scale={40} tint={1.05} />
-        <Stencil style={{ left: 14, top: 44 }}>WERKBANK II</Stencil>
+        {/* The bench is a fixture of the building, so it is signed rather than
+            stencilled — the crates below get the spray-through card, because a
+            crate is consumable and its mark only has to survive one journey. */}
+        <EnamelPlate
+          colour="green"
+          shade={roomLit([0, 0, 1])}
+          size={11}
+          style={{ position: 'absolute', left: 14, top: 40, padding: '4px 9px' }}
+        >
+          WERKBANK II
+        </EnamelPlate>
       </div>
     );
   }
@@ -1070,7 +1147,14 @@ function PropBody({ idx }) {
               boxShadow: 'inset 0 3px 6px rgba(0,0,0,0.9), 0 1px 0 rgba(232,196,132,0.28)',
             }}
           />
-          <Stencil style={{ left: '16%', bottom: 12 }} size={10}>POST</Stencil>
+          <EnamelPlate
+            colour="red"
+            shade={roomLit([0, 0, 1]) * 0.95}
+            size={11}
+            style={{ position: 'absolute', left: '16%', bottom: 10, padding: '4px 10px' }}
+          >
+            POST
+          </EnamelPlate>
         </Box>
       </div>
     );
@@ -1090,16 +1174,18 @@ function PropBody({ idx }) {
           it would be wrong even where it helps — and it does not help: a sign
           reads by its face, not by its corner. */}
       <Box left={0} top={0} w={132} h={88} d={14} yaw={PROP_YAW[0]} scale={56} tint={1.1}>
-        <div style={{ position: 'absolute', inset: 8, border: '2px solid rgba(216,178,110,0.35)' }} />
-        <div
-          style={{
-            position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontFamily: 'var(--mono)', fontSize: 34, fontWeight: 700, letterSpacing: 3,
-            color: 'rgba(216,178,110,0.55)', textShadow: '0 1px 0 rgba(0,0,0,0.7)',
-          }}
+        {/* Enamel on an iron backing, which is what a floor marker in this
+            building would actually be — and it is the one place in the corridor
+            colour can go without arguing with the light model, because a fired
+            glass field does not weather the way the steel around it does. */}
+        <EnamelPlate
+          colour="green"
+          shade={roomLit([0, 0, 1]) * 1.1}
+          size={30}
+          style={{ position: 'absolute', inset: 7, letterSpacing: 5 }}
         >
           EG
-        </div>
+        </EnamelPlate>
       </Box>
     </div>
   );
@@ -1120,28 +1206,51 @@ const BACK_OVERSCAN = 0.7;
 // created per frame so that React could compare them and find them identical.
 // Its geometry depends on the viewport and nothing else — the `top` that moves
 // belongs to the container above it.
+// The setback: how the architrave steps out of the wall toward the opening.
+// Four flat members standing at one depth is a picture frame, and a picture
+// frame is the one profile the period never used on a doorway — everything from
+// a cinema foyer to a substation door in the thirties stepped, because the
+// setback was the whole grammar. Each tier is narrower than the one behind it
+// and stands further proud, so the profile is a staircase running out to the
+// opening. It costs geometry only: no new asset, no new texture.
+//
+// The tiers get their own shade because a step you cannot see the edge of is
+// not a step. The proudest one catches most light, as it would.
+const FRAME_TIERS = [
+  { m: 1, z: 0.3, shade: 0.78 },
+  { m: 0.66, z: 0.64, shade: 0.96 },
+  { m: 0.36, z: 1, shade: 1.16 },
+];
+
 const Architrave = memo(function Architrave({ vw, vh }) {
   const w = vw * DOOR_W;
   const h = vh * DOOR_H;
   const left = (vw - w) / 2;
-  const face = surface(SURFACES.doorFrame);
-  return [
-    { l: left - FRAME_M, t: -FRAME_M, w: w + FRAME_M * 2, h: FRAME_M },
-    { l: left - FRAME_M, t: h, w: w + FRAME_M * 2, h: FRAME_M },
-    { l: left - FRAME_M, t: 0, w: FRAME_M, h },
-    { l: left + w, t: 0, w: FRAME_M, h },
-  ].map((b, i) => (
+  return FRAME_TIERS.flatMap((tier, ti) => {
+    const m = FRAME_M * tier.m;
+    const face = surface(SURFACES.doorFrame, tier.shade);
+    const outer = ti === 0;
+    return [
+      { l: left - m, t: -m, w: w + m * 2, h: m },
+      { l: left - m, t: h, w: w + m * 2, h: m },
+      { l: left - m, t: 0, w: m, h },
+      { l: left + w, t: 0, w: m, h },
+    ].map((b, i) => (
     <div
-      key={i}
+      key={`${ti}-${i}`}
       style={{
         position: 'absolute', left: b.l, top: b.t, width: b.w, height: b.h,
-        transform: `translateZ(${FRAME_D}px)`,
+        transform: `translateZ(${FRAME_D * tier.z}px)`,
         ...face,
-        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), inset 0 0 0 1px rgba(0,0,0,0.5), 0 6px 22px rgba(0,0,0,0.75)',
+        boxShadow: outer
+          ? 'inset 0 1px 0 rgba(255,255,255,0.1), inset 0 0 0 1px rgba(0,0,0,0.5), 0 6px 22px rgba(0,0,0,0.75)'
+          : 'inset 0 1px 0 rgba(255,255,255,0.12), inset 0 0 0 1px rgba(0,0,0,0.55), 0 3px 10px rgba(0,0,0,0.7)',
       }}
     >
-      {/* bolts down the member, spaced along whichever way it runs */}
-      {Array.from({ length: b.w > b.h ? 14 : 8 }).map((_, k, arr) => (
+      {/* Bolts down the member, spaced along whichever way it runs. Only on the
+          outermost tier: the inner steps are the same casting stepped back, so
+          bolting each one separately would be three fixings for one member. */}
+      {outer && Array.from({ length: b.w > b.h ? 14 : 8 }).map((_, k, arr) => (
         <span
           key={k}
           style={{
@@ -1155,7 +1264,8 @@ const Architrave = memo(function Architrave({ vw, vh }) {
         />
       ))}
     </div>
-  ));
+    ));
+  });
 });
 
 // The doorway of one floor: architrave, leaves, indicator. It lives in its own
@@ -1714,10 +1824,45 @@ function CageDeck({ y, vw, kind, shade, pool }) {
           }}
         />
       ))}
-      {!isRoof && <DeckPlating />}
+      {isRoof ? <HeadChevrons /> : <DeckPlating />}
     </div>
   );
 }
+
+// The headboard. Chevrons painted across the ceiling at its far end, over the
+// opening — the one piece of pure period styling in the cage, as opposed to
+// period hardware. Everything else in this scene is a thing that does a job;
+// this does none, and that is the point. The machine age decorated its machines,
+// and a lift built in 1936 that carried no ornament at all would be the odd one.
+//
+// They sit at the far edge because that is the strip of ceiling you can actually
+// see: the near edge is behind the camera's top rail. Painted in local pixels
+// rather than screen ones, so the projection foreshortens them the way it
+// foreshortens the ribs — which is what stops them reading as an overlay.
+//
+// Takes no props, like the floor's plating, and is memoized for the same reason:
+// the cage rides with us, so nothing about it ever moves.
+const HeadChevrons = memo(function HeadChevrons() {
+  return (
+    <div
+      style={{
+        position: 'absolute', left: '6%', right: '6%', bottom: 6, height: 124,
+        display: 'flex', alignItems: 'stretch', justifyContent: 'space-between',
+      }}
+    >
+      {Array.from({ length: 13 }).map((_, i) => (
+        <span
+          key={i}
+          style={{
+            width: 32,
+            background: 'rgba(233,223,198,0.32)',
+            clipPath: 'polygon(0 0, 46% 0, 100% 50%, 46% 100%, 0 100%, 54% 50%)',
+          }}
+        />
+      ))}
+    </div>
+  );
+});
 
 // The hazard lip and the rivet rows on the cage floor. Forty-five elements that
 // have never once changed — the cage rides with us, so nothing about it moves —
@@ -1930,7 +2075,7 @@ function CageFront({ vw, vh, lamps }) {
 // blur: 'off' — turned it fully *on*, because a non-empty string is truthy and
 // the value was handed straight back as the answer. A switch whose off position
 // is on is a switch that will lie to whoever measures with it.
-const QUALITY = { blur: 'auto' };
+const QUALITY = { blur: 'off' };
 
 // Frames longer than this are under 25fps and you can see it.
 const SLOW_FRAME_MS = 40;
@@ -2126,7 +2271,15 @@ function FloorSelector({ pos, deck, moving, go }) {
 function DeckHeading({ children }) {
   return (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: '1.4rem' }}>
-      <h2 style={{ fontFamily: 'var(--serif)', fontWeight: 700, fontSize: 30, margin: 0, textShadow: '0 2px 0 rgba(0,0,0,0.5)' }}>{children}</h2>
+      <h2
+        style={{
+          fontFamily: 'var(--display)', fontWeight: 400, fontSize: 26,
+          letterSpacing: 2, textTransform: 'uppercase',
+          margin: 0, textShadow: '0 2px 0 rgba(0,0,0,0.5)',
+        }}
+      >
+        {children}
+      </h2>
       <span style={{ flex: 1, height: 1, background: 'var(--line)' }} />
     </div>
   );
@@ -2136,75 +2289,104 @@ function DeckHeading({ children }) {
 // the one place an analogue dial earns its keep here: big enough for the
 // texture to actually read, and it does a job — the needle sweeps continuously
 // with the cabin instead of decorating the wall.
+// It used to be a brass bezel round a black face with an amber needle glowing
+// out of it, which is a Victorian instrument — the same object you would find on
+// a steam gauge, and the single loudest reason this scene read as steampunk. The
+// interwar workshop instrument is the other way round: a moulded black case,
+// a cream printed face, black marks, and a needle that is a needle rather than a
+// light source. It is also more legible, which is the usual reward for building
+// the thing the period actually built.
 function FloorDial({ pos, size = 260 }) {
   const SPAN = 68;
   const angle = -SPAN + (pos / (DECKS.length - 1)) * SPAN * 2;
   const rad = (a) => ((a - 90) * Math.PI) / 180;
+  const px = (a, r) => 100 + r * Math.cos(rad(a));
+  const py = (a, r) => 100 + r * Math.sin(rad(a));
+  // an arc of the face, swept clockwise, for the limit bands past the end marks
+  const band = (a0, a1, r) =>
+    `M ${px(a0, r).toFixed(2)} ${py(a0, r).toFixed(2)} A ${r} ${r} 0 0 1 ${px(a1, r).toFixed(2)} ${py(a1, r).toFixed(2)}`;
   return (
-    <div style={{ position: 'relative', width: size, height: size * 0.5 + 34 }}>
+    <div style={{ position: 'relative', width: size, height: size * 0.5 + 48 }}>
+      {/* the case: moulded phenolic, so no tile — it is the one smooth thing in
+          the frame, and that contrast is most of what makes it read as an
+          instrument rather than as another piece of the building */}
       <div
         style={{
           position: 'absolute', left: 0, right: 0, top: 0, height: size * 0.5 + 14,
-          borderRadius: `${size / 2}px ${size / 2}px 4px 4px`,
-          backgroundImage: `linear-gradient(160deg, rgba(176,138,86,0.72), rgba(88,60,26,0.85)), url(${bronzeWorn})`,
-          backgroundSize: `auto, ${Math.round(size * 0.8)}px ${Math.round(size * 0.8)}px`,
-          backgroundBlendMode: 'soft-light',
-          boxShadow: '0 14px 26px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.16)',
+          borderRadius: `${size / 2}px ${size / 2}px 5px 5px`,
+          background: 'linear-gradient(158deg, #2b2724 0%, #16130f 46%, #0a0807 100%)',
+          boxShadow: '0 14px 26px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.14), inset 0 -2px 6px rgba(0,0,0,0.8)',
         }}
       />
+      {/* the printed face */}
       <div
         style={{
-          position: 'absolute', left: 12, right: 12, top: 12, height: size * 0.5 - 8,
-          borderRadius: `${size / 2}px ${size / 2}px 2px 2px`,
-          backgroundImage: `linear-gradient(180deg, rgba(26,21,16,0.92), rgba(9,7,5,0.95)), url(${bronzeWorn})`,
-          backgroundSize: `auto, ${Math.round(size * 0.45)}px ${Math.round(size * 0.45)}px`,
-          backgroundBlendMode: 'multiply',
-          boxShadow: 'inset 0 4px 10px rgba(0,0,0,0.9), inset 0 0 0 1px var(--brass-deep)',
+          position: 'absolute', left: 13, right: 13, top: 13, height: size * 0.5 - 10,
+          borderRadius: `${size / 2}px ${size / 2}px 3px 3px`,
+          backgroundImage: `radial-gradient(120% 150% at 50% 100%, #efe6cf 0%, #ded0ac 62%, #c4b28c 100%), url(${bronzeWorn})`,
+          backgroundSize: `auto, ${Math.round(size * 0.9)}px ${Math.round(size * 0.9)}px`,
+          // the tile only ages the card; at soft-light it grubbies it without
+          // turning it back into metal
+          backgroundBlendMode: 'soft-light',
+          boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.35), inset 0 0 0 1px rgba(40,32,24,0.55)',
         }}
       />
       <svg
         viewBox="0 0 200 108"
-        style={{ position: 'absolute', left: 12, right: 12, top: 12, width: size - 24, height: (size - 24) * 0.54 }}
+        style={{ position: 'absolute', left: 13, right: 13, top: 13, width: size - 26, height: (size - 26) * 0.54 }}
       >
+        {/* Past the end marks the car is in the overrun, and on a real indicator
+            that is where the red goes. Information, not decoration — it is the
+            only red on the face and it means something. */}
+        <path d={band(-86, -72, 72)} stroke="var(--enamel-red)" strokeWidth="7" fill="none" opacity="0.85" />
+        <path d={band(72, 86, 72)} stroke="var(--enamel-red)" strokeWidth="7" fill="none" opacity="0.85" />
         {DECKS.map((d, i) => {
           const a = -SPAN + (i / (DECKS.length - 1)) * SPAN * 2;
-          const lit = Math.max(0, 1 - Math.abs(pos - i) * 1.6);
+          const here = Math.max(0, 1 - Math.abs(pos - i) * 1.6);
           return (
             <g key={d.id}>
               {/* numerals sit outside the ticks, clear of the needle's sweep —
                   inside, the needle parked on a floor covered its own label */}
               <line
-                x1={100 + 78 * Math.cos(rad(a))} y1={100 + 78 * Math.sin(rad(a))}
-                x2={100 + 66 * Math.cos(rad(a))} y2={100 + 66 * Math.sin(rad(a))}
-                stroke="var(--brass)" strokeWidth="2.2"
+                x1={px(a, 78)} y1={py(a, 78)} x2={px(a, 65)} y2={py(a, 65)}
+                stroke="#2a231c" strokeWidth={here > 0.5 ? 3.4 : 2.2}
               />
               <text
-                x={100 + 91 * Math.cos(rad(a))} y={100 + 91 * Math.sin(rad(a)) + 4.5}
-                textAnchor="middle" fontFamily="var(--mono)" fontSize="13"
-                fill={lit > 0.05 ? 'var(--glow)' : 'var(--muted)'}
-                opacity={0.45 + 0.55 * lit}
-                style={lit > 0.05 ? { filter: `drop-shadow(0 0 ${4 * lit}px rgba(255,180,84,0.9))` } : undefined}
+                x={px(a, 91)} y={py(a, 91) + 4.5}
+                textAnchor="middle" fontFamily="var(--display)" fontSize="12"
+                fill="#241d17" opacity={(0.5 + 0.5 * here).toFixed(2)}
               >
                 {d.tick}
               </text>
             </g>
           );
         })}
+        {/* the needle, with the counterweighted tail every one of these has */}
         <line
-          x1="100" y1="100"
-          x2={100 + 61 * Math.cos(rad(angle))} y2={100 + 61 * Math.sin(rad(angle))}
-          stroke="var(--glow)" strokeWidth="3" strokeLinecap="round"
-          style={{ filter: 'drop-shadow(0 0 5px rgba(255,180,84,0.9))' }}
+          x1={px(angle + 180, 15)} y1={py(angle + 180, 15)}
+          x2={px(angle, 60)} y2={py(angle, 60)}
+          stroke="#17120e" strokeWidth="3.4" strokeLinecap="round"
         />
-        <circle cx="100" cy="100" r="7" fill="var(--brass)" stroke="var(--brass-deep)" strokeWidth="1.5" />
+        <line
+          x1="100" y1="100" x2={px(angle + 180, 14)} y2={py(angle + 180, 14)}
+          stroke="var(--enamel-red)" strokeWidth="5.5" strokeLinecap="round"
+        />
+        <circle cx="100" cy="100" r="7" fill="#17120e" stroke="rgba(233,223,198,0.5)" strokeWidth="1.2" />
       </svg>
+      {/* the glass: one shallow sweep across the upper left, nothing more. A
+          full gloss on a half-round face reads as plastic */}
       <div
         style={{
-          position: 'absolute', left: 0, right: 0, bottom: 0, textAlign: 'center',
-          fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: 3, color: 'var(--muted)',
+          position: 'absolute', left: 13, right: 13, top: 13, height: size * 0.5 - 10,
+          borderRadius: `${size / 2}px ${size / 2}px 3px 3px`,
+          background: 'linear-gradient(128deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.05) 26%, rgba(255,255,255,0) 47%)',
+          pointerEvents: 'none',
         }}
-      >
-        FAHRKORB I
+      />
+      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, display: 'flex', justifyContent: 'center' }}>
+        <EnamelPlate colour="green" size={9} style={{ letterSpacing: 3, padding: '4px 12px' }}>
+          FAHRKORB I
+        </EnamelPlate>
       </div>
     </div>
   );
@@ -2219,8 +2401,9 @@ function StartDeck({ lag, pos }) {
       </div>
       <h1
         style={{
-          fontFamily: 'var(--serif)', fontWeight: 700,
-          fontSize: 'clamp(2.2rem, 6vw, 3.6rem)', lineHeight: 1.05, margin: '1.2rem 0 0',
+          fontFamily: 'var(--display)', fontWeight: 400,
+          fontSize: 'clamp(2rem, 5.4vw, 3.2rem)', lineHeight: 1.02, margin: '1.2rem 0 0',
+          letterSpacing: '-0.01em', textTransform: 'uppercase',
           textShadow: '0 2px 0 rgba(0,0,0,0.5)',
           transform: `translateY(${(lag * 0.8).toFixed(2)}px)`,
         }}
@@ -2258,9 +2441,11 @@ function LeistungenDeck({ lag }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
         {skills.map((g, i) => (
           <Plate key={g.label} i={i} lag={lag} style={{ padding: '1rem 1.1rem' }}>
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', color: 'var(--brass)' }}>
+            {/* the category is a fixed marking on a fixed panel, so it is a
+                plate — the same rule the corridor props follow */}
+            <EnamelPlate colour="green" size={10} style={{ letterSpacing: 1.5, textTransform: 'uppercase', padding: '4px 9px' }}>
               {g.label}
-            </div>
+            </EnamelPlate>
             <div style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--glow)', marginTop: 8, textShadow: '0 0 6px rgba(255,180,84,0.4)' }}>
               {g.tech}
             </div>
@@ -2286,9 +2471,9 @@ function ProjekteDeck({ lag }) {
         ))}
       </div>
       <Plate i={4} lag={lag} style={{ padding: '1.2rem', marginTop: '1rem' }}>
-        <div style={{ fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', color: 'var(--brass)' }}>
+        <EnamelPlate colour="red" size={10} style={{ letterSpacing: 1.5, textTransform: 'uppercase', padding: '4px 9px' }}>
           Referenzen
-        </div>
+        </EnamelPlate>
         <p style={{ fontSize: 14, lineHeight: 1.7, color: 'var(--muted)', margin: '8px 0 0' }}>
           Ausgew&auml;hlte Projekte sind in Vorbereitung &mdash; Details gerne direkt im Gespr&auml;ch.
         </p>
@@ -2300,7 +2485,7 @@ function ProjekteDeck({ lag }) {
 function KontaktDeck({ lag }) {
   return (
     <div style={{ textAlign: 'center', transform: `translateY(${(lag * 0.9).toFixed(2)}px)` }}>
-      <h2 style={{ fontFamily: 'var(--serif)', fontSize: 28, color: 'var(--ink)', margin: 0 }}>Lust auf ein Gespr&auml;ch?</h2>
+      <h2 style={{ fontFamily: 'var(--display)', fontWeight: 400, fontSize: 24, letterSpacing: 1.5, textTransform: 'uppercase', color: 'var(--ink)', margin: 0 }}>Lust auf ein Gespr&auml;ch?</h2>
       <div style={{ display: 'flex', justifyContent: 'center', gap: '0.8rem', marginTop: '1.6rem', flexWrap: 'wrap' }}>
         <a
           href="mailto:nykolai.tymchenko@gmail.com"
