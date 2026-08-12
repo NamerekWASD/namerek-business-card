@@ -1922,8 +1922,14 @@ function CageFront({ vw, vh, lamps }) {
 // Quality. The vertical motion blur is an SVG filter over a full-viewport 3D
 // subtree, which is far and away the most expensive thing in this scene, and it
 // is also the only one that is pure garnish — nothing is unreadable without it.
-// So it is the first thing to give up. 'auto' measures and decides; true and
-// false override.
+// So it is the first thing to give up. 'auto' measures and decides; 'on' and
+// 'off' override.
+//
+// Words, not booleans, and that is a bug fix rather than a preference: the
+// switch used to read 'auto' | true | false, so writing the obvious thing —
+// blur: 'off' — turned it fully *on*, because a non-empty string is truthy and
+// the value was handed straight back as the answer. A switch whose off position
+// is on is a switch that will lie to whoever measures with it.
 const QUALITY = { blur: 'auto' };
 
 // Frames longer than this are under 25fps and you can see it.
@@ -1957,7 +1963,7 @@ function useBlurBudget(moving) {
     id = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(id);
   }, [moving, afford]);
-  return QUALITY.blur === 'auto' ? afford : QUALITY.blur;
+  return QUALITY.blur === 'auto' ? afford : QUALITY.blur === 'on';
 }
 
 // The remaining switches. `cage` is gone: it was never a light. It was a black
