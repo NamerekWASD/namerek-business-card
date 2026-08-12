@@ -652,7 +652,13 @@ function lit(p, n, lamps, skip) {
     const fall = (LAMPS.reach * LAMPS.reach) / (LAMPS.reach * LAMPS.reach + d2);
     sum += LAMPS.power * lam * fall * fall;
   }
-  return LIGHT_AMBIENT + sum;
+  // Quantised, and this is a rendering decision rather than a lighting one. A
+  // shade ends up as a colour, and a new colour is a repaint — so a brightness
+  // sliding continuously repainted every lit face in the scene on every frame,
+  // for differences far below anything an eye resolves on surfaces this dark.
+  // In fiftieths, most frames come out byte-identical and the browser is spared
+  // the whole thing.
+  return Math.round((LIGHT_AMBIENT + sum) * 50) / 50;
 }
 
 // The perspective divide, done by hand — needed to hang haze on the sight line
@@ -1239,7 +1245,9 @@ function Doorways({ vw, vh, pos, floorPx, ride, deck, intro, shake, blur }) {
           <div
             style={{
               position: 'absolute', left: 0, top: -overscan, width: vw, height: vh + overscan * 2,
-              transform: `translateZ(${-SHAFT_DEPTH}px)`, transformStyle: 'preserve-3d',
+              // the ride rides on this transform, not on each doorway's `top`
+              transform: `translate3d(0, ${travelY.toFixed(1)}px, ${-SHAFT_DEPTH}px)`,
+              transformStyle: 'preserve-3d',
             }}
           >
             {slots.map((f) => {
@@ -1253,7 +1261,7 @@ function Doorways({ vw, vh, pos, floorPx, ride, deck, intro, shake, blur }) {
                   key={f}
                   vw={vw}
                   vh={vh}
-                  top={overscan + travelY - f * floorPx + vh * CAM_ORIGIN_Y - (vh * DOOR_H) / 2}
+                  top={overscan - f * floorPx + vh * CAM_ORIGIN_Y - (vh * DOOR_H) / 2}
                   closure={!ride && f === deck ? Math.max(shut, intro) : shut}
                   shake={shake}
                 />
@@ -1284,12 +1292,14 @@ function ShaftBack({ vw, vh, pos, floorPx, ride, deck, intro }) {
   const left = (vw - w) / 2;
   const here = Math.round(pos);
   const slots = [here - 2, here - 1, here, here + 1, here + 2];
-  const doorTop = (f) => overscan + travelY - f * floorPx + vh * CAM_ORIGIN_Y - h / 2;
-  // The far wall's texture used to scroll with the shaft. Changing
-  // background-position repaints the whole surface, and this style is on nine
-  // large blend-mode elements — nine full repaints a frame to move a grain you
-  // cannot see at four hundred pixels of depth behind a doorway. The side walls
-  // keep their scroll, because that is where the sense of speed actually lives.
+  // No `travelY` in here any more. The whole stack of floors is carried by one
+  // transform on the group below, so the openings, spandrels and corridors hold
+  // still relative to each other and the browser moves them as a finished
+  // picture. Writing a new `top` to each of them was a layout and a repaint of
+  // every blended surface at the far end, on every frame — the rest of a ride's
+  // cost, once the render was dealt with. Transforms are composited; `top` is
+  // not, and that is the whole of the difference.
+  const doorTop = (f) => overscan - f * floorPx + vh * CAM_ORIGIN_Y - h / 2;
   const wall = surface(SURFACES.backWall);
 
   return (
@@ -1304,6 +1314,7 @@ function ShaftBack({ vw, vh, pos, floorPx, ride, deck, intro }) {
       <div style={{ position: 'absolute', left: 0, top: 0, width: left, height: '100%', ...wall, boxShadow: 'inset -50px 0 70px rgba(0,0,0,0.6)' }} />
       <div style={{ position: 'absolute', left: left + w, top: 0, width: vw - left - w, height: '100%', ...wall, boxShadow: 'inset 50px 0 70px rgba(0,0,0,0.6)' }} />
 
+      <div style={{ position: 'absolute', inset: 0, transformStyle: 'preserve-3d', transform: `translate3d(0, ${travelY.toFixed(1)}px, 0)` }}>
       {slots.map((f) => {
         const isDeck = f >= 0 && f < DECKS.length;
         // The masonry runs two floors either way so nothing pops in at speed.
@@ -1370,6 +1381,7 @@ function ShaftBack({ vw, vh, pos, floorPx, ride, deck, intro }) {
           </div>
         );
       })}
+      </div>
     </div>
   );
 }
@@ -1398,7 +1410,12 @@ function ShaftWall({ side, vh, pos, floorPx }) {
         transform: `rotateY(${isLeft ? 90 : -90}deg)`,
         overflow: 'hidden',
         ...surface(SURFACES.shaftWall),
-        backgroundPosition: `0 0, 0 0, 0 ${travelY.toFixed(1)}px`,
+        // The texture no longer scrolls. These are the two largest surfaces in
+        // the scene and they carry three background layers composited in
+        // multiply; moving background-position repainted both of them, whole,
+        // every frame. The rivet seams, the lamps and the landings all stream
+        // past on transforms, which is more than enough to say "moving" — and a
+        // grain at 0.22 strength drifting behind them was never what said it.
         // the far end of the corridor falls away into the dark
         boxShadow: `inset ${isLeft ? '-' : ''}120px 0 140px -40px rgba(0,0,0,0.9)`,
       }}
@@ -1501,7 +1518,7 @@ function Counterweight({ y, height, dir, shade }) {
   const SHOWN = 460;
   const plates = Math.floor(SHOWN / PITCH);
   return (
-    <div style={{ position: 'absolute', top: y, left: 0, width: 0, height: 0, transformStyle: 'preserve-3d' }}>
+    <div style={{ position: 'absolute', top: 0, left: 0, width: 0, height: 0, transformStyle: 'preserve-3d', transform: `translate3d(0, ${y.toFixed(1)}px, 0)` }}>
       <div style={{ position: 'absolute', top: 0, left: -W / 2, width: W, height, transform: `translateZ(${D / 2}px)`, ...steelFace(58, 0.85 * shade.front) }} />
       <div style={{ position: 'absolute', top: 0, left: (dir > 0 ? W / 2 : -W / 2) - D / 2, width: D, height, transform: `rotateY(${dir * 90}deg)`, ...steelFace(46, 0.5 * shade.side) }} />
       <div style={{ position: 'absolute', top: height - D / 2, left: -W / 2, width: W, height: D, transform: 'rotateX(-90deg)', transformOrigin: '50% 0%', ...steelFace(40, 0.3 * shade.under) }} />
@@ -1860,7 +1877,7 @@ function CageFront({ vw, vh, lamps }) {
     const layers = near.map((L) => {
       const lx = ((L.x - inset) / (vw - inset * 2)) * 100;
       const ly = (((isRoof ? CAGE_NEAR - L.z : L.z - CAGE_FAR) / CAGE_DEPTH) * 100);
-      const i = Math.min(0.62, Math.max(0, lit([L.x, deckY, L.z], n, [L]) - LIGHT_AMBIENT) * 0.3);
+          const i = Math.round(Math.min(0.62, Math.max(0, lit([L.x, deckY, L.z], n, [L]) - LIGHT_AMBIENT) * 0.3) * 100) / 100;
       return `radial-gradient(circle ${Math.round(CAGE_DEPTH * 2.1)}px at ${lx.toFixed(1)}% ${ly.toFixed(1)}%, rgba(255,208,146,${i.toFixed(3)}) 0%, rgba(255,168,80,${(i * 0.34).toFixed(3)}) 40%, rgba(0,0,0,0) 74%)`;
     });
     return { backgroundImage: layers.join(', '), backgroundBlendMode: 'screen', mixBlendMode: 'screen' };
@@ -1907,7 +1924,7 @@ function CageFront({ vw, vh, lamps }) {
 // is also the only one that is pure garnish — nothing is unreadable without it.
 // So it is the first thing to give up. 'auto' measures and decides; true and
 // false override.
-const QUALITY = { blur: 'off' };
+const QUALITY = { blur: 'auto' };
 
 // Frames longer than this are under 25fps and you can see it.
 const SLOW_FRAME_MS = 40;
