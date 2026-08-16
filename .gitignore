@@ -25,7 +25,7 @@ dist-ssr
 *.lnk
 
 # Personal Claude Code config
-.claude/settings.local.json
+.claude/*
 
 # Lockfile kept locally for reproducible installs, not tracked
 package-lock.json
