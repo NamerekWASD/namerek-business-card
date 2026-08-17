@@ -1,16 +1,34 @@
-# React + Vite
+# namerek-business-card
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+An interactive business-card site built as a small dieselpunk elevator scene:
+you ride a lift between floors (Home / Services / Projects / Contacts)
+through a hand-built CSS 3D shaft, cage and corridor set.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- React 19 + Vite
+- Plain CSS 3D transforms for the scene (no WebGL/R3F)
+- Vitest + Testing Library for tests
+- oxlint for linting
 
-## React Compiler
+## Getting started
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+npm install
+npm run dev       # start the dev server
+npm run build      # production build
+npm run preview    # serve the production build locally
+npm test           # run the test suite
+npm run lint        # lint
+```
 
-## Expanding the Oxlint configuration
+## Project layout
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+- `src/scene/` — the shaft, cage, doors, lighting and lamps that make up the 3D scene
+- `src/lift/` — ride/floor state and the animation ticker driving the shaft
+- `src/decks/` — the content shown on each floor
+- `src/ui/`, `src/theme/` — shared UI pieces and the dieselpunk styling system
+
+## License
+
+All rights reserved — see [LICENSE](LICENSE).
