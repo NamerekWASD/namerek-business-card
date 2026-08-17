@@ -1,6 +1,6 @@
 import { LAYERS } from '../layers.js';
 import { LAMPS, lightAt } from '../model/lighting.js';
-import { COUNTERWEIGHT_Z, COUNTERWEIGHT_INSET_X } from '../model/geometry.js';
+import { COUNTERWEIGHT_Z, COUNTERWEIGHT_INSET_X, counterweightY } from '../model/geometry.js';
 import { useRenderer } from '../renderers/RendererContext.js';
 import Lamp from '../objects/Lamp.jsx';
 import Counterweight from '../objects/Counterweight.jsx';
@@ -19,7 +19,10 @@ function Shaft({ vw, vh, pos, floorPx, backFloorPx, blurPx, lamps, ride, deck, i
   // reads as texture instead of demanding attention it cannot repay.
   const dim = 0.62;
   const cwHeight = vh * 1.15;
-  const cwY = 132 - cwHeight + 2 * (pos - 1) * floorPx;
+  // Shading only — a throttled estimate of where the counterweight sits, good
+  // enough for which lamp lights it. The counterweight's actual on-screen
+  // position is motion tier now; see `Counterweight.jsx`/`HoistRopes.jsx`.
+  const cwY = counterweightY(pos, floorPx, cwHeight);
   const wallFilter = blurPx > 0.25 ? `url(#shaftBlur) brightness(${(1 - Math.min(0.2, blurPx * 0.02)).toFixed(3)})` : 'none';
 
   // This is where `dim` used to be applied — as a `filter` on the group holding
@@ -56,7 +59,7 @@ function Shaft({ vw, vh, pos, floorPx, backFloorPx, blurPx, lamps, ride, deck, i
           {/* the cable, running down past the lamps it feeds. It is drawn before
               them so it disappears behind each fitting and comes out below,
               which is the only part of a wiring run anyone ever notices. */}
-          <ShaftCable vh={vh} x={vw * (0.5 - LAMPS.side)} travelY={backFloorPx * pos} />
+          <ShaftCable vh={vh} x={vw * (0.5 - LAMPS.side)} pos={pos} floorPx={backFloorPx} />
 
           {/* the counterweight runs in its own guides on the far side */}
           <div
@@ -65,8 +68,8 @@ function Shaft({ vw, vh, pos, floorPx, backFloorPx, blurPx, lamps, ride, deck, i
               transformStyle: 'preserve-3d', transform: `translateZ(${COUNTERWEIGHT_Z}px)`,
             }}
           >
-            <HoistRopes bottom={cwY - 15} vh={vh} dim={dim} />
-            <Counterweight y={cwY} height={cwHeight} dir={-1} shade={cwShade} />
+            <HoistRopes pos={pos} floorPx={floorPx} height={cwHeight} vh={vh} dim={dim} />
+            <Counterweight pos={pos} floorPx={floorPx} height={cwHeight} dir={-1} shade={cwShade} />
           </div>
 
           {/* the lamps, bolted to the far wall either side of every doorway.

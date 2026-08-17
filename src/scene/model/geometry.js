@@ -82,3 +82,12 @@ export const cageInset = (vw) => Math.max(84, Math.min(190, vw * 0.12));
 // be given — it is not straight.
 export const COUNTERWEIGHT_Z = -160;
 export const COUNTERWEIGHT_INSET_X = 190;
+
+// It runs opposite the cabin — anchored to hang into the top of the frame
+// while the cabin rests on deck 02 — at twice the shaft's rate, which is what
+// a counterweight on a 2:1 roping actually does. Pulled out into a function
+// because the ride's motion tier and its shading both need this number, and
+// they read it at different rates (see `Counterweight.jsx`/`HoistRopes.jsx`
+// vs `Shaft.jsx`'s `cwShade`) — one formula, not two copies drifting apart.
+/** @param {number} pos @param {number} floorPx @param {number} height @returns {number} */
+export const counterweightY = (pos, floorPx, height) => 132 - height + 2 * (pos - 1) * floorPx;

@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { CAGE_GATE } from '../model/materials.js';
 import { CAGE_NEAR, CAGE_DEPTH } from '../model/geometry.js';
 
@@ -7,7 +8,7 @@ import { CAGE_NEAR, CAGE_DEPTH } from '../model/geometry.js';
 // the whole mesh compresses toward the far end. Painted into a plane that runs
 // along the depth, that compression is the projection's own doing — nothing here
 // is hand-tuned. It also stops the cage reading as a cell.
-function CageGate({ x, top, height, dir, nearShade, farShade }) {
+const CageGate = memo(function CageGate({ x, top, height, dir, nearShade, farShade }) {
   const gate = CAGE_GATE;
   const mesh = (deg, colour, t) =>
     `repeating-linear-gradient(${deg}deg, ${colour} 0 ${t}px, rgba(0,0,0,0) ${t}px ${gate.pitch}px)`;
@@ -41,6 +42,6 @@ function CageGate({ x, top, height, dir, nearShade, farShade }) {
       }}
     />
   );
-}
+});
 
 export default CageGate;

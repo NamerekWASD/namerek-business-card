@@ -1,4 +1,7 @@
+import { useLayoutEffect, useRef } from 'react';
 import { steelFace } from '../renderers/css3d/surfaceStyle.js';
+import { counterweightY } from '../model/geometry.js';
+import useRideFrame from '../../lift/useRideFrame.js';
 
 // The counterweight hangs on the other end of the ropes, so it runs opposite the
 // cabin: on screen that is twice the shaft's rate, in the same direction the
@@ -6,7 +9,7 @@ import { steelFace } from '../renderers/css3d/surfaceStyle.js';
 // cabin rests on deck 02 — at ride speed it is smeared past recognition, so it
 // needs one resting place where you can see what it is. A box, again: face,
 // inboard side, and the underside you actually look up at.
-function Counterweight({ y, height, dir, shade }) {
+function Counterweight({ pos, floorPx, height, dir, shade }) {
   const WIDTH = 62;
   const DEPTH = 42;
   const PLATE_PITCH = 34;
@@ -15,8 +18,17 @@ function Counterweight({ y, height, dir, shade }) {
   // of the column stays a plain face.
   const VISIBLE_RUN = 460;
   const plates = Math.floor(VISIBLE_RUN / PLATE_PITCH);
+
+  // Motion tier, same as the shaft's own travel — see `ShaftBack.jsx`.
+  const wrapRef = useRef(null);
+  const writeY = (p) => {
+    if (wrapRef.current) wrapRef.current.style.transform = `translate3d(0, ${counterweightY(p, floorPx, height).toFixed(1)}px, 0)`;
+  };
+  useLayoutEffect(() => writeY(pos), [pos, floorPx, height]);
+  useRideFrame(({ floorPos }) => writeY(floorPos));
+
   return (
-    <div style={{ position: 'absolute', top: 0, left: 0, width: 0, height: 0, transformStyle: 'preserve-3d', transform: `translate3d(0, ${y.toFixed(1)}px, 0)` }}>
+    <div ref={wrapRef} style={{ position: 'absolute', top: 0, left: 0, width: 0, height: 0, transformStyle: 'preserve-3d' }}>
       <div style={{ position: 'absolute', top: 0, left: -WIDTH / 2, width: WIDTH, height, transform: `translateZ(${DEPTH / 2}px)`, ...steelFace(58, 0.85 * shade.front) }} />
       <div style={{ position: 'absolute', top: 0, left: (dir > 0 ? WIDTH / 2 : -WIDTH / 2) - DEPTH / 2, width: DEPTH, height, transform: `rotateY(${dir * 90}deg)`, ...steelFace(46, 0.5 * shade.side) }} />
       <div style={{ position: 'absolute', top: height - DEPTH / 2, left: -WIDTH / 2, width: WIDTH, height: DEPTH, transform: 'rotateX(-90deg)', transformOrigin: '50% 0%', ...steelFace(40, 0.3 * shade.under) }} />

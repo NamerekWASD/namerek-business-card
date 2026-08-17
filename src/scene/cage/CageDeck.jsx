@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { SURFACES } from '../model/materials.js';
 import { surfaceStyle, ironFace } from '../renderers/css3d/surfaceStyle.js';
 import { CAGE_NEAR, CAGE_FAR, CAGE_DEPTH, cageInset } from '../model/geometry.js';
@@ -6,7 +7,13 @@ import DeckPlating from './DeckPlating.jsx';
 
 // A horizontal deck — roof or floor. Hinged at one end and swung 90°, so its CSS
 // height becomes depth and its local y axis reads as distance from the viewer.
-function CageDeck({ y, vw, kind, shade, pool }) {
+//
+// `pool` is a style object CageFront rebuilds every call, so the default memo
+// comparator (reference equality) would never bail on it even when the lamps
+// pooling on this deck have not actually changed. `pool`'s `backgroundImage`
+// is where every quantised number it carries ends up, so comparing that one
+// string is comparing everything that matters about it, cheaply.
+const CageDeck = memo(function CageDeck({ y, vw, kind, shade, pool }) {
   const isRoof = kind === 'roof';
   const ribs = [0.16, 0.38, 0.6, 0.82];
   const inset = cageInset(vw);
@@ -48,6 +55,7 @@ function CageDeck({ y, vw, kind, shade, pool }) {
       {isRoof ? <HeadChevrons /> : <DeckPlating />}
     </div>
   );
-}
+}, (prev, next) => prev.y === next.y && prev.vw === next.vw && prev.kind === next.kind && prev.shade === next.shade
+  && (prev.pool?.backgroundImage) === (next.pool?.backgroundImage));
 
 export default CageDeck;

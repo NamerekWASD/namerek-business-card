@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
+import { useLayoutEffect, useMemo, useRef } from 'react';
 import { SHAFT_DEPTH } from '../model/camera.js';
+import useRideFrame from '../../lift/useRideFrame.js';
 
 // The cable that replaced the guide rail. It runs the height of the shaft on the
 // lamp side, black as tar, tied back to the wall every so often.
@@ -23,7 +24,7 @@ const CABLE = {
   tie: 170, // between the clips holding it back
 };
 
-function ShaftCable({ vh, x, travelY }) {
+function ShaftCable({ vh, x, pos, floorPx }) {
   // The strip is only as wide as the cable wanders and only as tall as one
   // viewport plus a wave either side. Drawn across the full wall it was a five
   // megapixel SVG being repainted every frame, which froze the renderer outright
@@ -42,14 +43,25 @@ function ShaftCable({ vh, x, travelY }) {
     return { d: `M${pts.join(' L')}`, ties: t };
   }, [total]);
 
+  // Motion tier — the shift is just a transform, same reasoning as the shaft
+  // wall's rivets it runs alongside.
+  const wrapRef = useRef(null);
+  const writeShift = (p) => {
+    if (!wrapRef.current) return;
+    const travelY = p * floorPx;
+    const shift = ((travelY % CABLE.wave) + CABLE.wave) % CABLE.wave;
+    wrapRef.current.style.transform = `translate3d(0, ${shift.toFixed(1)}px, ${-SHAFT_DEPTH + 3}px)`;
+  };
+  useLayoutEffect(() => writeShift(pos), [pos, floorPx]);
+  useRideFrame(({ floorPos }) => writeShift(floorPos));
+
   if (!CABLE.on) return null;
-  const shift = ((travelY % CABLE.wave) + CABLE.wave) % CABLE.wave;
 
   return (
     <div
+      ref={wrapRef}
       style={{
         position: 'absolute', left: x - CABLE.sway - pad, top: -CABLE.wave, width: W, height: total,
-        transform: `translate3d(0, ${shift.toFixed(1)}px, ${-SHAFT_DEPTH + 3}px)`,
         willChange: 'transform',
         pointerEvents: 'none',
       }}

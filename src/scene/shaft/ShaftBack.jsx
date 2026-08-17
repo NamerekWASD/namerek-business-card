@@ -1,12 +1,14 @@
+import { useLayoutEffect, useRef } from 'react';
 import { SURFACES } from '../model/materials.js';
 import { surfaceStyle } from '../renderers/css3d/surfaceStyle.js';
 import { CAM_ORIGIN_Y, SHAFT_DEPTH } from '../model/camera.js';
 import { DOORWAY_W_FRAC, DOORWAY_H_FRAC, BACK_OVERSCAN, LANDING_SETBACK } from '../model/geometry.js';
 import { LIGHTS } from '../effects/lightSwitches.js';
-import { CorridorLamp } from '../objects/Lamp.jsx';
+import CorridorFixture from '../objects/CorridorFixture.jsx';
 import LandingProp from '../landing/LandingProp.jsx';
 import { DECKS } from '../../lift/decks.js';
 import { doorClosureAt } from '../../lift/ride.js';
+import useRideFrame from '../../lift/useRideFrame.js';
 
 // The far end of the shaft. The blind wall is cut into piers and spandrels rather
 // than drawn as one plane, because the landing is genuinely behind it and a solid
@@ -14,7 +16,6 @@ import { doorClosureAt } from '../../lift/ride.js';
 // cut is invisible — which is the whole trick: a continuous wall to the eye, an
 // actual hole to the compositor.
 function ShaftBack({ vw, vh, pos, floorPx, ride, deck, intro }) {
-  const travelY = pos * floorPx;
   const overscan = vh * BACK_OVERSCAN;
   const w = vw * DOORWAY_W_FRAC;
   const h = vh * DOORWAY_H_FRAC;
@@ -31,6 +32,19 @@ function ShaftBack({ vw, vh, pos, floorPx, ride, deck, intro }) {
   const doorTop = (f) => overscan - f * floorPx + vh * CAM_ORIGIN_Y - h / 2;
   const wall = surfaceStyle(SURFACES.backWall);
 
+  // The one transform the whole stack rides on. Motion tier: written straight
+  // to the DOM every ride frame via the ticker rather than through `pos`, so
+  // this does not ask React to walk the piers, spandrels and every open
+  // landing sixty-odd times a second for one string. `pos` still drives which
+  // floors are in `slots` above and how they're lit below — that is structural,
+  // not motion, and does not need to be this fresh.
+  const groupRef = useRef(null);
+  const writeTravel = (p) => {
+    if (groupRef.current) groupRef.current.style.transform = `translate3d(0, ${(p * floorPx).toFixed(1)}px, 0)`;
+  };
+  useLayoutEffect(() => writeTravel(pos), [pos, floorPx]);
+  useRideFrame(({ floorPos }) => writeTravel(floorPos));
+
   return (
     <div
       style={{
@@ -43,7 +57,7 @@ function ShaftBack({ vw, vh, pos, floorPx, ride, deck, intro }) {
       <div style={{ position: 'absolute', left: 0, top: 0, width: left, height: '100%', ...wall, boxShadow: 'inset -50px 0 70px rgba(0,0,0,0.6)' }} />
       <div style={{ position: 'absolute', left: left + w, top: 0, width: vw - left - w, height: '100%', ...wall, boxShadow: 'inset 50px 0 70px rgba(0,0,0,0.6)' }} />
 
-      <div style={{ position: 'absolute', inset: 0, transformStyle: 'preserve-3d', transform: `translate3d(0, ${travelY.toFixed(1)}px, 0)` }}>
+      <div ref={groupRef} style={{ position: 'absolute', inset: 0, transformStyle: 'preserve-3d' }}>
       {slots.map((f) => {
         const isDeck = f >= 0 && f < DECKS.length;
         // The masonry runs two floors either way so nothing pops in at speed.
@@ -77,13 +91,19 @@ function ShaftBack({ vw, vh, pos, floorPx, ride, deck, intro }) {
                       line at a known height is what tells you the floor keeps
                       going after the light stops */}
                   <div style={{ position: 'absolute', left: 0, right: 0, bottom: '13%', height: 9, ...surfaceStyle(SURFACES.landing, 1.5), boxShadow: '0 2px 6px rgba(0,0,0,0.6)' }} />
-                  {/* The corridor's own fitting. It used to be a bare radial
-                      pinned to the corner where the ceiling meets the back wall,
-                      which is nowhere a lamp goes — light with no source, and it
-                      showed. Same fixture as the shaft, smaller, lit from the
-                      room instead of from the lamps it cannot see, and its own
-                      pool on the wall is now the light in here. */}
-                  {LIGHTS.landing && furnished && <CorridorLamp x={w * 0.5} y={h * 0.14} />}
+                  {/* the cornice — the skirting's opposite number, marking
+                      where the ceiling meets this wall. Without it a pendant
+                      hanging near the top of the wall has nothing behind it
+                      to read as "mounted to something": the room's only other
+                      ceiling surface is the shallow reveal at the doorway, two
+                      metres of preserve-3d away from this plane. */}
+                  <div style={{ position: 'absolute', left: 0, right: 0, top: '8%', height: 9, ...surfaceStyle(SURFACES.landing, 1.3), boxShadow: '0 2px 6px rgba(0,0,0,0.6)' }} />
+                  {/* The corridor's own fitting: a pendant hung off the cornice
+                      above, not bolted flat to this wall — a lamp needs
+                      something to hang from, and pinning it to the wall with
+                      nothing marking a ceiling near it is what read as it
+                      floating in open air. */}
+                  {LIGHTS.landing && furnished && <CorridorFixture x={w * 0.5} y={h * 0.05} />}
                   {furnished && <LandingProp idx={f} />}
                   {/* the two branches. There is no wall at either end, so the
                       corridor simply runs out of light — which is the only thing

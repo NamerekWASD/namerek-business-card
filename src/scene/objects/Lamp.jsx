@@ -1,34 +1,44 @@
 import { memo } from 'react';
-import { LAMPS, lightAt, roomLightAt } from '../model/lighting.js';
+import { LAMPS, lightAt } from '../model/lighting.js';
 import { ironFace, steelFace } from '../renderers/css3d/surfaceStyle.js';
 
-// A bulkhead lamp, built rather than drawn: a cast base bolted to the wall, a
-// cylindrical body, a ribbed glass and the guard over it.
+// The shaft's bulkhead lamp, built rather than drawn: a cast base bolted to
+// the wall, a cylindrical body, a ribbed glass and the guard over it. It is
+// the only light source in the shaft, seen close and often mid-frame, which
+// is what earns it real geometry — the corridor's own fitting is a different,
+// much flatter fixture (`CorridorFixture.jsx`) for exactly the opposite
+// reason.
 //
-// The body is a genuine cylinder — sixteen quads stood on end around the axis,
-// each one shaded from its own normal by the same `lightAt` the rest of the scene
-// uses. That is most of the reason for modelling it at all. Everywhere else the
-// shading is a claim I cannot check; here we know exactly where the light is,
-// so the roundness either comes out of the arithmetic or the arithmetic is
-// wrong. Nothing is painted across it.
-// `fixed`, when given, lights the fitting from the room instead of from the
-// lamp list — for the one inside the corridor, which is in another room and
-// cannot be lit by the shaft it is behind a wall from.
-function Lamp({ p, lamps, size = LAMPS.size, fixed }) {
-  const radius = size / 2;
-  const SEGMENTS = 16;
-  const depth = LAMPS.proud * (size / LAMPS.size);
-  // a hair wider than the arc, so the quads meet instead of showing seams
-  const segWidth = (2 * Math.PI * radius) / SEGMENTS + 2;
-  const bars = [0, 45, 90, 135];
+// The body is a genuine cylinder — ten quads stood on end around the axis,
+// each one shaded from its own normal by the same `lightAt` the rest of the
+// scene uses. That is most of the reason for modelling it at all. Everywhere
+// else the shading is a claim I cannot check; here we know exactly where the
+// light is, so the roundness either comes out of the arithmetic or the
+// arithmetic is wrong. Ten rather than sixteen: past a few segments more
+// roundness is not legible at this size, but every one is its own compositor
+// layer, and a shaft with three or four of these lit at once was carrying
+// dozens of layers for a smoothness nobody could see.
+//
+// Split into three pieces because they change at three different rates. The
+// glass, guard and halo never depend on where the light is — they are the
+// same seven elements every time — so they are memoized on geometry alone and
+// never re-render after the first frame. The ten body quads depend on
+// shading that moves every ride tick but is quantised, so the quantised value
+// is what they are memoized on: most ticks, ten elements' worth of
+// transforms and colours are skipped rather than recomputed for a browser
+// that would have painted the same pixels anyway. Only the wrapper (this
+// lamp's position in the shaft) and the base plate (one element) are cheap
+// enough to just re-render every time.
+function shadesEqual(a, b) {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) if (a[i] !== b[i]) return false;
+  return true;
+}
 
+const LampFixed = memo(function LampFixed({ radius, depth }) {
+  const bars = [0, 45, 90, 135];
   return (
-    <div
-      style={{
-        position: 'absolute', left: p.x, top: p.y, width: 0, height: 0,
-        transformStyle: 'preserve-3d', transform: `translateZ(${p.z}px)`,
-      }}
-    >
+    <>
       {/* the pool it throws on the wall behind it. The far wall is parallel to
           the image plane, so this lands where it should with no correction. */}
       <div
@@ -39,39 +49,6 @@ function Lamp({ p, lamps, size = LAMPS.size, fixed }) {
           mixBlendMode: 'screen',
         }}
       />
-
-      {/* the base plate */}
-      <div
-        style={{
-          position: 'absolute', left: -radius * 1.05, top: -radius * 1.05, width: radius * 2.1, height: radius * 2.1,
-          transform: `translateZ(${-depth}px)`, borderRadius: '50%',
-          ...ironFace(46, fixed != null ? roomLightAt([0, 0, 1]) * fixed * 0.5 : Math.min(1.6, lightAt([p.x, p.y, p.z - depth], [0, 0, 1], lamps, p))),
-          boxShadow: 'inset 0 0 0 2px rgba(0,0,0,0.5)',
-        }}
-      />
-
-      {/* the body: a ring of quads, each held at its own angle to the light */}
-      <div style={{ position: 'absolute', left: 0, top: 0, width: 0, height: 0, transformStyle: 'preserve-3d', transform: `translateZ(${-depth / 2}px)` }}>
-        {Array.from({ length: SEGMENTS }).map((_, k) => {
-          const a = (k / SEGMENTS) * Math.PI * 2;
-          const nx = Math.sin(a);
-          const ny = -Math.cos(a);
-          const shade = fixed != null
-            ? roomLightAt([nx, ny, 0]) * fixed
-            : lightAt([p.x + radius * nx, p.y + radius * ny, p.z - depth / 2], [nx, ny, 0], lamps, p);
-          return (
-            <div
-              key={k}
-              style={{
-                position: 'absolute', left: -segWidth / 2, top: -depth / 2, width: segWidth, height: depth,
-                transform: `rotate(${((a * 180) / Math.PI).toFixed(2)}deg) translateY(${-radius}px) rotateX(90deg)`,
-                ...steelFace(28, Math.min(1.7, shade * 0.72)),
-              }}
-            />
-          );
-        })}
-      </div>
-
       {/* the glass. Concentric ribs, because that is what the pressed prismatic
           lens in one of these actually is, and they give the disc a centre. */}
       <div
@@ -86,7 +63,6 @@ function Lamp({ p, lamps, size = LAMPS.size, fixed }) {
           boxShadow: '0 0 34px 10px rgba(255,190,104,0.75), inset 0 0 14px rgba(120,64,10,0.5)',
         }}
       />
-
       {/* the guard: a ring and four bars across it, dark against the glass */}
       <div
         style={{
@@ -107,7 +83,6 @@ function Lamp({ p, lamps, size = LAMPS.size, fixed }) {
           }}
         />
       ))}
-
       {/* the halo. Not a light — the glass is small and very bright, and a bright
           small thing bleeds in any real lens as well as in this one. */}
       <div
@@ -118,18 +93,67 @@ function Lamp({ p, lamps, size = LAMPS.size, fixed }) {
           mixBlendMode: 'screen',
         }}
       />
+    </>
+  );
+}, (prev, next) => prev.radius === next.radius && prev.depth === next.depth);
+
+const LampBody = memo(function LampBody({ radius, depth, segWidth, shades }) {
+  return (
+    <div style={{ position: 'absolute', left: 0, top: 0, width: 0, height: 0, transformStyle: 'preserve-3d', transform: `translateZ(${-depth / 2}px)` }}>
+      {shades.map((shade, k) => (
+        <div
+          key={k}
+          style={{
+            position: 'absolute', left: -segWidth / 2, top: -depth / 2, width: segWidth, height: depth,
+            transform: `rotate(${((k / shades.length) * 360).toFixed(2)}deg) translateY(${-radius}px) rotateX(90deg)`,
+            ...steelFace(28, shade),
+          }}
+        />
+      ))}
+    </div>
+  );
+}, (prev, next) => prev.radius === next.radius && prev.depth === next.depth && prev.segWidth === next.segWidth && shadesEqual(prev.shades, next.shades));
+
+function Lamp({ p, lamps, size = LAMPS.size }) {
+  const radius = size / 2;
+  const SEGMENTS = 10;
+  const depth = LAMPS.proud * (size / LAMPS.size);
+  // a hair wider than the arc, so the quads meet instead of showing seams
+  const segWidth = (2 * Math.PI * radius) / SEGMENTS + 2;
+
+  const baseShade = Math.min(1.6, lightAt([p.x, p.y, p.z - depth], [0, 0, 1], lamps, p));
+
+  const shades = [];
+  for (let k = 0; k < SEGMENTS; k += 1) {
+    const a = (k / SEGMENTS) * Math.PI * 2;
+    const nx = Math.sin(a);
+    const ny = -Math.cos(a);
+    const shade = lightAt([p.x + radius * nx, p.y + radius * ny, p.z - depth / 2], [nx, ny, 0], lamps, p);
+    shades.push(Math.min(1.7, shade * 0.72));
+  }
+
+  return (
+    <div
+      style={{
+        position: 'absolute', left: p.x, top: p.y, width: 0, height: 0,
+        transformStyle: 'preserve-3d', transform: `translateZ(${p.z}px)`,
+      }}
+    >
+      <LampFixed radius={radius} depth={depth} />
+
+      {/* the base plate */}
+      <div
+        style={{
+          position: 'absolute', left: -radius * 1.05, top: -radius * 1.05, width: radius * 2.1, height: radius * 2.1,
+          transform: `translateZ(${-depth}px)`, borderRadius: '50%',
+          ...ironFace(46, baseShade),
+          boxShadow: 'inset 0 0 0 2px rgba(0,0,0,0.5)',
+        }}
+      />
+
+      <LampBody radius={radius} depth={depth} segWidth={segWidth} shades={shades} />
     </div>
   );
 }
-
-// The corridor's fitting, taking numbers rather than an object so it can be
-// memoized at all. It is lit from the room and never from the lamp list, so
-// nothing about it changes between frames — but `p={{…}}` is a fresh object
-// every render, and a fresh object defeats every memo there is. Three of these
-// were being rebuilt per frame, twenty-five nodes each.
-const NO_LAMPS = [];
-export const CorridorLamp = memo(function CorridorLamp({ x, y }) {
-  return <Lamp p={{ x, y, z: 18 }} lamps={NO_LAMPS} size={64} fixed={1.15} />;
-});
 
 export default Lamp;

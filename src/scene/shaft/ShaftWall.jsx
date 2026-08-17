@@ -8,7 +8,6 @@ import ShaftRivets from '../objects/RivetSeam.jsx';
 // screen width — the camera decides how much of the screen it covers.
 function ShaftWall({ side, vh, pos, floorPx }) {
   const isLeft = side === 'left';
-  const travelY = pos * floorPx;
   const overscan = vh * 0.34;
   const span = vh + overscan * 2;
   // the hinge is the screen edge, so for the left wall local x grows with depth
@@ -42,9 +41,9 @@ function ShaftWall({ side, vh, pos, floorPx }) {
           shoulder. The side walls are now just wall: rust, seams, and the sense
           of speed that comes from them streaming. */}
       <div style={{ position: 'absolute', top: 0, bottom: 0, [nearEdge]: 66, width: 3, background: 'var(--brass)', opacity: 0.35 }} />
-      <ShaftRivets offset={travelY} depth={50} span={span} nearEdge={nearEdge} />
-      <ShaftRivets offset={travelY + 23} depth={76} span={span} nearEdge={nearEdge} />
-      <ShaftRivets offset={travelY + 11} depth={272} span={span} nearEdge={nearEdge} />
+      <ShaftRivets pos={pos} floorPx={floorPx} depth={50} span={span} nearEdge={nearEdge} />
+      <ShaftRivets pos={pos} floorPx={floorPx} phase={23} depth={76} span={span} nearEdge={nearEdge} />
+      <ShaftRivets pos={pos} floorPx={floorPx} phase={11} depth={272} span={span} nearEdge={nearEdge} />
 
     </div>
   );

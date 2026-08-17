@@ -1,4 +1,5 @@
-import { memo } from 'react';
+import { memo, useLayoutEffect, useRef } from 'react';
+import useRideFrame from '../../lift/useRideFrame.js';
 
 // A rivet seam running the full height of the shaft wall. Offsetting it modulo
 // the pitch makes it endless: the wall can travel any distance and the seam
@@ -27,10 +28,25 @@ const RivetSeam = memo(function RivetSeam({ depth, span, nearEdge }) {
 // the half that mattered: writing a new `top` to each span was cheap next to
 // *creating* thirty style objects per seam, six seams a wall, on every frame,
 // only for React to conclude that nothing had changed.
-function ShaftRivets({ offset, depth, span, nearEdge }) {
-  const shift = ((offset % RIVET_PITCH) + RIVET_PITCH) % RIVET_PITCH;
+//
+// The transform itself is now motion tier on top of that: written to the
+// group via the ride ticker instead of through an `offset` prop, so a ride
+// does not even ask this component to re-render to change one string.
+// `phase` staggers the three seams on a wall so they do not all crawl in
+// lockstep.
+function ShaftRivets({ pos, floorPx, phase = 0, depth, span, nearEdge }) {
+  const ref = useRef(null);
+  const write = (p) => {
+    if (!ref.current) return;
+    const offset = p * floorPx + phase;
+    const shift = ((offset % RIVET_PITCH) + RIVET_PITCH) % RIVET_PITCH;
+    ref.current.style.transform = `translateY(${shift.toFixed(1)}px)`;
+  };
+  useLayoutEffect(() => write(pos), [pos, floorPx, phase]);
+  useRideFrame(({ floorPos }) => write(floorPos));
+
   return (
-    <div style={{ position: 'absolute', inset: 0, transform: `translateY(${shift.toFixed(1)}px)` }}>
+    <div ref={ref} style={{ position: 'absolute', inset: 0 }}>
       <RivetSeam depth={depth} span={span} nearEdge={nearEdge} />
     </div>
   );

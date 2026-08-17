@@ -57,12 +57,14 @@ function CageFront({ vw, vh, lamps }) {
       <Stage>
           <CageDeck kind="roof" y={CAGE_ROOF_Y} vw={vw} shade={face([vw / 2, CAGE_ROOF_Y, midZ], [0, 1, 0])} pool={pool(CAGE_ROOF_Y, true)} />
           <CageDeck kind="floor" y={floorY} vw={vw} shade={face([vw / 2, floorY, midZ], [0, -1, 0])} pool={pool(floorY, false)} />
-          {CAGE_POST_Z.map((z) => (
-            <CagePost key={`l${z}`} z={z} x={inset} top={CAGE_ROOF_Y} height={postH} dir={1} shade={post(inset, z, 1)} />
-          ))}
-          {CAGE_POST_Z.map((z) => (
-            <CagePost key={`r${z}`} z={z} x={vw - inset} top={CAGE_ROOF_Y} height={postH} dir={-1} shade={post(vw - inset, z, -1)} />
-          ))}
+          {CAGE_POST_Z.map((z) => {
+            const s = post(inset, z, 1);
+            return <CagePost key={`l${z}`} z={z} x={inset} top={CAGE_ROOF_Y} height={postH} dir={1} frontShade={s.front} sideShade={s.side} />;
+          })}
+          {CAGE_POST_Z.map((z) => {
+            const s = post(vw - inset, z, -1);
+            return <CagePost key={`r${z}`} z={z} x={vw - inset} top={CAGE_ROOF_Y} height={postH} dir={-1} frontShade={s.front} sideShade={s.side} />;
+          })}
           <CageGate
             x={inset} top={CAGE_ROOF_Y} height={postH} dir={1}
             nearShade={face([inset, midY, CAGE_NEAR], [1, 0, 0])}
@@ -73,8 +75,8 @@ function CageFront({ vw, vh, lamps }) {
             nearShade={face([vw - inset, midY, CAGE_NEAR], [-1, 0, 0])}
             farShade={face([vw - inset, midY, CAGE_FAR], [-1, 0, 0])}
           />
-          <CageRail x={inset} y={railY} dir={1} shade={{ side: face([inset, railY, midZ], [1, 0, 0]), top: face([inset, railY, midZ], [0, -1, 0]) }} />
-          <CageRail x={vw - inset} y={railY} dir={-1} shade={{ side: face([vw - inset, railY, midZ], [-1, 0, 0]), top: face([vw - inset, railY, midZ], [0, -1, 0]) }} />
+          <CageRail x={inset} y={railY} dir={1} sideShade={face([inset, railY, midZ], [1, 0, 0])} topShade={face([inset, railY, midZ], [0, -1, 0])} />
+          <CageRail x={vw - inset} y={railY} dir={-1} sideShade={face([vw - inset, railY, midZ], [-1, 0, 0])} topShade={face([vw - inset, railY, midZ], [0, -1, 0])} />
       </Stage>
     </div>
   );

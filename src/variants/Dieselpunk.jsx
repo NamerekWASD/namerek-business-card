@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import Grain from '../ui/Grain.jsx';
 
 import { cssVariables } from '../theme/tokens.js';
@@ -17,6 +17,8 @@ import { DECKS } from '../lift/decks.js';
 import { WALL_PARALLAX, BG_PARALLAX, DECK_GAP, doorClosure } from '../lift/ride.js';
 import { DOOR_TOTAL_MS, introClosure, introShake } from '../lift/intro.js';
 import useLift from '../lift/useLift.js';
+import useRideFrame from '../lift/useRideFrame.js';
+import { RideTickerProvider } from '../lift/RideTickerContext.js';
 import useIntroClock from '../lift/useIntroClock.js';
 import useViewport from '../hooks/useViewport.js';
 import DebugPanel from '../debug/DebugPanel.jsx';
@@ -25,7 +27,9 @@ import { DECK_BODIES } from '../decks/index.js';
 
 export default function Dieselpunk() {
   const { t, setT, playing, play } = useIntroClock(DOOR_TOTAL_MS);
-  const { floorPos, deckIndex, moving, velocity, rideTo, scrub, setScrub, ride, ridePhase } = useLift();
+  const {
+    floorPos, deckIndex, moving, velocity, rideTo, scrub, setScrub, ride, ridePhase, ticker,
+  } = useLift();
   const { vw, vh } = useViewport();
 
   // One floor, in screen pixels, in each of the coordinate systems that need it.
@@ -86,7 +90,24 @@ export default function Dieselpunk() {
     return () => { document.body.style.overflow = prev; };
   }, []);
 
+  // Backdrop drift and the content column's travel are both a plain transform
+  // on one wrapper each, and nothing else about either div depends on the
+  // ride — so they are the motion tier: written straight to the DOM every
+  // ride frame via the ticker, instead of through a `floorPos` prop that
+  // would re-render this whole component to change one string twice. The
+  // layout effect covers everything the ticker itself does not run for —
+  // mount, resize, and the settled position between rides.
+  const backdropRef = useRef(null);
+  const contentWrapRef = useRef(null);
+  const writeMotion = (fp) => {
+    if (backdropRef.current) backdropRef.current.style.transform = `translateY(${(fp * floorPitch * BG_PARALLAX).toFixed(1)}px)`;
+    if (contentWrapRef.current) contentWrapRef.current.style.transform = `translateY(${(fp * contentFloorPitch).toFixed(1)}px)`;
+  };
+  useLayoutEffect(() => writeMotion(floorPos), [floorPos, floorPitch, contentFloorPitch]);
+  useRideFrame(({ floorPos: fp }) => writeMotion(fp));
+
   return (
+    <RideTickerProvider value={ticker}>
     <div
       style={{
         ...cssVariables, background: 'var(--bg)', color: 'var(--ink)', fontFamily: "'Inter', sans-serif",
@@ -96,12 +117,13 @@ export default function Dieselpunk() {
       <MotionBlurDef amount={blurAmount} contentAmount={contentSmear} />
       <Grain opacity={0.06} />
 
-      {/* backdrop — the deepest plane, so it drifts slowest */}
+      {/* backdrop — the deepest plane, so it drifts slowest. Transform is
+          written imperatively; see `writeMotion` above. */}
       <div
+        ref={backdropRef}
         style={{
           position: 'absolute', left: 0, right: 0, top: '-60%', bottom: '-60%',
           background: 'radial-gradient(ellipse at 50% 30%, var(--bg-2) 0%, var(--bg) 62%)',
-          transform: `translateY(${(floorPos * floorPitch * BG_PARALLAX).toFixed(1)}px)`,
         }}
       />
       <div
@@ -137,7 +159,7 @@ export default function Dieselpunk() {
           filter: contentSmear > 0.2 ? 'url(#deckBlur)' : 'none',
         }}
       >
-        <div style={{ position: 'absolute', inset: 0, transform: `translateY(${(floorPos * contentFloorPitch).toFixed(1)}px)` }}>
+        <div ref={contentWrapRef} style={{ position: 'absolute', inset: 0 }}>
           {/* Behind a shut door there is nothing to see, so there is nothing to
               build. The leaves are opaque and they cover the whole aperture, so
               the deck underneath is not dimmed or clipped — it is invisible, and
@@ -168,7 +190,7 @@ export default function Dieselpunk() {
           so leaves that cannot cover it are not doors */}
       <Doorways
         vw={vw} vh={vh} pos={floorPos} floorPx={floorPitch}
-        ride={ride} deck={deckIndex} intro={introClosure(t)}
+        deck={deckIndex} intro={introClosure(t)}
         shake={shake} blurPx={blurAmount}
       />
 
@@ -203,5 +225,6 @@ export default function Dieselpunk() {
         </div>
       </div>
     </div>
+    </RideTickerProvider>
   );
 }
