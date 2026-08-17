@@ -32,9 +32,9 @@ function StartDeck({ lag, pos }) {
         Offen f&uuml;r neue Aufgaben im Ruhrgebiet / NRW.
       </p>
       </div>
-      <div style={{ transform: `translateY(${(lag * 0.5).toFixed(2)}px)`, flex: '0 1 260px', display: 'flex', justifyContent: 'center' }}>
+      {/* <div style={{ transform: `translateY(${(lag * 0.5).toFixed(2)}px)`, flex: '0 1 260px', display: 'flex', justifyContent: 'center' }}>
         <FloorDial pos={pos} />
-      </div>
+      </div> */}
 
       <div style={{ flex: '1 1 340px', display: 'flex', justifyContent: 'center', transform: `translateY(${(lag * 0.7).toFixed(2)}px)` }}>
         <ArcadeCabinet pitch={-2} />
