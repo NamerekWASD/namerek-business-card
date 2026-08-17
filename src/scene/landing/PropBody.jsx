@@ -2,6 +2,7 @@ import ContactShadow from '../objects/ContactShadow.jsx';
 import { useRenderer } from '../renderers/RendererContext.js';
 import { ironFace, steelFace } from '../renderers/css3d/surfaceStyle.js';
 import { roomLightAt } from '../model/lighting.js';
+import { shadedRgb } from '../model/materials.js';
 import EnamelPlate from '../../ui/EnamelPlate.jsx';
 import Stencil from '../../ui/Stencil.jsx';
 
@@ -22,6 +23,62 @@ import Stencil from '../../ui/Stencil.jsx';
 // it is addressing the wall. A negative yaw turns it the other way and the
 // visible side swaps over on its own.
 const PROP_YAW = [0, 0, 15, 3];
+
+// The jacks on the EG patch bay, laid out once rather than computed, because
+// a hand-plugged board is never quite a grid — real ones drift a pixel or two
+// off pitch, which is most of what tells you someone actually uses this one.
+const JACKS = [
+  { x: 22, y: 26 }, { x: 50, y: 24 }, { x: 79, y: 27 }, { x: 108, y: 25 },
+  { x: 22, y: 62 }, { x: 50, y: 64 }, { x: 79, y: 61 }, { x: 108, y: 63 },
+];
+
+// The face of the EG patch bay: brass jacks in an iron fascia, two of them
+// bridged by a cord. `k` is the ambient shade at this face, the same number
+// every plate in this file is measured against, so the brass dims with the
+// iron around it instead of floating free of the light model.
+function PatchBayFace() {
+  const k = roomLightAt([0, 0, 1]);
+  const ring = shadedRgb('#c2903f', k);
+  const ringDeep = shadedRgb('#7c5420', k);
+  const hole = shadedRgb('#0d0b09', Math.min(1, k * 0.7));
+  const cordDark = shadedRgb('#2e2115', k * 0.9);
+  const cordLit = shadedRgb('#9a7645', k);
+  const lamp = shadedRgb('#ffb454', Math.min(1.4, k * 1.3));
+  return (
+    <div style={{ position: 'absolute', inset: 0 }}>
+      {/* the two cords, drawn under the jacks so they read as plugged into
+          them rather than laid across the top */}
+      <svg viewBox="0 0 132 88" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
+        <path d="M 22 26 Q 46 58 79 61" fill="none" stroke={cordDark} strokeWidth="4.5" strokeLinecap="round" />
+        <path d="M 22 26 Q 45 55 79 61" fill="none" stroke={cordLit} strokeWidth="1.6" strokeLinecap="round" opacity="0.85" />
+        <path d="M 108 25 Q 82 50 50 64" fill="none" stroke={cordDark} strokeWidth="4.5" strokeLinecap="round" />
+        <path d="M 108 25 Q 81 47 50 64" fill="none" stroke={cordLit} strokeWidth="1.6" strokeLinecap="round" opacity="0.85" />
+      </svg>
+      {JACKS.map((j, i) => (
+        <div
+          key={i}
+          style={{
+            position: 'absolute', left: j.x - 6.5, top: j.y - 6.5, width: 13, height: 13,
+            borderRadius: '50%',
+            // the dark sleeve you would actually plug into, ringed by the
+            // brass collar — a jack reads by that hole, not by its rim
+            background: `radial-gradient(circle at 44% 40%, ${hole} 0%, ${hole} 34%, ${ring} 40%, ${ringDeep} 100%)`,
+            boxShadow: '0 1px 1px rgba(0,0,0,0.6)',
+          }}
+        />
+      ))}
+      {/* the one pilot lamp on the board, lit because a dead panel is not a
+          landmark either — this is the thing that says the bay is live */}
+      <div
+        style={{
+          position: 'absolute', right: 10, top: 10, width: 6, height: 6, borderRadius: '50%',
+          background: lamp,
+          boxShadow: `0 0 6px 2px ${lamp}`,
+        }}
+      />
+    </div>
+  );
+}
 
 /**
  * The prop standing on one landing: workbench, crates, post box, or the EG
@@ -142,8 +199,18 @@ function PropBody({ idx }) {
     );
   }
 
-  // EG — the floor plate. This one already read, so it keeps its face and only
-  // gains the thickness it always implied.
+  // A patch panel — the EG floor plate's replacement. The plate spelled out
+  // EG, and by the time a visitor reaches it they have already read that
+  // three times over: once on the header readout, once on the dial's own
+  // tick marks, and once on the FAHRKORB plate beside it. A fourth copy was
+  // not signage any more, it was noise standing in for a landmark.
+  //
+  // A patch bay does the job a landmark actually needs to do — something to
+  // recognise, not something to read — and it is the one object in this
+  // corridor that gets to be about the site's own subject without saying so:
+  // a board of jacks with two of them bridged by a cord is, underneath the
+  // brass, a switched network. No plate, no letters — just two conclusions
+  // pulled by a plug already seated.
   //
   // The wrapper is not decoration. Every other prop has one; without it this
   // branch returned a bare absolutely-positioned box, and since the anchor above
@@ -152,23 +219,12 @@ function PropBody({ idx }) {
   // corridor's dark end. All that showed was the sliver that missed it.
   return (
     <div style={{ position: 'relative', width: 132, height: 88, transformStyle: 'preserve-3d' }}>
-      {/* No yaw on this one. It is a plate bolted flat to the wall, so turning
-          it would be wrong even where it helps — and it does not help: a sign
+      {/* No yaw on this one. It is a board bolted flat to the wall, so turning
+          it would be wrong even where it helps — and it does not help: a panel
           reads by its face, not by its corner. */}
       <ContactShadow w={110} opacity={0.3} bottom={4} />
       <Solid left={0} top={0} w={132} h={88} d={14} yaw={PROP_YAW[0]} scale={56} tint={1.1}>
-        {/* Enamel on an iron backing, which is what a floor marker in this
-            building would actually be — and it is the one place in the corridor
-            colour can go without arguing with the light model, because a fired
-            glass field does not weather the way the steel around it does. */}
-        <EnamelPlate
-          colour="green"
-          shade={roomLightAt([0, 0, 1]) * 1.1}
-          size={30}
-          style={{ position: 'absolute', inset: 7, letterSpacing: 5 }}
-        >
-          EG
-        </EnamelPlate>
+        <PatchBayFace />
       </Solid>
     </div>
   );

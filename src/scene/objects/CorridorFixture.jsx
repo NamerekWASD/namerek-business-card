@@ -179,30 +179,6 @@ function build(w) {
         backgroundImage: 'linear-gradient(180deg, rgba(146,118,80,0.8) 0%, rgba(20,15,10,0.95) 44%, rgba(54,41,26,0.9) 100%)',
       };
     }),
-
-    // The near lip, last of all: the same ellipse as the interior, a shade
-    // taller, with everything but the bottom of it cut away. So what is left
-    // is a crescent tracing the near rim — a few pixels of rolled steel under
-    // the middle, thinning to nothing at the sides. A band any wider than this
-    // is a hat brim, not a rim.
-    //
-    // Painted after the guard so it crosses the top of it, which is the one
-    // cue that says the guard hangs *under* this shade. The warm line along
-    // its cut edge is the inside of the roll, which faces the bulb.
-    //
-    // The second gradient runs the other way and kills that warm edge at both
-    // ends. Without it the highlight is a bar of light straight across the
-    // frame: an ellipse this flat is still nearly full width at 85% of its
-    // height, so the band does not taper on its own the way the silhouette
-    // does.
-    lip: {
-      position: 'absolute', left: -u(0.5), top: u(0.575), width: u(1), height: u(0.315),
-      borderRadius: '50%',
-      backgroundImage: [
-        'linear-gradient(90deg, rgba(0,0,0,0.82) 4%, rgba(0,0,0,0.3) 30%, rgba(0,0,0,0) 46%, rgba(0,0,0,0) 54%, rgba(0,0,0,0.3) 70%, rgba(0,0,0,0.84) 96%)',
-        `linear-gradient(180deg, rgba(0,0,0,0) 0 84%, rgba(255,198,132,0.3) 84% 86%, ${lipHi} 86% 90%, ${body} 95%, ${deep} 100%)`,
-      ].join(', '),
-    },
   };
 }
 

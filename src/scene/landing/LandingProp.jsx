@@ -17,7 +17,7 @@ const LandingProp = memo(function LandingProp({ idx }) {
     // everything below it, which would quietly turn every box back into the
     // decal it used to be. The brightness lives in each face's own shade.
     <div style={{ position: 'absolute',
-        left: idx === 0 ?  '80%' : idx === 1 ? '30%' : '10%',
+        left: idx === 1 ? '30%' : '10%',
         bottom: idx === 0 ? '20%' : '10%',
         transformStyle: 'preserve-3d' }}>
       <PropBody idx={idx} />

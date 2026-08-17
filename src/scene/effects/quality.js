@@ -11,7 +11,7 @@ import { useEffect, useRef, useState } from 'react';
 // blur: 'off' — turned it fully *on*, because a non-empty string is truthy and
 // the value was handed straight back as the answer. A switch whose off position
 // is on is a switch that will lie to whoever measures with it.
-export const QUALITY = { blur: 'off' };
+export const QUALITY = { blur: 'on' };
 
 // The debug panel is not part of the scene and has no business shipping with it.
 // It rendered unconditionally, pinned bottom-left over everything, on what is
