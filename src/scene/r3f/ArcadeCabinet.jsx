@@ -98,6 +98,35 @@ function planarUV(geometry) {
   geometry.setAttribute('uv', new BufferAttribute(uv, 2));
 }
 
+/**
+ * The marquee panel's own unwrap, forced rather than skipped.
+ *
+ * It ships with a UV already — a sliver of a shared atlas, u ∈ [0.644, 0.856],
+ * v ∈ [0.254, 0.496] — which is why `planarUV` above, guarded to only fill in a
+ * *missing* UV, never touches it. And it can't reuse `planarUV` even forced: that
+ * function reads the panel's plane off X/Y, which is right for the screen but
+ * not here — the marquee's bounding box is flat in Y, not Z, so its two in-plane
+ * axes are X and Z. Confirmed live (`window.__scenes.shaft.scene`, mesh
+ * `marquee_emissive`) rather than assumed, the same way the flute orientation in
+ * `marqueeGlow` was: painting a colour-coded test map and reading back which
+ * screen edge each corner landed on is what pinned down that X runs the panel's
+ * short screen-vertical extent and Z its long screen-horizontal one, both
+ * without a flip.
+ */
+function marqueeUV(geometry) {
+  geometry.computeBoundingBox();
+  const { min, max } = geometry.boundingBox;
+  const w = max.x - min.x || 1;
+  const h = max.z - min.z || 1;
+  const pos = geometry.attributes.position;
+  const uv = new Float32Array(pos.count * 2);
+  for (let i = 0; i < pos.count; i += 1) {
+    uv[i * 2] = (pos.getX(i) - min.x) / w;
+    uv[i * 2 + 1] = (pos.getZ(i) - min.z) / h;
+  }
+  geometry.setAttribute('uv', new BufferAttribute(uv, 2));
+}
+
 function materialFor(name) {
   const spec = PAINT[name] ?? { surface: SURFACES.iron, shade: 1 };
   const base = spec.surface
@@ -153,7 +182,8 @@ function paintedModel(scene) {
       // rather than throwing, so a scene built in a test still builds.
       const map = glow.pattern?.();
       if (map) {
-        planarUV(o.geometry);
+        if (slot === 'marquee_emissive') marqueeUV(o.geometry);
+        else planarUV(o.geometry);
         o.material.emissiveMap = map;
         o.material.needsUpdate = true;
       }
