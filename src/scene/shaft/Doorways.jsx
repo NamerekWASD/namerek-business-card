@@ -10,7 +10,11 @@ import Doorway from './Doorway.jsx';
 // The doorways, in their own camera in front of the content. Two `perspective`
 // containers with identical parameters are one camera, so these line up exactly
 // with the wall they stand on despite the flat content layer between them.
-function Doorways({ vw, vh, pos, floorPx, deck, intro, shake, blurPx }) {
+// `frame` is the one seam the R3F backend needs here: the stepped architrave
+// moves into WebGL before the leaves do, so for a stretch of the migration this
+// component must be able to draw a doorway without its own frame rather than
+// stand two of them in the same place.
+function Doorways({ vw, vh, pos, floorPx, deck, intro, shake, blurPx, frame = true }) {
   const { Stage } = useRenderer();
   const overscan = vh * BACK_OVERSCAN;
   const here = Math.round(pos);
@@ -47,6 +51,7 @@ function Doorways({ vw, vh, pos, floorPx, deck, intro, shake, blurPx }) {
                 deck={deck}
                 intro={intro}
                 shake={shake}
+                frame={frame}
               />
             ))}
           </div>

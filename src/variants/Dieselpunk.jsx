@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import Grain from '../ui/Grain.jsx';
 
 import { cssVariables } from '../theme/tokens.js';
@@ -10,6 +10,10 @@ import { DOORWAY_W_FRAC, DOORWAY_H_FRAC, CAGE_FAR, cageInset } from '../scene/mo
 import Shaft from '../scene/shaft/Shaft.jsx';
 import Doorways from '../scene/shaft/Doorways.jsx';
 import CageFront from '../scene/cage/CageFront.jsx';
+import { markContextLost, useIsR3F } from '../scene/renderers/active.js';
+import SceneCanvas from '../scene/renderers/r3f/SceneCanvas.jsx';
+import ShaftScene from '../scene/r3f/ShaftScene.jsx';
+import NearScene from '../scene/r3f/NearScene.jsx';
 import { DEBUG_PANEL, useBlurBudget } from '../scene/effects/quality.js';
 import Lighting from '../scene/effects/Lighting.jsx';
 import MotionBlurDef from '../scene/effects/MotionBlurDef.jsx';
@@ -22,15 +26,27 @@ import { RideTickerProvider } from '../lift/RideTickerContext.js';
 import useIntroClock from '../lift/useIntroClock.js';
 import useViewport from '../hooks/useViewport.js';
 import DebugPanel from '../debug/DebugPanel.jsx';
+import LightingPanel from '../debug/LightingPanel.jsx';
+import useShotStates from '../debug/shots.js';
 import FloorSelector from '../ui/FloorSelector.jsx';
 import { DECK_BODIES } from '../decks/index.js';
 
 export default function Dieselpunk() {
-  const { t, setT, playing, play } = useIntroClock(DOOR_TOTAL_MS);
+  const [sceneReady, setSceneReady] = useState(false);
   const {
     floorPos, deckIndex, moving, velocity, rideTo, scrub, setScrub, ride, ridePhase, ticker,
   } = useLift();
   const { vw, vh } = useViewport();
+  // which backend is actually drawing — see scene/renderers/active.js
+  const r3f = useIsR3F();
+  // The WebGL model, its marquee texture and the screen mark all load on their
+  // own schedule. Keep the landing closed until they have committed and drawn,
+  // rather than compiling and decoding them in the first frames of the door
+  // animation.
+  const unlockIntro = useCallback(() => setSceneReady(true), []);
+  const { t, setT, playing, play } = useIntroClock(DOOR_TOTAL_MS, !r3f || sceneReady);
+  // deterministic states for the screenshot regression — see debug/shots.js
+  useShotStates({ setScrub, setT });
 
   // One floor, in screen pixels, in each of the coordinate systems that need it.
   // These are the same distance three times over and used to be called `step`,
@@ -60,6 +76,9 @@ export default function Dieselpunk() {
   // the cached result on every single frame; nine buckets look identical in
   // motion and let it be reused.
   const blurAllowed = useBlurBudget(moving);
+  // A machine that has already given the motion blur up has told us what it can
+  // afford; asking it for four times the pixels as well is not a kindness.
+  const dprCeiling = blurAllowed ? 2 : 1.5;
   const blurAmount = blurAllowed ? Math.round(Math.min(16, speed * 5.5) / 2) * 2 : 0;
   // The lamps, for this position of the shaft. Everything that gets lit is
   // handed this same list, so the cage, the fixtures and the haze cannot
@@ -133,17 +152,35 @@ export default function Dieselpunk() {
         }}
       />
 
-      <Shaft
-        vw={vw} vh={vh} pos={floorPos}
-        floorPx={wallFloorPitch} backFloorPx={floorPitch}
-        blurPx={blurAmount}
-        lamps={lamps}
-        ride={ride} deck={deckIndex} intro={introClosure(t)}
-      />
+      {/* The far half of the scene. Under `?renderer=r3f` it is WebGL and the
+          CSS shaft stands down; the flag exists so the two can be compared in
+          one build rather than across two branches, and CSS stays the default
+          until the comparison says otherwise. */}
+      {r3f ? (
+        <SceneCanvas vw={vw} vh={vh} zIndex={LAYERS.shaft} name="shaft" dprCeiling={dprCeiling} moving={moving} onLost={markContextLost}>
+          <ShaftScene
+            vw={vw} vh={vh} pos={floorPos} floorPx={floorPitch}
+            lamps={lamps} ticker={ticker} ride={ride} deck={deckIndex}
+            intro={introClosure(t)}
+          />
+        </SceneCanvas>
+      ) : (
+        <Shaft
+          vw={vw} vh={vh} pos={floorPos}
+          floorPx={wallFloorPitch} backFloorPx={floorPitch}
+          blurPx={blurAmount}
+          lamps={lamps}
+          ride={ride} deck={deckIndex} intro={introClosure(t)}
+        />
+      )}
 
       {DEBUG_PANEL && (
         <div style={{ pointerEvents: 'auto' }}>
           <DebugPanel t={t} setT={setT} playing={playing} play={play} scrub={scrub} setScrub={setScrub} blurEnabled={blurAllowed} />
+          {/* Only under WebGL: the CSS scene shades itself arithmetically from
+              `model/lighting.js` and none of these knobs reach it, so showing
+              them there would be a panel that lies about what it controls. */}
+          {r3f && <LightingPanel />}
         </div>
       )}
 
@@ -188,11 +225,27 @@ export default function Dieselpunk() {
 
       {/* the doors, in front of the content: the content sits on the landing,
           so leaves that cannot cover it are not doors */}
-      <Doorways
-        vw={vw} vh={vh} pos={floorPos} floorPx={floorPitch}
-        deck={deckIndex} intro={introClosure(t)}
-        shake={shake} blurPx={blurAmount}
-      />
+      {!r3f && (
+        <Doorways
+          vw={vw} vh={vh} pos={floorPos} floorPx={floorPitch}
+          deck={deckIndex} intro={introClosure(t)}
+          shake={shake} blurPx={blurAmount}
+        />
+      )}
+
+      {/* The near canvas: everything in WebGL that has to stand in front of the
+          decks — the doorway frames, the leaves and the cage. A second context
+          on purpose: the decks are genuinely *between* the two halves of this
+          scene, and no z-index inside one canvas can express that. */}
+      {r3f && (
+        <SceneCanvas vw={vw} vh={vh} zIndex={LAYERS.cage} name="near" dprCeiling={dprCeiling} moving={moving} onLost={markContextLost}>
+          <NearScene
+            vw={vw} vh={vh} pos={floorPos} floorPx={floorPitch}
+            deck={deckIndex} intro={introClosure(t)} ticker={ticker}
+            lamps={lamps} ride={ride} onReady={unlockIntro}
+          />
+        </SceneCanvas>
+      )}
 
       {/* The blanket of black that used to be laid over everything mid-ride has
           gone. It was there because the shaft had no lights, so "between floors
@@ -202,7 +255,7 @@ export default function Dieselpunk() {
 
       {/* the cage rides with us, not with the shaft, and draws in front of the
           content because it is nearer than the landing the content sits on */}
-      <CageFront vw={vw} vh={vh} lamps={lamps} />
+      {!r3f && <CageFront vw={vw} vh={vh} lamps={lamps} />}
 
       <Lighting aperture={aperture} closure={closure} lamps={lamps} vw={vw} vh={vh} />
 

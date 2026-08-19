@@ -7,9 +7,10 @@ import { useEffect, useRef, useState } from 'react';
  * one you tune by guessing.
  *
  * @param {number} totalMs
+ * @param {boolean} [autoplay] whether the one-off intro may begin
  * @returns {{ t: number, setT: (v: number) => void, playing: boolean, play: (from?: number) => void, stop: () => void }}
  */
-export default function useIntroClock(totalMs) {
+export default function useIntroClock(totalMs, autoplay = true) {
   const [t, setT] = useState(0);
   const [playing, setPlaying] = useState(false);
   const rafRef = useRef(null);
@@ -39,10 +40,11 @@ export default function useIntroClock(totalMs) {
   };
 
   useEffect(() => {
+    if (!autoplay) return undefined;
     play(0);
     return stop;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [autoplay]);
 
   return { t, setT: (v) => { stop(); setT(v); }, playing, play, stop };
 }

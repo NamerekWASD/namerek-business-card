@@ -30,7 +30,13 @@
  * One large plane's material. `tile` names an entry in `TILES`; `tex` is a real
  * scalar, where 1 is the raw tile and 0 is flat colour, and the sensible range
  * is 0.1–0.4. `scale` is the tile's size in pixels.
- * @typedef {{ from: string, to: string, tile: string, scale: number, tex: number }} Surface
+ *
+ * `rough` and `metal` are what a physically-lit backend needs and a CSS one
+ * cannot use: how sharp this surface's highlight is and whether it has a
+ * coloured one at all. They live here rather than in the R3F renderer because
+ * they are facts about the material, not about how it gets drawn — the same
+ * reason `from` and `to` are here. The CSS backend ignores them.
+ * @typedef {{ from: string, to: string, tile: string, scale: number, tex: number, rough?: number, metal?: number }} Surface
  */
 
 /**

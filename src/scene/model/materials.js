@@ -19,24 +19,29 @@ import whiteStucco from '../../assets/textures/white_stucco.png';
 
 export const TILES = { rust: rustBrass, bronze: bronzeWorn, steel: brushedSteel, paper: whiteStucco, none: null };
 
+// `rough`/`metal` are read only by a physically-lit backend. Nothing here is
+// polished: this is a shaft of painted iron and worn steel in a damp building,
+// so roughness stays high and metalness low — a fully metallic surface with no
+// environment map to reflect renders black, which is the classic way a ported
+// scene ends up looking like a hole rather than a wall.
 /** @type {Record<string, Surface>} */
 export const SURFACES = {
   // the corridor either side of us — furthest from the lamp, so the flattest
-  shaftWall: { from: '#2b2521', to: '#14110e', tile: 'rust', scale: 320, tex: 0.22 },
+  shaftWall: { from: '#2b2521', to: '#14110e', tile: 'rust', scale: 320, tex: 0.22, rough: 0.92, metal: 0.05 },
   // the blind wall at the far end, between the landings
-  backWall: { from: '#2e2822', to: '#171310', tile: 'rust', scale: 360, tex: 0.16 },
+  backWall: { from: '#2e2822', to: '#171310', tile: 'rust', scale: 360, tex: 0.16, rough: 0.94, metal: 0.05 },
   // inside the landing: another room, so its own colour and its own light
-  landing: { from: '#463a2c', to: '#221a12', tile: 'rust', scale: 300, tex: 0.14 },
+  landing: { from: '#463a2c', to: '#221a12', tile: 'rust', scale: 300, tex: 0.14, rough: 0.9, metal: 0.04 },
   // the cage we are standing in — nearest, so it may carry the most grain
-  cageRoof: { from: '#242019', to: '#12100d', tile: 'steel', scale: 190, tex: 0.3 },
-  cageFloor: { from: '#3c342a', to: '#201b15', tile: 'steel', scale: 210, tex: 0.34 },
-  cageSteel: { from: '#3b352d', to: '#1e1a15', tile: 'steel', scale: 130, tex: 0.36 },
-  doorLeaf: { from: '#3d3123', to: '#1c1610', tile: 'rust', scale: 280, tex: 0.26 },
-  doorFrame: { from: '#4a4137', to: '#231e19', tile: 'steel', scale: 160, tex: 0.32 },
+  cageRoof: { from: '#242019', to: '#12100d', tile: 'steel', scale: 190, tex: 0.3, rough: 0.78, metal: 0.3 },
+  cageFloor: { from: '#3c342a', to: '#201b15', tile: 'steel', scale: 210, tex: 0.34, rough: 0.74, metal: 0.34 },
+  cageSteel: { from: '#3b352d', to: '#1e1a15', tile: 'steel', scale: 130, tex: 0.36, rough: 0.7, metal: 0.38 },
+  doorLeaf: { from: '#3d3123', to: '#1c1610', tile: 'rust', scale: 280, tex: 0.26, rough: 0.86, metal: 0.12 },
+  doorFrame: { from: '#4a4137', to: '#231e19', tile: 'steel', scale: 160, tex: 0.32, rough: 0.72, metal: 0.34 },
   // the small fittings — clips, shoes, rivetted plates, architrave members
-  iron: { from: '#443626', to: '#241a11', tile: 'rust', scale: 70, tex: 0.3 },
-  steel: { from: '#3f454a', to: '#1e2225', tile: 'steel', scale: 46, tex: 0.34 },
-  paper: { from: '#a6a7a9', to: '#d8d8d8', tile: 'paper', scale: 46, tex: 0.34 },
+  iron: { from: '#443626', to: '#241a11', tile: 'rust', scale: 70, tex: 0.3, rough: 0.84, metal: 0.16 },
+  steel: { from: '#3f454a', to: '#1e2225', tile: 'steel', scale: 46, tex: 0.34, rough: 0.62, metal: 0.45 },
+  paper: { from: '#a6a7a9', to: '#d8d8d8', tile: 'paper', scale: 46, tex: 0.34, rough: 0.97, metal: 0 },
 };
 
 // The gate: painted mild steel, the one saturated thing in the frame. It is not

@@ -3,6 +3,8 @@
 // renderer would keep every number in this file unchanged — that is the test
 // for whether something belongs here.
 
+import { CAM_ORIGIN_Y, CAM_PERSPECTIVE, SHAFT_DEPTH } from './camera.js';
+
 /** @import { Shade } from './types.js' */
 
 // ── the doorway ──────────────────────────────────────────────────────────────
@@ -39,10 +41,30 @@ export const FRAME_TIERS = [
   { m: 0.36, z: 1, shade: 1.16 },
 ];
 
+// Where the head of a floor's opening sits, in scene pixels, with the shaft at
+// rest. The back wall, the doorways and the frames all have to agree about this
+// to the pixel — they are three layers of the same hole — and each of them used
+// to work it out for itself from the same four terms.
+/** @param {number} vh @param {number} floorPitch @param {number} floor @returns {number} */
+export const openingTop = (vh, floorPitch, floor) =>
+  vh * CAM_ORIGIN_Y - (vh * DOORWAY_H_FRAC) / 2 - floor * floorPitch;
+
 // How much deeper the landing sits than the shaft wall. It is a different room,
 // so it gets its own depth, its own colour and its own light — sharing all three
 // with the shaft is what made the far end read as one flat backdrop.
 export const LANDING_SETBACK = 78;
+
+// How tall the arcade cabinet hangs, in scene pixels.
+//
+// Derived rather than dialled: the CSS cabinet is 324px tall drawn on the
+// content layer, which is already scaled by the perspective divide at the
+// doorway. Bolted to the landing wall — a further `LANDING_SETBACK` back — it
+// has to be that much larger to cover the same height of screen. If the two
+// backends are put side by side and the cabinet is the wrong size, this is the
+// line that is wrong, and it can be checked with arithmetic rather than by eye.
+export const CABINET_H = Math.round(
+  (324 * (CAM_PERSPECTIVE + SHAFT_DEPTH + LANDING_SETBACK)) / CAM_PERSPECTIVE,
+);
 
 // ── the cage ─────────────────────────────────────────────────────────────────
 // An open goods-lift cage riding inside the shaft, so it is narrower than the

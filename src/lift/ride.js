@@ -109,4 +109,27 @@ export function doorClosureAt(floor, ride, deckIndex) {
   return 1;
 }
 
+/**
+ * Which floor is the one currently open to us, and how far open it is.
+ *
+ * At rest that is simply the deck we are standing at. During a trip it is not:
+ * exactly two floors have doors doing anything, the one being left and the one
+ * being arrived at, and which of them is the *room we can see into* swaps over
+ * partway through. Anything that lights, furnishes or looks into a landing has
+ * to follow that swap — the settled deck index does not, and using it lit the
+ * floor we were leaving while we arrived somewhere dark.
+ *
+ * @param {{ from: number, to: number, p: number } | null} ride
+ * @param {number} deckIndex the settled floor, used only at rest
+ * @returns {{ floor: number, closure: number }}
+ */
+export function openFloor(ride, deckIndex) {
+  if (!ride) return { floor: deckIndex, closure: doorClosureAt(deckIndex, null, deckIndex) };
+  const leaving = doorClosureAt(ride.from, ride, deckIndex);
+  const arriving = doorClosureAt(ride.to, ride, deckIndex);
+  return arriving <= leaving
+    ? { floor: ride.to, closure: arriving }
+    : { floor: ride.from, closure: leaving };
+}
+
 export const DECK_COUNT = DECKS.length;

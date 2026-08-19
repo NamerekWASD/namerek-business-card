@@ -39,6 +39,15 @@ export const LAMPS = {
   haze: 0.3, // how much of it hangs in the air instead of landing on something
 };
 
+// How far either way the fittings are built at all, in floors. Beyond this they
+// contribute a fraction of a percent and are not worth the elements.
+//
+// It is exported because it is a *seam*: a renderer that reduces this row to one
+// physical light has to know where the row stops, so that it can fade a lamp out
+// before it vanishes rather than after. Hard-coded in two places, that is a
+// silent brightness jump waiting for someone to change one of them.
+export const LAMP_RANGE = 1.7;
+
 // What the shaft bounces back, so an unlit face goes dim rather than absent.
 export const LIGHT_AMBIENT = 0.26;
 // A lamp in a reflector is not a point source, so the terminator is soft: a face
@@ -59,8 +68,8 @@ export function lampsAt(vw, vh, floorPos, floorPitch) {
   if (!LAMPS.on) return [];
   const out = [];
   const z = -SHAFT_DEPTH + LAMPS.proud;
-  const first = Math.ceil((floorPos - 1.7) / LAMPS.every) * LAMPS.every;
-  for (let u = first; u <= floorPos + 1.7; u += LAMPS.every) {
+  const first = Math.ceil((floorPos - LAMP_RANGE) / LAMPS.every) * LAMPS.every;
+  for (let u = first; u <= floorPos + LAMP_RANGE; u += LAMPS.every) {
     const y = (floorPos - u - LAMPS.rise) * floorPitch + vh * CAM_ORIGIN_Y;
     out.push({ id: `${u}L`, x: vw * (0.5 - LAMPS.side), y, z });
   }

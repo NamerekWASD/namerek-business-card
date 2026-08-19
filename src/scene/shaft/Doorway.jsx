@@ -19,7 +19,7 @@ import Architrave from './Architrave.jsx';
 // still arrive as ordinary props: they only move during the once-only door
 // intro, not on every ride, so there is nothing to gain by pulling them off
 // the ticker too, and the intro clock is not what this scene's rides drive.
-function Doorway({ vw, vh, top, floor, deck, intro, shake }) {
+function Doorway({ vw, vh, top, floor, deck, intro, shake, frame = true }) {
   const w = vw * DOORWAY_W_FRAC;
   const h = vh * DOORWAY_H_FRAC;
   const left = (vw - w) / 2;
@@ -106,7 +106,7 @@ function Doorway({ vw, vh, top, floor, deck, intro, shake }) {
       <div style={{ position: 'absolute', left, top: 0, width: w, height: ARCHITRAVE_DEPTH, transformOrigin: '50% 0%', transform: `translateZ(${ARCHITRAVE_DEPTH}px) rotateX(-90deg)`, ...ret(true, true) }} />
       <div style={{ position: 'absolute', left, top: h, width: w, height: ARCHITRAVE_DEPTH, transformOrigin: '50% 0%', transform: 'rotateX(90deg)', ...ret(false, true) }} />
 
-      <Architrave vw={vw} vh={vh} />
+      {frame && <Architrave vw={vw} vh={vh} />}
     </div>
   );
 }
