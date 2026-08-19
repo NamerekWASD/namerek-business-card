@@ -308,7 +308,7 @@ export function ArcadeCabinetWarmup({ onReady }) {
 function ArcadeCabinet({ x, y, z, yaw = 180 }) {
   const { scene } = useGLTF(MODEL);
   const model = useMemo(() => paintedModel(scene), [scene]);
-  const scale = CABINET_H / model.height;
+  const scale = (CABINET_H / model.height) * 1.15;
   return (
     <group position={[x, worldY(y), z]} rotation={[0, (yaw * Math.PI) / 180, 0]} scale={scale}>
       {/* the model is authored standing on y = 0; any drift from that is taken

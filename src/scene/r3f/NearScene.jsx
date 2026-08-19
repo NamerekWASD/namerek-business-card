@@ -210,12 +210,18 @@ function CageDeck({ vw, y, isRoof }) {
           <meshStandardMaterial {...iron} />
         </mesh>
       ))}
-      {/* the hazard lip at the far edge of the floor, where you would step off */}
+      {/* the hazard lip at the far edge of the floor, where you would step off.
+          Needs its own albedo: a `PatternPlane` with none defaults to a white
+          `material.color`, and `Room`'s ambient pass reads that colour as the
+          surface's albedo — so an untinted plate bounced back a flat white
+          glow wherever direct light was weak, which is exactly the grazing
+          near edge of a horizontal plane. That was this scene's white seam,
+          not the floor plane's raw edge the earlier fix here targeted. */}
       {!isRoof && hazard && (
         <PatternPlane
           texture={hazard} repeat={[Math.round(width / 64), 1]} w={width} h={11}
           position={[vw / 2, worldY(y) + 3, CAGE_FAR + 6]} rotation={[-Math.PI / 2, 0, 0]}
-          roughness={0.8}
+          {...iron} roughness={0.8}
         />
       )}
     </>

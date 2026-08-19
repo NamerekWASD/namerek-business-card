@@ -171,12 +171,16 @@ function Pendant({ vw, vh, top }) {
         <meshStandardMaterial {...cast} />
       </mesh>
 
-      {/* the dome, and its lip — a shade with no rim reads as a paper cone */}
-      <mesh position={[0, worldY(-6), 0]}>
+      {/* the dome, and its lip — a shade with no rim reads as a paper cone.
+          The rim sits at the guard's own top ring rather than above it: the
+          shade has to reach down far enough to nest the guard inside it, or
+          the two read as separate fixtures with the wall showing through the
+          gap between them. */}
+      <mesh position={[0, worldY(2), 0]}>
         <sphereGeometry args={[R, 24, 10, 0, Math.PI * 2, 0, Math.PI / 2]} />
         <meshStandardMaterial {...cast} side={DoubleSide} />
       </mesh>
-      <mesh position={[0, worldY(-4), 0]} rotation={[Math.PI / 2, 0, 0]}>
+      <mesh position={[0, worldY(4), 0]} rotation={[Math.PI / 2, 0, 0]}>
         <torusGeometry args={[R * 0.99, 3, 6, 28]} />
         <meshStandardMaterial {...steel} />
       </mesh>
@@ -260,7 +264,7 @@ function Landing({ vw, vh, top, floor, furnished }) {
  * The blind wall at the end of the shaft, cut into piers and spandrels so the
  * landings are genuinely behind it rather than painted on it.
  */
-function BackWall({ vw, vh, pos, floorPx, ticker, ride, deck, intro }) {
+function BackWall({ vw, vh, pos, floorPx, ticker, ride, deck, intro, warm }) {
   const overscan = vh * BACK_OVERSCAN;
   const w = vw * DOORWAY_W_FRAC;
   const h = vh * DOORWAY_H_FRAC;
@@ -294,7 +298,21 @@ function BackWall({ vw, vh, pos, floorPx, ticker, ride, deck, intro }) {
             <group key={f}>
               <Panel surface={SURFACES.backWall} left={left} top={top + h} w={w} h={floorPx - h} z={-SHAFT_DEPTH} />
               {isDeck
-                ? <Landing vw={vw} vh={vh} top={top} floor={f} furnished={Math.abs(f - pos) < 1.25 && shut < 0.985} />
+                ? (
+                  <Landing
+                    vw={vw} vh={vh} top={top} floor={f}
+                    // The shut door normally means nobody is looking, so the
+                    // landing behind it stays unbuilt. But that gate is exactly
+                    // why the very first door-opening used to be a slideshow:
+                    // the cabinet, the pendant and everything they are made of
+                    // mounted — and compiled their shaders — for the first time
+                    // on the same frames the door was already swinging open.
+                    // `warm` forces this one build to happen a beat earlier,
+                    // behind a door that is still fully shut, so there is
+                    // nothing left to compile once there is something to see.
+                    furnished={Math.abs(f - pos) < 1.25 && (shut < 0.985 || (warm && f === deck))}
+                  />
+                )
                 /* dead shaft above the top floor and below the bottom one */
                 : <Panel surface={SURFACES.backWall} left={left} top={top} w={w} h={h} z={-SHAFT_DEPTH} />}
             </group>
@@ -416,9 +434,9 @@ function Counterweight({ vw, vh, pos, floorPx, ticker }) {
   );
 }
 
-function ShaftScene({ vw, vh, pos, floorPx, lamps, ticker, ride, deck, intro }) {
+function ShaftScene({ vw, vh, pos, floorPx, lamps, ticker, ride, deck, intro, warm }) {
   // the room we can actually see into, which during a trip is not the deck we
-  // set off from — see 
+  // set off from — see
   const open = openFloor(ride, deck);
   return (
     <>
@@ -429,7 +447,7 @@ function ShaftScene({ vw, vh, pos, floorPx, lamps, ticker, ride, deck, intro }) 
       />
       <Room room="shaft">
         <Walls vw={vw} vh={vh} pos={pos} floorPx={floorPx} ticker={ticker} />
-      <BackWall vw={vw} vh={vh} pos={pos} floorPx={floorPx} ticker={ticker} ride={ride} deck={deck} intro={intro} />
+      <BackWall vw={vw} vh={vh} pos={pos} floorPx={floorPx} ticker={ticker} ride={ride} deck={deck} intro={intro} warm={warm} />
       <ShaftCable vh={vh} x={vw * (0.5 - LAMPS.side)} pos={pos} floorPx={floorPx} ticker={ticker} />
       <Counterweight vw={vw} vh={vh} pos={pos} floorPx={floorPx} ticker={ticker} />
       {/* the fittings, bolted to the far wall either side of every landing.

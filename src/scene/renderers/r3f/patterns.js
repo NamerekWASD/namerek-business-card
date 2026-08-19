@@ -98,6 +98,43 @@ export const lampGlow = () => bake('glow', 128, 128, (ctx, w, h) => {
  * emissive rectangle has no surface for the eye to read, while this gives the
  * recessed glass a dim edge, a warm centre and the small high spot reflected
  * from the fitting above it.
+ *
+ * TODO (requested, not yet done — see chat 2026-08-19): match the reference
+ * photo's three-point glow — bright at both visible edges *and* the centre,
+ * dimming between them, rather than this single radial hotspot. The blocker
+ * is not the gradient math, it's the UV this mesh actually has:
+ *
+ *   `marquee_emissive` ships from Blender with its own UV already set — a
+ *   small tile of a shared atlas, not the 0–1 unwrap `planarUV` gives the
+ *   screen (`planarUV` only fires `if (!geometry.attributes.uv)`, and this
+ *   mesh already has one). Read live via
+ *   `window.__scenes.shaft.scene.traverse(...)` on the mesh named
+ *   `marquee_emissive`, its `geometry.attributes.uv` covers only
+ *   u ∈ [0.644, 0.856], v ∈ [0.254, 0.496] — about a fifth of this 256×128
+ *   canvas — so a gradient authored across the full 0–1 canvas only ever
+ *   shows the sliver inside that window. That's also why the flutes below
+ *   are columns rather than rows: this mesh's local geometry has its face
+ *   normal along a different axis than the screen's, established by trial
+ *   against a live render rather than derived.
+ *
+ *   Two ways forward, neither started:
+ *   (a) keep authoring against the full canvas, but scale every stop into
+ *       [0.254, 0.496] the way the reverted attempt in this session did —
+ *       fast, but silently wrong again the day the asset is re-exported
+ *       with a real UV for this part.
+ *   (b) force a proper unwrap for this mesh specifically (`planarUV(geo,
+ *       true)` with a `force` param added, or a from-scratch planar unwrap
+ *       using this mesh's actual in-plane axes — its local bounding box is
+ *       flat in Y, not Z, so it needs X/Z, not X/Y) — the durable fix, but
+ *       it has to be re-verified against a live render, the same way the
+ *       flute orientation was: the axis choice changes which way anything
+ *       painted here lands on screen, and that cannot be predicted from the
+ *       code alone.
+ *
+ * Ribbed the same way as `screenGlow`, and for the same reason: an untextured
+ * gradient reads as a painted rectangle, where fine horizontal flutes catching
+ * the glow at their crests are what says "glass with a lamp behind it" rather
+ * than "orange sign". The two panels are meant to look cut from the same sheet.
  */
 export const marqueeGlow = () => bake('marquee', 256, 128, (ctx, w, h) => {
   const g = ctx.createRadialGradient(w * 0.54, h * 0.4, 0, w * 0.52, h * 0.54, w * 0.7);
@@ -107,6 +144,27 @@ export const marqueeGlow = () => bake('marquee', 256, 128, (ctx, w, h) => {
   g.addColorStop(1, '#120c08');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, w, h);
+
+  // The marquee mesh's UV runs the opposite way to the screen's — its planar
+  // unwrap comes off a panel that is wide in the model's local Y — so the
+  // flutes are painted as columns here to land as the same horizontal ribs on
+  // screen. Confirmed against a live render rather than assumed: painted as
+  // rows first, they came out as vertical bars.
+  ctx.globalCompositeOperation = 'multiply';
+  const flutes = 13;
+  const pitch = w / flutes;
+  for (let i = 0; i < flutes; i += 1) {
+    const x = i * pitch;
+    const band = ctx.createLinearGradient(x, 0, x + pitch, 0);
+    band.addColorStop(0, '#4e4e4e');
+    band.addColorStop(0.4, '#ffffff');
+    band.addColorStop(0.58, '#dcdcdc');
+    band.addColorStop(1, '#4e4e4e');
+    ctx.fillStyle = band;
+    // half a pixel of overlap, or the seam between bands shows as a dark line
+    ctx.fillRect(x, 0, pitch + 0.5, h);
+  }
+  ctx.globalCompositeOperation = 'source-over';
 
   const sheen = ctx.createLinearGradient(0, 0, 0, h);
   sheen.addColorStop(0, 'rgba(255,224,170,0.24)');

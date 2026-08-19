@@ -161,7 +161,7 @@ export default function Dieselpunk() {
           <ShaftScene
             vw={vw} vh={vh} pos={floorPos} floorPx={floorPitch}
             lamps={lamps} ticker={ticker} ride={ride} deck={deckIndex}
-            intro={introClosure(t)}
+            intro={introClosure(t)} warm={!sceneReady}
           />
         </SceneCanvas>
       ) : (

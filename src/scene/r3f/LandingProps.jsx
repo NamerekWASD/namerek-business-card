@@ -184,7 +184,7 @@ function LandingProps({ idx, vw, vh, top }) {
       )}
       {/* The cabinet stands on every landing's opposite side — it is the object
           the mark lives on, so it is seen close and often mid-frame. */}
-      {idx === 0 && <ArcadeCabinet x={left + w * 0.68} y={top + vh * DOORWAY_H_FRAC * 0.52 + CABINET_H / 2} z={back - 8} />}
+      {idx === 0 && <ArcadeCabinet x={left + w * 0.68} y={top + vh * DOORWAY_H_FRAC * 0.55 + CABINET_H / 2} z={back - 8} />}
     </>
   );
 }
