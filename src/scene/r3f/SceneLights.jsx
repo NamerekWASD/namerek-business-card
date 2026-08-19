@@ -29,16 +29,6 @@ function SceneLights({ vw, vh, lamps, floorPx, deckTop, closure }) {
   const rig = lightRig({ vw, vh, lamps, floorPitch: floorPx, deckTop, closure });
   const lights = useRef([]);
 
-  // A point light's shadow is a cubemap — six passes over the scene rather
-  // than one — and this rig can hold up to `shaftLights + 1` sources at
-  // once. Every one of them casting would-be six-fold the cost for a return
-  // nobody would see: the shaft lights already sit close enough together that
-  // their shadows would mostly overlap. So only the two that matter — the
-  // nearest shaft fitting (rig sorts shaft lights by reach, so this is
-  // whichever is first) and the landing's own pendant — actually cast one.
-  // The rest still light the room; they just do it without a shadow.
-  const firstShaft = rig.findIndex((l) => l.kind === 'shaft');
-
   useLayoutEffect(() => {
     for (const [index, light] of lights.current.entries()) {
       if (!light) continue;
@@ -75,7 +65,13 @@ function SceneLights({ vw, vh, lamps, floorPx, deckTop, closure }) {
       intensity={light.intensity}
       decay={light.decay}
       color={light.colour}
-      castShadow={light.kind === 'landing' || index === firstShaft}
+      // Every fitting casts now, not just the nearest one. A point light's
+      // shadow is a cubemap — six passes rather than one — so this was
+      // capped to the two lights that mattered most; asked for the richer
+      // scene over the cost, since the cabinet and the wall props are lit by
+      // whichever shaft lamp actually rakes across them, not necessarily the
+      // one nearest the cage.
+      castShadow
     />
   ));
 }

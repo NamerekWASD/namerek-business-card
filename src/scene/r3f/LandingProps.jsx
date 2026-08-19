@@ -163,7 +163,10 @@ function LandingProps({ idx, vw, vh, top }) {
 
   return (
     <>
-      {idx === 0 && <PatchBay x={x} y={floor - 220} z={back} />}
+      {/* stood 40 off the wall rather than flush against it — a board bolted
+          straight to the plaster has nowhere for its own shadow to land; the
+          brackets a real patch bay hangs on give it exactly this much air */}
+      {idx === 0 && <PatchBay x={x} y={floor - 220} z={back + 40} />}
       {idx === 1 && (
         <>
           <ContactShadow x={x + 86} y={floor} z={back + 60} w={450} opacity={0.6} />
