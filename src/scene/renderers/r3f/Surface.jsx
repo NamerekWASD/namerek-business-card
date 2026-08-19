@@ -33,7 +33,7 @@ export function Panel({
 
   return (
     <group position={[left, worldY(top), z]} rotation={rotationOf(yaw, pitch)}>
-      <mesh position={[dx, -h / 2, 0]}>
+      <mesh position={[dx, -h / 2, 0]} castShadow receiveShadow>
         <planeGeometry args={[w, h]} />
         <meshStandardMaterial key={material.map ? 'grained' : 'flat'} {...material} />
       </mesh>
@@ -60,7 +60,7 @@ export function Box({ surface, left, top, w, h, d, z = 0, yaw = 0, shade = 1, cl
     // stood off by the same amount the CSS backend stands it off, so a turned
     // box does not sink its far corner into the wall behind it
     <group position={[left, worldY(top), z + w * Math.abs(Math.sin(rad))]} rotation={[0, rad, 0]}>
-      <mesh position={[w / 2, -h / 2, d / 2]}>
+      <mesh position={[w / 2, -h / 2, d / 2]} castShadow receiveShadow>
         <boxGeometry args={[w, h, d]} />
         {/* `clip` is this backend's `overflow: hidden`. The door leaves slide
             out of their opening and have to stop existing at its edge, exactly

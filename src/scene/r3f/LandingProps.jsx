@@ -94,7 +94,7 @@ function Workbench({ x, y, z }) {
       {/* the board on the wall, and what hangs off it */}
       <Box surface={SURFACES.iron} shade={0.8} left={18} top={-76} w={124} h={52} d={8} />
       {[12, 40, 66, 96].map((tx, i) => (
-        <mesh key={tx} position={[18 + tx, worldY(-64 + (i % 3) * 4), 12]}>
+        <mesh key={tx} position={[18 + tx, worldY(-64 + (i % 3) * 4), 12]} castShadow receiveShadow>
           <boxGeometry args={[i % 2 ? 6 : 9, 26 + (i % 3) * 8, 5]} />
           <meshStandardMaterial {...surfaceProps(SURFACES.steel, 1.1)} />
         </mesh>
@@ -123,7 +123,7 @@ function PostBox({ x, y, z }) {
       <Box surface={SURFACES.steel} shade={0.95} left={0} top={0} w={125} h={136} d={78} yaw={yaw} />
       {/* the hood, hinged just above the slot and tipped out over it — which is
           the whole point of a hood */}
-      <mesh position={[62, worldY(16), 82]} rotation={[-0.59, 0, 0]}>
+      <mesh position={[62, worldY(16), 82]} rotation={[-0.59, 0, 0]} castShadow receiveShadow>
         <boxGeometry args={[104, 26, 6]} />
         <meshStandardMaterial {...surfaceProps(SURFACES.steel, 1.1)} />
       </mesh>

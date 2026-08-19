@@ -138,7 +138,7 @@ function Pendant({ vw, vh, top }) {
           <meshStandardMaterial {...cast} />
         </mesh>
       ))}
-      <mesh position={[0, worldY(headTop + 5), 0]}>
+      <mesh position={[0, worldY(headTop + 5), 0]} castShadow receiveShadow>
         <boxGeometry args={[17, 13, 5]} />
         <meshStandardMaterial {...cast} />
       </mesh>
@@ -149,7 +149,7 @@ function Pendant({ vw, vh, top }) {
           on their own radius — rotating a box about the axis it is already
           centred on moves it nowhere, which is how eight of them came to be
           hidden inside one another. */}
-      <mesh position={[0, worldY(headY), 0]}>
+      <mesh position={[0, worldY(headY), 0]} castShadow receiveShadow>
         <cylinderGeometry args={[17, 23, 30, 14]} />
         <meshStandardMaterial {...cast} />
       </mesh>
@@ -160,13 +160,15 @@ function Pendant({ vw, vh, top }) {
             key={i}
             position={[Math.sin(a) * 20, worldY(headY), Math.cos(a) * 20]}
             rotation={[0, a, 0]}
+            castShadow
+            receiveShadow
           >
             <boxGeometry args={[3, 26, 15]} />
             <meshStandardMaterial {...cast} />
           </mesh>
         );
       })}
-      <mesh position={[0, worldY(headY + 17), 0]}>
+      <mesh position={[0, worldY(headY + 17), 0]} castShadow receiveShadow>
         <cylinderGeometry args={[27, 27, 4, 18]} />
         <meshStandardMaterial {...cast} />
       </mesh>
@@ -176,11 +178,11 @@ function Pendant({ vw, vh, top }) {
           shade has to reach down far enough to nest the guard inside it, or
           the two read as separate fixtures with the wall showing through the
           gap between them. */}
-      <mesh position={[0, worldY(2), 0]}>
+      <mesh position={[0, worldY(2), 0]} castShadow receiveShadow>
         <sphereGeometry args={[R, 24, 10, 0, Math.PI * 2, 0, Math.PI / 2]} />
         <meshStandardMaterial {...cast} side={DoubleSide} />
       </mesh>
-      <mesh position={[0, worldY(4), 0]} rotation={[Math.PI / 2, 0, 0]}>
+      <mesh position={[0, worldY(4), 0]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
         <torusGeometry args={[R * 0.99, 3, 6, 28]} />
         <meshStandardMaterial {...steel} />
       </mesh>
@@ -204,6 +206,8 @@ function Pendant({ vw, vh, top }) {
           <mesh
             position={[0, worldY((cageTop + cageBot) / 2), (rTop + rBot) / 2]}
             rotation={[lean, 0, 0]}
+            castShadow
+            receiveShadow
           >
             <boxGeometry args={[2.6, barLen, 2.6]} />
             <meshStandardMaterial {...steel} />
@@ -211,13 +215,13 @@ function Pendant({ vw, vh, top }) {
         </group>
       ))}
       {[[cageTop, rTop], [cageBot, rBot]].map(([v, r]) => (
-        <mesh key={v} position={[0, worldY(v), 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <mesh key={v} position={[0, worldY(v), 0]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
           <torusGeometry args={[r, 2.4, 6, 20]} />
           <meshStandardMaterial {...steel} />
         </mesh>
       ))}
       {/* the finial closing the cage under the bulb */}
-      <mesh position={[0, worldY(cageBot + 6), 0]}>
+      <mesh position={[0, worldY(cageBot + 6), 0]} castShadow receiveShadow>
         <sphereGeometry args={[6, 10, 8]} />
         <meshStandardMaterial {...steel} />
       </mesh>

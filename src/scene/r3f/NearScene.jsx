@@ -192,7 +192,7 @@ function CageDeck({ vw, y, isRoof }) {
           it both gives the floor a physical edge and prevents that edge from
           reading as a white rendering seam. */}
       {!isRoof && (
-        <mesh position={[vw / 2, worldY(y) + 5, CAGE_NEAR - 3]}>
+        <mesh position={[vw / 2, worldY(y) + 5, CAGE_NEAR - 3]} castShadow receiveShadow>
           <boxGeometry args={[width, 12, 16]} />
           <meshStandardMaterial {...surfaceProps(SURFACES.iron, 0.58)} />
         </mesh>
@@ -205,6 +205,8 @@ function CageDeck({ vw, y, isRoof }) {
           key={r}
           position={[vw / 2, worldY(y) + (isRoof ? -2 : 2), CAGE_NEAR - r * CAGE_DEPTH]}
           rotation={[-Math.PI / 2, 0, 0]}
+          castShadow
+          receiveShadow
         >
           <boxGeometry args={[width, 9, 4]} />
           <meshStandardMaterial {...iron} />
@@ -248,7 +250,7 @@ function Cage({ vw, vh }) {
 
       {/* only the two end posts are solid; the gate fills between them */}
       {[inset, vw - inset].map((x) => CAGE_POST_Z.map((z) => (
-        <mesh key={`${x}-${z}`} position={[x, worldY(CAGE_ROOF_Y + postH / 2), z]}>
+        <mesh key={`${x}-${z}`} position={[x, worldY(CAGE_ROOF_Y + postH / 2), z]} castShadow receiveShadow>
           <boxGeometry args={[15, postH, 20]} />
           <meshStandardMaterial {...iron} />
         </mesh>
@@ -256,7 +258,7 @@ function Cage({ vw, vh }) {
 
       {/* the hand rails, running the length of the cage */}
       {[inset, vw - inset].map((x) => (
-        <mesh key={x} position={[x, worldY(railY), (CAGE_NEAR + CAGE_FAR) / 2]}>
+        <mesh key={x} position={[x, worldY(railY), (CAGE_NEAR + CAGE_FAR) / 2]} castShadow receiveShadow>
           <boxGeometry args={[18, 13, CAGE_DEPTH]} />
           <meshStandardMaterial {...surfaceProps(SURFACES.iron, 1.1)} />
         </mesh>

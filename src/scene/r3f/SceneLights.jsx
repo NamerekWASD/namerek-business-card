@@ -27,10 +27,35 @@ function SceneLights({ vw, vh, lamps, floorPx, deckTop, closure }) {
   const rig = lightRig({ vw, vh, lamps, floorPitch: floorPx, deckTop, closure });
   const lights = useRef([]);
 
+  // A point light's shadow is a cubemap — six passes over the scene rather
+  // than one — and this rig can hold up to `shaftLights + 1` sources at
+  // once. Every one of them casting would-be six-fold the cost for a return
+  // nobody would see: the shaft lights already sit close enough together that
+  // their shadows would mostly overlap. So only the two that matter — the
+  // nearest shaft fitting (rig sorts shaft lights by reach, so this is
+  // whichever is first) and the landing's own pendant — actually cast one.
+  // The rest still light the room; they just do it without a shadow.
+  const firstShaft = rig.findIndex((l) => l.kind === 'shaft');
+
   useLayoutEffect(() => {
     for (const [index, light] of lights.current.entries()) {
       if (!light) continue;
-      light.layers.set(rig[index]?.kind === 'landing' ? LAYER_LANDING : LAYER_SHAFT);
+      const layer = rig[index]?.kind === 'landing' ? LAYER_LANDING : LAYER_SHAFT;
+      light.layers.set(layer);
+      // A point light's own shadow camera does not inherit `layers` from the
+      // light it belongs to — it starts on the default layer like any fresh
+      // camera — so left alone it would draw the *other* room's geometry into
+      // this one's shadow map, right through the wall `Room` otherwise makes
+      // opaque to light.
+      light.shadow.camera.layers.set(layer);
+      light.shadow.mapSize.set(512, 512);
+      light.shadow.camera.near = 10;
+      // Covers the shaft's own depth plus the landing behind it, with room to
+      // spare — a point light shadow that comes up short just short of the
+      // wall it should be darkening is worse than one that never shipped.
+      light.shadow.camera.far = 1200;
+      light.shadow.bias = -0.0015;
+      light.shadow.radius = 3;
     }
   });
 
@@ -42,7 +67,7 @@ function SceneLights({ vw, vh, lamps, floorPx, deckTop, closure }) {
       intensity={light.intensity}
       decay={light.decay}
       color={light.colour}
-      castShadow={true}
+      castShadow={light.kind === 'landing' || index === firstShaft}
     />
   ));
 }

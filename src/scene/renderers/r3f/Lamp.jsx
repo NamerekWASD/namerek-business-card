@@ -39,12 +39,12 @@ const Lamp = memo(function Lamp({ p }) {
   return (
     <group position={[p.x, worldY(p.y), 0]}>
       {/* the cast base bolted to the wall */}
-      <mesh position={[0, 0, wall + 3]} rotation={[Math.PI / 2, 0, 0]}>
+      <mesh position={[0, 0, wall + 3]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
         <cylinderGeometry args={[radius * 1.05, radius * 1.05, 6, 24]} />
         <meshStandardMaterial {...iron} />
       </mesh>
       {/* the body, standing off the wall */}
-      <mesh position={[0, 0, wall + proud / 2]} rotation={[Math.PI / 2, 0, 0]}>
+      <mesh position={[0, 0, wall + proud / 2]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
         <cylinderGeometry args={[radius * 0.82, radius * 0.9, proud, 20, 1, true]} />
         <meshStandardMaterial {...surfaceProps(SURFACES.steel, 1)} side={DoubleSide} />
       </mesh>

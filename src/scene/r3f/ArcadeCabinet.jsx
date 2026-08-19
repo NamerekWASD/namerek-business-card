@@ -158,8 +158,11 @@ function paintedModel(scene) {
         o.material.needsUpdate = true;
       }
     }
-    o.castShadow = false;
-    o.receiveShadow = false;
+    // A screen or marquee's own glow does not want a shadow drawn over it —
+    // it is a source, not a surface a shadow should darken — so those two
+    // stay out; everything else on the case is a normal caster and receiver.
+    o.castShadow = !glow;
+    o.receiveShadow = !glow;
   });
   // Measured through the node transforms rather than from each mesh's own
   // geometry. Blender writes a part's scale onto its node instead of baking it
