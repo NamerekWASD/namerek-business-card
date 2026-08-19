@@ -13,11 +13,13 @@ import { LAYER_LANDING, LAYER_SHAFT, lightRig } from '../renderers/r3f/lighting.
 // for the row had to travel as the row passed, and there is no way to travel
 // between two fittings that does not read as a jump.
 //
-// And each light is confined to its own room by a layer. Nothing here casts a
-// shadow — the plan is explicit that shadow maps come last, if at all — so
-// without layers the shaft's lamps light the far side of the back wall and the
-// landing stops being a room you look into. A light that only sees its own
-// room is the wall, stated in the one place it can be stated cheaply.
+// And each light is confined to its own room by a layer — the nearest shaft
+// fitting and the landing pendant now cast real shadows too, but the layer is
+// what keeps the *light* itself out of the wrong room even where a shadow
+// isn't involved: without it the shaft's lamps light the far side of the back
+// wall and the landing stops being a room you look into. A light that only
+// sees its own room is the wall, stated in the one place it can be stated
+// cheaply.
 function SceneLights({ vw, vh, lamps, floorPx, deckTop, closure }) {
   // Spelled out rather than forwarded wholesale. It was forwarded, and the
   // scenes call the floor pitch `floorPx` while the rig calls it `floorPitch` —
@@ -55,7 +57,13 @@ function SceneLights({ vw, vh, lamps, floorPx, deckTop, closure }) {
       // wall it should be darkening is worse than one that never shipped.
       light.shadow.camera.far = 1200;
       light.shadow.bias = -0.0015;
-      light.shadow.radius = 3;
+      // A fitting in this scene is not a pinhole, so its shadow should not
+      // read like one either — a hard edge is what a spotlight throws, not a
+      // shaded bulb. This is a blur-radius knob rather than a resolution one
+      // (three's point-light PCF path samples a five-tap disk scaled by this
+      // value, cost is flat regardless of how wide it is set), so it can be
+      // generous without costing anything back.
+      light.shadow.radius = 14;
     }
   });
 
