@@ -17,3 +17,14 @@ export const DECKS = [
   { id: 'projekte', label: 'Projekte', no: '2. OG', tick: '2' },
   { id: 'kontakt', label: 'Kontakt', no: '3. OG', tick: '3' },
 ];
+
+/**
+ * Which half of the landing's back wall the wall screen stands on, floor by
+ * floor — alternated so a rider does not see the same layout twice in a row.
+ * The page content takes the opposite half; see `Dieselpunk.jsx` and
+ * `LandingScreen.jsx`, which both index this the same way `DECKS` is
+ * indexed. A plain array rather than a computed parity, so the pattern can be
+ * hand-edited floor by floor without reading the rule that produced it.
+ * @type {Array<'left' | 'right'>}
+ */
+export const SCREEN_SIDE = ['right', 'left', 'right', 'left'];

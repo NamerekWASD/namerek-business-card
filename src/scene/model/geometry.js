@@ -52,7 +52,16 @@ export const openingTop = (vh, floorPitch, floor) =>
 // How much deeper the landing sits than the shaft wall. It is a different room,
 // so it gets its own depth, its own colour and its own light — sharing all three
 // with the shaft is what made the far end read as one flat backdrop.
-export const LANDING_SETBACK = 78;
+//
+// It also decides where the arcade cabinet's front face ends up, and that turns
+// out to matter for more than depth: the pendant hangs only 34px past the
+// doorway threshold (see `pendantAt`), so a landing this shallow put the
+// cabinet's face *nearer the camera than the light itself*. A surface can only
+// be lit head-on by a source on the camera's side of it — with the light
+// behind the face instead, the cabinet caught nothing but a graze from the
+// side, however bright the fixture. Setting the landing back further than the
+// light's own reach is what puts the light back in front of the machine.
+export const LANDING_SETBACK = 478;
 
 // How tall the arcade cabinet hangs, in scene pixels.
 //
@@ -65,6 +74,41 @@ export const LANDING_SETBACK = 78;
 export const CABINET_H = Math.round(
   (324 * (CAM_PERSPECTIVE + SHAFT_DEPTH + LANDING_SETBACK)) / CAM_PERSPECTIVE,
 );
+
+// ── the landing's pendant ────────────────────────────────────────────────────
+// The fixture's own vertical reach, in scene pixels: how far below the
+// doorway's head its mounting point sits, and how far the chain climbs back up
+// from there to the ceiling it is actually bolted to. Kept here, rather than
+// inside the component that draws the chain links, because the landing's
+// ceiling is built from the same reach — see `landingCeilingY`. Two renderers
+// of the same number is exactly how the chain ended up longer than the room
+// was tall: nothing before this ever checked the two against each other.
+export const PENDANT_ANCHOR_FRAC = 0.16; // of vh, mounting point below the doorway head
+export const PENDANT_HEAD_RISE = 51;     // yoke, above the mounting point
+export const PENDANT_DROP_FRAC = 0.13;   // of vh, chain length from the ceiling to the yoke
+
+/** @param {number} vh @param {number} openingTopY */
+export const pendantAnchorY = (vh, openingTopY) => openingTopY + vh * PENDANT_ANCHOR_FRAC;
+
+/** Where the topmost chain link actually ends up. @param {number} vh @param {number} openingTopY */
+export const pendantChainTopY = (vh, openingTopY) =>
+  pendantAnchorY(vh, openingTopY) - PENDANT_HEAD_RISE - vh * PENDANT_DROP_FRAC;
+
+// The landing's ceiling line, and the floor's — short of the doorway's own
+// head and sill, or the skirting and cornice have nothing to stand proud of.
+// The ceiling is pinned to the pendant's own reach rather than to a fraction
+// of the doorway, with a hand's width of clearance, so the chain can never
+// again climb past the surface it is meant to hang from.
+export const LANDING_CEILING_CLEARANCE = 20;
+export const LANDING_FLOOR_FRAC = 0.87; // of the doorway's own height
+
+/** @param {number} vh @param {number} openingTopY */
+export const landingCeilingY = (vh, openingTopY) =>
+  pendantChainTopY(vh, openingTopY) - LANDING_CEILING_CLEARANCE;
+
+/** @param {number} vh @param {number} openingTopY */
+export const landingFloorY = (vh, openingTopY) =>
+  openingTopY + vh * DOORWAY_H_FRAC * LANDING_FLOOR_FRAC;
 
 // ── the cage ─────────────────────────────────────────────────────────────────
 // An open goods-lift cage riding inside the shaft, so it is narrower than the

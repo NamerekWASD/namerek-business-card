@@ -17,7 +17,7 @@ import NearScene from '../scene/r3f/NearScene.jsx';
 import { DEBUG_PANEL, useBlurBudget } from '../scene/effects/quality.js';
 import Lighting from '../scene/effects/Lighting.jsx';
 import MotionBlurDef from '../scene/effects/MotionBlurDef.jsx';
-import { DECKS } from '../lift/decks.js';
+import { DECKS, SCREEN_SIDE } from '../lift/decks.js';
 import { WALL_PARALLAX, BG_PARALLAX, DECK_GAP, doorClosure } from '../lift/ride.js';
 import { DOOR_TOTAL_MS, introClosure, introShake } from '../lift/intro.js';
 import useLift from '../lift/useLift.js';
@@ -204,6 +204,10 @@ export default function Dieselpunk() {
           {closure < 0.985 && DECKS.map((d, i) => {
             if (Math.abs(i - floorPos) > 1.2) return null;
             const Body = DECK_BODIES[i];
+            // The wall screen (`LandingScreen`, in the WebGL half of this same
+            // landing) stands on `SCREEN_SIDE[i]`; the content takes the other
+            // half so the two never fight for the same wall.
+            const contentSide = SCREEN_SIDE[i] === 'left' ? 'right' : 'left';
             return (
               <div
                 key={d.id}
@@ -214,7 +218,7 @@ export default function Dieselpunk() {
                   boxSizing: 'border-box',
                 }}
               >
-                <div style={{ width: '100%' }}>
+                <div style={{ width: '48%', marginLeft: contentSide === 'right' ? 'auto' : 0 }}>
                   <Body lag={inertiaPx} pos={floorPos} />
                 </div>
               </div>

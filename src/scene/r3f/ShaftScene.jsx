@@ -3,7 +3,8 @@ import { CatmullRomCurve3, DoubleSide, Vector3 } from 'three';
 import { SHAFT_DEPTH } from '../model/camera.js';
 import {
   BACK_OVERSCAN, COUNTERWEIGHT_INSET_X, COUNTERWEIGHT_Z, DOORWAY_H_FRAC, DOORWAY_W_FRAC,
-  LANDING_SETBACK, counterweightY, openingTop,
+  LANDING_SETBACK, PENDANT_DROP_FRAC, PENDANT_HEAD_RISE, counterweightY, landingCeilingY,
+  landingFloorY, openingTop,
 } from '../model/geometry.js';
 import { SURFACES } from '../model/materials.js';
 import { LAMPS } from '../model/lighting.js';
@@ -18,7 +19,8 @@ import { pendantAt } from '../renderers/r3f/lighting.js';
 import { useLightTuning } from '../renderers/r3f/tuning.js';
 import useRideMotion from '../renderers/r3f/useRideMotion.js';
 import LandingProps from './LandingProps.jsx';
-import { DECKS } from '../../lift/decks.js';
+import LandingScreen from './LandingScreen.jsx';
+import { DECKS, SCREEN_SIDE } from '../../lift/decks.js';
 import { doorClosureAt, openFloor } from '../../lift/ride.js';
 
 // The far half of the scene in WebGL: the corridor walls, the blind wall at the
@@ -100,8 +102,8 @@ function Pendant({ vw, vh, top }) {
   // with y down, three.js does not.
   const R = 62;                    // across the dome
   const headY = -36;               // the finned casting the shade hangs off
-  const headTop = headY - 15;
-  const drop = vh * 0.13;          // chain from the cornice down to the casting
+  const headTop = -PENDANT_HEAD_RISE;
+  const drop = vh * PENDANT_DROP_FRAC; // chain from the ceiling down to the yoke
 
   // A chain link is an oval, and consecutive links have to overlap by well over
   // their own wall thickness. A pitch of one whole link leaves them merely
@@ -232,7 +234,6 @@ function Pendant({ vw, vh, top }) {
 /** One floor's opening: the landing behind it, and the reveal into it. */
 function Landing({ vw, vh, top, floor, furnished }) {
   const w = vw * DOORWAY_W_FRAC;
-  const h = vh * DOORWAY_H_FRAC;
   const left = (vw - w) / 2;
   const back = -SHAFT_DEPTH - LANDING_SETBACK;
   // The landing runs past the opening on every side, and it has to: it sits
@@ -244,22 +245,47 @@ function Landing({ vw, vh, top, floor, furnished }) {
   // nearer. It is also the honest reading of the room: there is no wall at
   // either end of that corridor, it simply runs out of light.
   const over = LANDING_SETBACK;
+  const roomLeft = left - over;
+  const roomW = w + over * 2;
+  // Where the floor and ceiling sit. The ceiling in particular is not a free
+  // choice — it is pinned to the pendant's own reach (`landingCeilingY`), with
+  // clearance to spare, so a real ceiling plane can never again clip the chain
+  // that hangs from it.
+  const floorY = landingFloorY(vh, top);
+  const ceilingY = landingCeilingY(vh, top);
   return (
     // Its own room, so the shaft's fittings cannot light it through the masonry
     // between them. See  — this is the wall, as far as light is concerned.
     <Room room="landing">
-      <Panel surface={SURFACES.landing} left={left - over} top={top - over} w={w + over * 2} h={h + over * 2} z={back} />
-      {/* the skirting and the cornice, which are what tell you the floor and the
-          ceiling keep going after the light stops */}
-      <Panel surface={SURFACES.landing} shade={1.5} left={left - over} top={top + h * 0.87} w={w + over * 2} h={9} z={back + 4} />
-      <Panel surface={SURFACES.landing} shade={1.3} left={left - over} top={top + h * 0.08} w={w + over * 2} h={9} z={back + 4} />
-      {/* the reveal, head and floor only. No jambs — with all four faces this
-          was a room the size of a doorway, and a lift that opens into a
-          cupboard has nowhere to go. */}
-      <Panel surface={SURFACES.landing} hinge="top" pitch={-90} shade={0.3} left={left} top={top} w={w} h={LANDING_SETBACK} z={-SHAFT_DEPTH} />
-      <Panel surface={SURFACES.landing} hinge="top" pitch={-90} shade={0.85} left={left} top={top + h} w={w} h={LANDING_SETBACK} z={-SHAFT_DEPTH} />
+      {/* the back wall, between the floor and ceiling lines only */}
+      <Panel surface={SURFACES.landing} left={roomLeft} top={ceilingY} w={roomW} h={floorY - ceilingY} z={back} />
+      {/* the floor and the ceiling, real planes receding from the doorway
+          threshold to the back wall — the same trick as the cage's own deck and
+          roof. A fitting hanging in real depth needs a real floor under it, or
+          it sinks into whatever is merely painted there. No jambs — with side
+          walls too this was a room the size of a doorway, and a lift that opens
+          into a cupboard has nowhere to go. */}
+      <Panel surface={SURFACES.landing} hinge="top" pitch={-90} shade={0.85} left={roomLeft} top={floorY} w={roomW} h={LANDING_SETBACK} z={-SHAFT_DEPTH} />
+      <Panel surface={SURFACES.landing} hinge="top" pitch={-90} shade={0.3} left={roomLeft} top={ceilingY} w={roomW} h={LANDING_SETBACK} z={-SHAFT_DEPTH} />
+      {/* the skirting and the cornice: a proud strip along the floor and
+          ceiling lines, not a shaded stripe painted flat on the wall behind
+          them */}
+      <mesh position={[roomLeft + roomW / 2, worldY(floorY), back + 5]} castShadow receiveShadow>
+        <boxGeometry args={[roomW, 12, 10]} />
+        <meshStandardMaterial {...surfaceProps(SURFACES.landing, 1.5)} />
+      </mesh>
+      <mesh position={[roomLeft + roomW / 2, worldY(ceilingY), back + 5]} castShadow receiveShadow>
+        <boxGeometry args={[roomW, 12, 10]} />
+        <meshStandardMaterial {...surfaceProps(SURFACES.landing, 1.3)} />
+      </mesh>
       {furnished && <Pendant vw={vw} vh={vh} top={top} />}
       {furnished && <LandingProps idx={floor} vw={vw} vh={vh} top={top} />}
+      {furnished && (
+        <LandingScreen
+          floor={floor} side={SCREEN_SIDE[floor]} left={left} w={w}
+          floorY={floorY} ceilingY={ceilingY} back={back}
+        />
+      )}
     </Room>
   );
 }

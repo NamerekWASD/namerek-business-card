@@ -1,5 +1,4 @@
 import ArcadeCabinet from '../ui/ArcadeCabinet.jsx';
-import FloorDial from '../ui/FloorDial.jsx';
 import { useIsR3F } from '../scene/renderers/active.js';
 
 function StartDeck({ lag, pos }) {

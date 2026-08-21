@@ -40,12 +40,12 @@ function SceneLights({ vw, vh, lamps, floorPx, deckTop, closure }) {
       // this one's shadow map, right through the wall `Room` otherwise makes
       // opaque to light.
       light.shadow.camera.layers.set(layer);
-      light.shadow.mapSize.set(512, 512);
+      light.shadow.mapSize.set(2048, 2048);
       light.shadow.camera.near = 10;
       // Covers the shaft's own depth plus the landing behind it, with room to
       // spare — a point light shadow that comes up short just short of the
       // wall it should be darkening is worse than one that never shipped.
-      light.shadow.camera.far = 1200;
+      light.shadow.camera.far = 1800;
       light.shadow.bias = -0.0015;
       // A fitting in this scene is not a pinhole, so its shadow should not
       // read like one either — a hard edge is what a spotlight throws, not a

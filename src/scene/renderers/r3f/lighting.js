@@ -17,7 +17,7 @@
 // own position, and a ride changes only how bright each one is.
 
 import { LAMP_RANGE } from '../../model/lighting.js';
-import { CAGE_FAR, CAGE_NEAR, CAGE_FLOOR_Y } from '../../model/geometry.js';
+import { CAGE_FAR, CAGE_NEAR, CAGE_FLOOR_Y, pendantAnchorY } from '../../model/geometry.js';
 import { SHAFT_DEPTH } from '../../model/camera.js';
 import { readLight } from './tuning.js';
 
@@ -130,7 +130,7 @@ export function shaftLights(lamps, at, range = Infinity) {
  * @param {number} vw @param {number} vh @param {number} openingTopY
  * @returns {Point3}
  */
-export const pendantAt = (vw, vh, openingTopY) => [vw / 2, openingTopY + vh * 0.16, -SHAFT_DEPTH - 34];
+export const pendantAt = (vw, vh, openingTopY) => [vw / 2, pendantAnchorY(vh, openingTopY), -SHAFT_DEPTH - 34];
 
 /**
  * The landing's own fitting: a spot in the depth of the active floor, aimed back

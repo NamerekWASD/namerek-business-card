@@ -69,9 +69,9 @@ export const LIGHT_SETUP = {
   // LANDING — the pendant in the corridor
   landingToneCurve: 'agx',
   landingExposure: 1.59,
-  landingAmbient: 0.385,
+  landingAmbient: 0.44,
   landingWrap: 0,
-  landingIntensity: 6.8,
+  landingIntensity: 7.6,
   landingDecay: 2.55,
   landingColor: '#ffcf9a',
   landingGlass: 2.6,

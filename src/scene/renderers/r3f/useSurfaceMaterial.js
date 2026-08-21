@@ -24,15 +24,8 @@ export default function useSurfaceMaterial(s, w, h, shade = 1) {
   }, [s]);
 
   return useMemo(() => {
-    // No emissive here. The ambience rides on the material rather than on an
-    // `ambientLight`, but it is applied by `Room` — one traverse over the room's
-    // whole subtree — because the fittings' materials are built by a raw
-    // `surfaceProps` spread that never came through this hook, and half the
-    // scene therefore had no ambience at all.
     const base = surfaceProps(s, shade);
     if (!tile) return base;
-    // repeat lives on the texture, not the material, so each differently-sized
-    // plane needs its own view of the one baked canvas
     const map = tile.clone();
     map.needsUpdate = true;
     map.repeat.set(...tileRepeat(s, w, h));

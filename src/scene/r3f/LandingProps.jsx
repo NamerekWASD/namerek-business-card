@@ -20,6 +20,11 @@ import ArcadeCabinet from './ArcadeCabinet.jsx';
 
 const PROP_YAW = [0, 0, 15, 3];
 
+// Parked off while `LandingScreen` (the full-wall TV) is being tried in its
+// place — the cabinet itself, and its own mark reveal, stay wired up to flip
+// straight back on.
+const SHOW_ARCADE_CABINET = false;
+
 /** The floor of the landing, in scene pixels, for standing things on. */
 function standing(vh, top) {
   const h = vh * DOORWAY_H_FRAC;
@@ -187,7 +192,9 @@ function LandingProps({ idx, vw, vh, top }) {
       )}
       {/* The cabinet stands on every landing's opposite side — it is the object
           the mark lives on, so it is seen close and often mid-frame. */}
-      {idx === 0 && <ArcadeCabinet x={left + w * 0.68} y={top + vh * DOORWAY_H_FRAC * 0.55 + CABINET_H / 2} z={back - 8} />}
+      {SHOW_ARCADE_CABINET && idx === 0 && (
+        <ArcadeCabinet x={left + w * 0.80} y={top + vh * DOORWAY_H_FRAC * 0.5 + CABINET_H / 2} z={back - 10} />
+      )}
     </>
   );
 }
