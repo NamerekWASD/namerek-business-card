@@ -46,11 +46,18 @@ describe('Dieselpunk', () => {
 
   it('keeps the debug panel out of the way unless it is asked for', () => {
     // It used to render unconditionally, pinned over everything, on a business
-    // card. `import.meta.env.DEV` is true under the test runner, so the panel is
-    // expected here — what is being pinned down is that the flag is consulted
-    // at all rather than the panel being unconditional.
+    // card. Then it was gated on `import.meta.env.DEV` *or* a `?debug` query
+    // flag — which still meant every dev run wore the panel, and the scene
+    // could not be looked at plainly without editing the gate and restarting
+    // the server. It is now DEV *and* the flag: a dev build that was not asked
+    // for the panel does not get one.
+    //
+    // The gate is read at module load, so a test that wanted the panel would
+    // have to control the URL before the import — not worth it. What matters is
+    // that the flag is consulted at all rather than the panel being
+    // unconditional, and the runner's own URL carries no `?debug`.
     render(<Dieselpunk />);
-    expect(screen.getByText(/door intro debug/)).toBeDefined();
+    expect(screen.queryByText(/door intro debug/)).toBeNull();
   });
 
   it('survives a resize, which rebuilds every dimension in the scene', () => {

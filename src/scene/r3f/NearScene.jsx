@@ -15,7 +15,7 @@ import SceneLights from './SceneLights.jsx';
 import Room from '../renderers/r3f/Room.jsx';
 import { DECKS } from '../../lift/decks.js';
 import { doorClosureAt, openFloor } from '../../lift/ride.js';
-import { ArcadeCabinetWarmup } from './ArcadeCabinet.jsx';
+import SceneWarmup from './SceneWarmup.jsx';
 
 // Everything in WebGL that stands in front of the decks: the doorway frames,
 // the leaves, and the cage we are riding in. It is a second canvas rather than a
@@ -288,7 +288,7 @@ function NearScene({ vw, vh, pos, floorPx, deck, intro, ticker, lamps, ride, onR
   const open = openFloor(ride, deck);
   return (
     <>
-      <ArcadeCabinetWarmup onReady={onReady} />
+      <SceneWarmup onReady={onReady} />
       {/* its own copy of the same two sources — a canvas is a scene, and this
           one has surfaces of its own to light */}
       <SceneLights

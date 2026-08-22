@@ -16,14 +16,6 @@ import metalPlateDiff from '../../assets/textures/polyhaven/metal_plate_diff.jpg
 import metalPlateRough from '../../assets/textures/polyhaven/metal_plate_rough.jpg';
 import metalPlateNor from '../../assets/textures/polyhaven/metal_plate_nor.jpg';
 
-import rustCoarseDiff from '../../assets/textures/polyhaven/rust_coarse_diff.jpg';
-import rustCoarseRough from '../../assets/textures/polyhaven/rust_coarse_rough.jpg';
-import rustCoarseNor from '../../assets/textures/polyhaven/rust_coarse_nor.jpg';
-
-import rustPanelDiff from '../../assets/textures/polyhaven/rust_panel_diff.jpg';
-import rustPanelRough from '../../assets/textures/polyhaven/rust_panel_rough.jpg';
-import rustPanelNor from '../../assets/textures/polyhaven/rust_panel_nor.jpg';
-
 const MODEL = '/models/ArcadeCabinetDieselpunk.glb';
 
 const texLoader = typeof document !== 'undefined' ? new TextureLoader() : null;
@@ -46,23 +38,29 @@ function createPBRSet(diff, rough, nor) {
   return { map: d, roughnessMap: r, normalMap: n };
 }
 
+// The stock tiles a slot can be painted with when the export gives it no bake
+// of its own. There used to be three sets here; `rust` and `rustPanel` were
+// requested by no material this asset actually ships — `rustPanel` by no `PAINT`
+// entry at all — so they were 4.8 MB downloaded on every first visit and never
+// drawn. Both are parked in `_attic/textures/polyhaven/` rather than deleted; if
+// a future export brings back a slot that wants one, bring the files back with
+// it. Check any new set against the slot list before adding it: a set nothing
+// resolves to costs a visitor the whole download and shows them nothing.
 const PBR = {
   steel: createPBRSet(metalPlateDiff, metalPlateRough, metalPlateNor),
-  rust: createPBRSet(rustCoarseDiff, rustCoarseRough, rustCoarseNor),
-  rustPanel: createPBRSet(rustPanelDiff, rustPanelRough, rustPanelNor),
 };
 
 const PAINT = {
   // Main case side flanks and outer body: Poly Haven Metal Plate 02 (matte dark steel with scratches)
   body_main_iron: { pbr: 'steel', tint: '#8e8982', rough: 0.72, metal: 0.45, scale: 65, edgeWear: true, edgeWearIntensity: 1.4 },
-  // Recessed front plate (behind screen): Poly Haven Rust Coarse 01 (rich warm rust & patina)
-  body_bottom_iron_2: { pbr: 'rust', tint: '#d89c58', rough: 0.65, metal: 0.25, scale: 75 },
   // Pressed split line shadow
   body_split_line: { pbr: 'steel', tint: '#34302c', rough: 0.85, metal: 0.3, scale: 40 },
   // Control panel: dark cast steel with prominent worn scuffs on bevels
   arcade_panel: { pbr: 'steel', tint: '#9c968e', rough: 0.44, metal: 0.65, scale: 50, edgeWear: true, edgeWearIntensity: 2.5 },
-  // Bottom bronze latch plate
-  access_panel_handle: { pbr: 'rust', tint: '#e2ba72', rough: 0.38, metal: 0.78, scale: 30, edgeWear: true, edgeWearIntensity: 1.6 },
+  // Bottom bronze latch plate. It ships with its own bake, so `bakedMaterialFor`
+  // keeps that and only `tint`/`edgeWear` here are ever read — which is why it
+  // no longer names a `pbr` set.
+  access_panel_handle: { tint: '#e2ba72', rough: 0.38, metal: 0.78, scale: 30, edgeWear: true, edgeWearIntensity: 1.6 },
   // Button bases: dark burnished steel ring
   button_base_metall: { colour: '#1e1c1a', rough: 0.42, metal: 0.72 },
   // Screws and rivets on frames: bright turned steel catching highlights
@@ -245,13 +243,20 @@ function materialFor(spec) {
   } else if (spec.surface) {
     const base = surfaceProps(spec.surface, spec.shade ?? 1);
     mat = new MeshStandardMaterial({ ...base, side: FrontSide });
-  } else {
+  } else if (spec.colour) {
     mat = new MeshStandardMaterial({
-      color: new Color().setStyle(spec.colour || '#ffffff', SRGBColorSpace),
+      color: new Color().setStyle(spec.colour, SRGBColorSpace),
       roughness: spec.rough ?? 0.5,
       metalness: spec.metal ?? 0.5,
       side: FrontSide,
     });
+  } else {
+    // Neither a tile set, a surface, nor a colour — which now happens whenever a
+    // slot names a `PBR` set that has been retired. The old default here was
+    // white, and a white part in a dark shaft reads as a rendering fault rather
+    // than a missing entry; the scene's own iron is wrong in a way that at least
+    // looks deliberate while the export is fixed.
+    mat = new MeshStandardMaterial({ ...surfaceProps(SURFACES.iron, spec.shade ?? 1), side: FrontSide });
   }
 
   return applyEdgeWear(mat, spec);

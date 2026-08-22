@@ -13,15 +13,8 @@ import { useEffect, useRef, useState } from 'react';
 // is on is a switch that will lie to whoever measures with it.
 export const QUALITY = { blur: 'on' };
 
-// The debug panel is not part of the scene and has no business shipping with it.
-// It rendered unconditionally, pinned bottom-left over everything, on what is
-// meant to be a business card. Query flag as well as dev build, so it can still
-// be reached on a deployed copy when something only misbehaves there.
-//
-// Lives here rather than its own file: it is one line, gated by the same idea of
-// "is this a build that should be measured" as the rest of this module.
 export const DEBUG_PANEL = import.meta.env.DEV
-  || (typeof location !== 'undefined' && location.search.includes('debug'));
+  && (typeof location !== 'undefined' && location.search.includes('debug'));
 
 // Frames longer than this are under 25fps and you can see it.
 export const SLOW_FRAME_MS = 40;

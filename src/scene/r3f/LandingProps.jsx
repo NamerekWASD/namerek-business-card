@@ -1,13 +1,12 @@
 import { useMemo } from 'react';
 import { QuadraticBezierCurve3, Vector3 } from 'three';
 import { SHAFT_DEPTH } from '../model/camera.js';
-import { CABINET_H, DOORWAY_H_FRAC, DOORWAY_W_FRAC, LANDING_SETBACK } from '../model/geometry.js';
+import { DOORWAY_H_FRAC, DOORWAY_W_FRAC, LANDING_SETBACK } from '../model/geometry.js';
 import { SURFACES } from '../model/materials.js';
 import { Box } from '../renderers/r3f/Surface.jsx';
 import { surfaceProps } from '../renderers/r3f/surfaceMaterial.js';
 import { worldY } from '../renderers/r3f/camera.js';
 import { contactShadow } from '../renderers/r3f/patterns.js';
-import ArcadeCabinet from './ArcadeCabinet.jsx';
 
 // One identifying object per landing, so a floor is somewhere rather than a
 // number. Parked low and to one side, clear of the centred content.
@@ -19,11 +18,6 @@ import ArcadeCabinet from './ArcadeCabinet.jsx';
 // scene loses its typography. What is here is the volume they are bolted to.
 
 const PROP_YAW = [0, 0, 15, 3];
-
-// Parked off while `LandingScreen` (the full-wall TV) is being tried in its
-// place — the cabinet itself, and its own mark reveal, stay wired up to flip
-// straight back on.
-const SHOW_ARCADE_CABINET = false;
 
 /** The floor of the landing, in scene pixels, for standing things on. */
 function standing(vh, top) {
@@ -189,11 +183,6 @@ function LandingProps({ idx, vw, vh, top }) {
           <ContactShadow x={x + 380} y={floor} z={back + 40} w={260} opacity={0.75} />
           <PostBox x={x + 316} y={floor - 136} z={back} />
         </>
-      )}
-      {/* The cabinet stands on every landing's opposite side — it is the object
-          the mark lives on, so it is seen close and often mid-frame. */}
-      {SHOW_ARCADE_CABINET && idx === 0 && (
-        <ArcadeCabinet x={left + w * 0.80} y={top + vh * DOORWAY_H_FRAC * 0.5 + CABINET_H / 2} z={back - 10} />
       )}
     </>
   );

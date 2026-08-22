@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { CatmullRomCurve3, DoubleSide, Vector3 } from 'three';
 import { SHAFT_DEPTH } from '../model/camera.js';
 import {
@@ -231,8 +231,20 @@ function Pendant({ vw, vh, top }) {
   );
 }
 
-/** One floor's opening: the landing behind it, and the reveal into it. */
-function Landing({ vw, vh, top, floor, furnished }) {
+/**
+ * One floor's opening: the landing behind it, and the reveal into it.
+ *
+ * Memoized, and this is the one that matters most. `BackWall` recomputes and
+ * re-renders every ride tick — it has to, `shut` is continuous — but its own
+ * body is cheap. This is not: the pendant alone is dozens of meshes, and with
+ * the cabinet and the wall props behind it, re-running this function on every
+ * tick was re-diffing that whole subtree sixty-odd times a second for a result
+ * that is almost always byte-identical (`furnished` flips at most twice a
+ * ride, everything else here is fixed for a given floor and viewport). That
+ * shows up as the ride hitching hardest exactly when a door is open — the one
+ * moment this subtree is actually mounted.
+ */
+const Landing = memo(function Landing({ vw, vh, top, floor, furnished }) {
   const w = vw * DOORWAY_W_FRAC;
   const left = (vw - w) / 2;
   const back = -SHAFT_DEPTH - LANDING_SETBACK;
@@ -288,7 +300,7 @@ function Landing({ vw, vh, top, floor, furnished }) {
       )}
     </Room>
   );
-}
+});
 
 /**
  * The blind wall at the end of the shaft, cut into piers and spandrels so the
