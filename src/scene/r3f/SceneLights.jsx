@@ -20,7 +20,7 @@ import { LAYER_LANDING, LAYER_SHAFT, lightRig } from '../renderers/r3f/lighting.
 // wall and the landing stops being a room you look into. A light that only
 // sees its own room is the wall, stated in the one place it can be stated
 // cheaply.
-function SceneLights({ vw, vh, lamps, floorPx, deckTop, closure }) {
+function SceneLights({ vw, vh, lamps, floorPx, deckTop, closure, dim = 1 }) {
   // Spelled out rather than forwarded wholesale. It was forwarded, and the
   // scenes call the floor pitch `floorPx` while the rig calls it `floorPitch` —
   // so the rig read `undefined`, the taper produced `NaN`, and the key light
@@ -62,7 +62,10 @@ function SceneLights({ vw, vh, lamps, floorPx, deckTop, closure }) {
       key={light.id}
       ref={(node) => { lights.current[index] = node; }}
       position={[light.position[0], worldY(light.position[1]), light.position[2]]}
-      intensity={light.intensity}
+      // `dim` is the supply, not the fitting: one scalar over the whole rig, so
+      // every source in both canvases hunts together on the intro's strike
+      // pattern instead of each deciding for itself. See `introDim`.
+      intensity={light.intensity * dim}
       decay={light.decay}
       color={light.colour}
       // Every fitting casts now, not just the nearest one. A point light's

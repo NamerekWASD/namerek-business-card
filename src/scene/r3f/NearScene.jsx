@@ -16,6 +16,7 @@ import Room from '../renderers/r3f/Room.jsx';
 import { DECKS } from '../../lift/decks.js';
 import { doorClosureAt, openFloor } from '../../lift/ride.js';
 import SceneWarmup from './SceneWarmup.jsx';
+import CanvasBoot from '../../boot/CanvasBoot.jsx';
 
 // Everything in WebGL that stands in front of the decks: the doorway frames,
 // the leaves, and the cage we are riding in. It is a second canvas rather than a
@@ -284,15 +285,15 @@ function Cage({ vw, vh }) {
   );
 }
 
-function NearScene({ vw, vh, pos, floorPx, deck, intro, ticker, lamps, ride, onReady }) {
+function NearScene({ vw, vh, pos, floorPx, deck, intro, ticker, lamps, ride, dim = 1, onSettle }) {
   const open = openFloor(ride, deck);
   return (
     <>
-      <SceneWarmup onReady={onReady} />
+      <SceneWarmup onSettle={onSettle} />
       {/* its own copy of the same two sources — a canvas is a scene, and this
           one has surfaces of its own to light */}
       <SceneLights
-        vw={vw} vh={vh} lamps={lamps} floorPx={floorPx}
+        vw={vw} vh={vh} lamps={lamps} floorPx={floorPx} dim={dim}
         deckTop={openingTop(vh, floorPx, open.floor) + pos * floorPx}
         closure={Math.max(open.closure, open.floor === deck ? intro : 0)}
       />
@@ -301,6 +302,8 @@ function NearScene({ vw, vh, pos, floorPx, deck, intro, ticker, lamps, ride, onR
         <Doorways vw={vw} vh={vh} pos={pos} floorPx={floorPx} deck={deck} intro={intro} ticker={ticker} />
         <Cage vw={vw} vh={vh} />
       </Room>
+      {/* last, for the same reason it is last in `ShaftScene` */}
+      <CanvasBoot name="near" onSettle={onSettle} />
     </>
   );
 }

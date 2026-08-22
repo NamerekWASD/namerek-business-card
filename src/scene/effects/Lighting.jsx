@@ -14,7 +14,7 @@ import { LIGHTS } from './lightSwitches.js';
 //
 // The landing light spills out of the doorway and therefore only exists while
 // the doors are open, which makes arrival read as arrival.
-function Lighting({ aperture, closure, lamps, vw, vh }) {
+function Lighting({ aperture, closure, lamps, vw, vh, dim = 1 }) {
   const spill = 1 - closure;
   return (
     <div style={{ position: 'absolute', inset: 0, zIndex: LAYERS.lighting, pointerEvents: 'none' }}>
@@ -22,7 +22,9 @@ function Lighting({ aperture, closure, lamps, vw, vh }) {
         const screen = projectToScreen([L.x, L.y, L.z], vw, vh);
         if (screen.y < -vh * 0.5 || screen.y > vh * 1.5) return null;
         const r = LAMPS.size * 2.4 * screen.s;
-        const a = LAMPS.haze * 0.3;
+        // on the same supply as the fittings themselves: air lit by a lamp
+        // that is guttering does not go on glowing steadily
+        const a = LAMPS.haze * 0.3 * dim;
         return (
           <div
             key={L.id}

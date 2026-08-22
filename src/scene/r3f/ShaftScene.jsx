@@ -12,6 +12,7 @@ import { Panel } from '../renderers/r3f/Surface.jsx';
 import { surfaceProps } from '../renderers/r3f/surfaceMaterial.js';
 import { worldY } from '../renderers/r3f/camera.js';
 import SceneLights from './SceneLights.jsx';
+import CanvasBoot from '../../boot/CanvasBoot.jsx';
 import Lamp from '../renderers/r3f/Lamp.jsx';
 import Rivets from '../renderers/r3f/Rivets.jsx';
 import Room from '../renderers/r3f/Room.jsx';
@@ -476,14 +477,14 @@ function Counterweight({ vw, vh, pos, floorPx, ticker }) {
   );
 }
 
-function ShaftScene({ vw, vh, pos, floorPx, lamps, ticker, ride, deck, intro, warm }) {
+function ShaftScene({ vw, vh, pos, floorPx, lamps, ticker, ride, deck, intro, warm, dim = 1, onSettle }) {
   // the room we can actually see into, which during a trip is not the deck we
   // set off from — see
   const open = openFloor(ride, deck);
   return (
     <>
       <SceneLights
-        vw={vw} vh={vh} lamps={lamps} floorPx={floorPx}
+        vw={vw} vh={vh} lamps={lamps} floorPx={floorPx} dim={dim}
         deckTop={openingTop(vh, floorPx, open.floor) + pos * floorPx}
         closure={Math.max(open.closure, open.floor === deck ? intro : 0)}
       />
@@ -495,8 +496,11 @@ function ShaftScene({ vw, vh, pos, floorPx, lamps, ticker, ride, deck, intro, wa
       {/* the fittings, bolted to the far wall either side of every landing.
           They are emissive meshes, not lights — the row is represented by the
           single key light above, standing among them. */}
-      {lamps.map((L) => <Lamp key={L.id} p={L} />)}
+      {lamps.map((L) => <Lamp key={L.id} p={L} dim={dim} />)}
       </Room>
+      {/* last, so its effect runs once every sibling above has attached its
+          meshes and there is a whole scene to compile */}
+      <CanvasBoot name="shaft" onSettle={onSettle} />
     </>
   );
 }

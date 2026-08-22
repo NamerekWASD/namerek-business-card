@@ -33,3 +33,41 @@ export function introShake(t) {
   const span = DOOR_SHAKE_END - DOOR_HOLD_END;
   return Math.sin(local / 21) * 2.4 * (1 - local / span);
 }
+
+// The shaft coming on, once the boot screen has let go.
+//
+// This is the join between the two halves of the arrival, and it exists because
+// a fade from black straight into a fully, evenly lit shaft is the one moment
+// that gives away that the lighting was never switched on — it was always on,
+// behind a black rectangle. A supply that hunts before it holds says the
+// opposite: the lamps were off, and something just closed a contactor.
+//
+// Deliberately front-loaded. The strikes are over before `DOOR_HOLD_END`, so
+// the light has settled by the time the gear takes up and the leaves shudder;
+// two mechanical events at once read as one confused one.
+const STRIKES = [
+  // [ms, how far it gets before falling back]
+  [0, 0.0], [60, 0.75], [95, 0.08], [150, 0.95], [205, 0.22], [250, 0.6], [300, 1.0],
+];
+
+/**
+ * How brightly the shaft is lit, as a fraction of its settled value.
+ *
+ * @param {number} t milliseconds since the intro began
+ * @returns {number} 0 dark, 1 fully up
+ */
+export function introDim(t) {
+  const last = STRIKES[STRIKES.length - 1];
+  if (t >= last[0]) return 1;
+  for (let i = STRIKES.length - 1; i >= 0; i -= 1) {
+    if (t < STRIKES[i][0]) continue;
+    const [at, level] = STRIKES[i];
+    const [nextAt, nextLevel] = STRIKES[i + 1];
+    // Linear between strikes on purpose. A filament has no easing worth
+    // modelling at this timescale, and a smoothed flicker reads as a dimmer
+    // being turned rather than a circuit making and breaking.
+    const p = (t - at) / (nextAt - at);
+    return level + (nextLevel - level) * p;
+  }
+  return 0;
+}

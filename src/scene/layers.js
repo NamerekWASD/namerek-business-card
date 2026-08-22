@@ -27,4 +27,7 @@ export const LAYERS = {
   selector: 7,
   /** the debug panel, which is not part of the scene at all */
   debug: 200,
+  /** the boot screen, over everything including the debug panel — while it is
+      up there is no scene yet to debug */
+  boot: 300,
 };

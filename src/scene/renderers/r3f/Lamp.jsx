@@ -25,7 +25,7 @@ import { lampGlow } from './patterns.js';
 //
 // The CSS version builds its cylinder out of ten shaded quads because it has no
 // lights to round it for it. Here it is a cylinder.
-const Lamp = memo(function Lamp({ p }) {
+const Lamp = memo(function Lamp({ p, dim = 1 }) {
   // Subscribed, not read. `memo` below blocks re-renders driven by the parent,
   // which is what makes a ride cheap; it does not block one driven by a hook
   // inside, which is what makes the bench's sliders reach this component at all.
@@ -56,7 +56,10 @@ const Lamp = memo(function Lamp({ p }) {
           userData={{ selfLit: true }}
           color="#3a2408"
           emissive="#ffcf8c"
-          emissiveIntensity={tuning.glassEmissive}
+          // the glass is on the same supply as the sources — a fitting that
+          // stays lit while the room it lights gutters is a fitting that is not
+          // the thing lighting it
+          emissiveIntensity={tuning.glassEmissive * dim}
           roughness={0.4}
         />
       </mesh>
@@ -84,7 +87,7 @@ const Lamp = memo(function Lamp({ p }) {
           <spriteMaterial
             map={glow}
             transparent
-            opacity={tuning.glowOpacity}
+            opacity={tuning.glowOpacity * dim}
             depthWrite={false}
             blending={AdditiveBlending}
           />
@@ -92,6 +95,6 @@ const Lamp = memo(function Lamp({ p }) {
       )}
     </group>
   );
-}, (a, b) => a.p.x === b.p.x && a.p.y === b.p.y);
+}, (a, b) => a.p.x === b.p.x && a.p.y === b.p.y && a.dim === b.dim);
 
 export default Lamp;

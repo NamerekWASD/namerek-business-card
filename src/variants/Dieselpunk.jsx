@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import Grain from '../ui/Grain.jsx';
 
 import { cssVariables } from '../theme/tokens.js';
@@ -19,11 +19,13 @@ import Lighting from '../scene/effects/Lighting.jsx';
 import MotionBlurDef from '../scene/effects/MotionBlurDef.jsx';
 import { DECKS, SCREEN_SIDE } from '../lift/decks.js';
 import { WALL_PARALLAX, BG_PARALLAX, DECK_GAP, doorClosure } from '../lift/ride.js';
-import { DOOR_TOTAL_MS, introClosure, introShake } from '../lift/intro.js';
+import { DOOR_TOTAL_MS, introClosure, introDim, introShake } from '../lift/intro.js';
 import useLift from '../lift/useLift.js';
 import useRideFrame from '../lift/useRideFrame.js';
 import { RideTickerProvider } from '../lift/RideTickerContext.js';
 import useIntroClock from '../lift/useIntroClock.js';
+import useBoot from '../boot/useBoot.js';
+import BootScreen from '../boot/BootScreen.jsx';
 import useViewport from '../hooks/useViewport.js';
 import DebugPanel from '../debug/DebugPanel.jsx';
 import LightingPanel from '../debug/LightingPanel.jsx';
@@ -32,19 +34,29 @@ import FloorSelector from '../ui/FloorSelector.jsx';
 import { DECK_BODIES } from '../decks/index.js';
 
 export default function Dieselpunk() {
-  const [sceneReady, setSceneReady] = useState(false);
   const {
     floorPos, deckIndex, moving, velocity, rideTo, scrub, setScrub, ride, ridePhase, ticker,
   } = useLift();
   const { vw, vh } = useViewport();
   // which backend is actually drawing — see scene/renderers/active.js
   const r3f = useIsR3F();
-  // The WebGL model, its marquee texture and the screen mark all load on their
-  // own schedule. Keep the landing closed until they have committed and drawn,
-  // rather than compiling and decoding them in the first frames of the door
-  // animation.
-  const unlockIntro = useCallback(() => setSceneReady(true), []);
-  const { t, setT, playing, play } = useIntroClock(DOOR_TOTAL_MS, !r3f || sceneReady);
+  // Nothing is shown until the scene is genuinely ready to be shown — every
+  // tile decoded, every shader compiled, every canvas drawn at least once. The
+  // boot screen holds a black rectangle with a pair of gears on it in the
+  // meantime, and `boot/plan.js` is the register of what "ready" means.
+  //
+  // The arrival then plays in one continuous movement: the gears drop the
+  // ratchet and run away (`spin`), the black fades (`fade`), and the intro
+  // clock starts on that same transition — so the lamps strike and hunt while
+  // the fade is still finishing, and the leaves shudder just as it clears. The
+  // clock is autoplayed from `fade`, not from `done`, precisely so those two
+  // overlap rather than queue.
+  const boot = useBoot(r3f);
+  const booted = boot.phase === 'fade' || boot.phase === 'done';
+  const { t, setT, playing, play } = useIntroClock(DOOR_TOTAL_MS, booted);
+  // The supply coming up: one scalar handed to every source in both canvases,
+  // and to the DOM haze that stands in for the air between them.
+  const dim = booted ? introDim(t) : 0;
   // deterministic states for the screenshot regression — see debug/shots.js
   useShotStates({ setScrub, setT });
 
@@ -161,7 +173,8 @@ export default function Dieselpunk() {
           <ShaftScene
             vw={vw} vh={vh} pos={floorPos} floorPx={floorPitch}
             lamps={lamps} ticker={ticker} ride={ride} deck={deckIndex}
-            intro={introClosure(t)} warm={!sceneReady}
+            intro={introClosure(t)} warm={!booted}
+            dim={dim} onSettle={boot.settle}
           />
         </SceneCanvas>
       ) : (
@@ -246,7 +259,8 @@ export default function Dieselpunk() {
           <NearScene
             vw={vw} vh={vh} pos={floorPos} floorPx={floorPitch}
             deck={deckIndex} intro={introClosure(t)} ticker={ticker}
-            lamps={lamps} ride={ride} onReady={unlockIntro}
+            lamps={lamps} ride={ride}
+            dim={dim} onSettle={boot.settle}
           />
         </SceneCanvas>
       )}
@@ -261,7 +275,7 @@ export default function Dieselpunk() {
           content because it is nearer than the landing the content sits on */}
       {!r3f && <CageFront vw={vw} vh={vh} lamps={lamps} />}
 
-      <Lighting aperture={aperture} closure={closure} lamps={lamps} vw={vw} vh={vh} />
+      <Lighting aperture={aperture} closure={closure} lamps={lamps} vw={vw} vh={vh} dim={r3f ? dim : 1} />
 
       {/* The selector is mounted on the cage, not above the landing door. A lift's
           floor buttons live in the cabin — and had they gone on the shaft wall
@@ -281,6 +295,11 @@ export default function Dieselpunk() {
           <FloorSelector pos={floorPos} deck={deckIndex} moving={moving} go={rideTo} />
         </div>
       </div>
+      {/* Over everything, including the debug panel: while this is up there is
+          no scene to debug. It is the last child so it is also last in the
+          paint order, which means no z-index accident can put a fitting in
+          front of it. */}
+      <BootScreen screen={boot.screen} />
     </div>
     </RideTickerProvider>
   );
