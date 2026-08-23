@@ -50,8 +50,9 @@ export function Panel({
  * disagree, which is most of the point of the migration.
  *
  * `children`/`extras` from the CSS `Solid` are deliberately absent: a DOM decal
- * cannot be a child of a mesh. Those become anchors on the front face, which is
- * separate work — see `SurfaceAnchor` in the plan.
+ * cannot be a child of a mesh. A caller with artwork of its own to put on a
+ * front face builds its own plate for it — see `DoorLeaf` in `NearScene`, which
+ * is the only one so far and needs its own material anyway.
  */
 export function Box({ surface, left, top, w, h, d, z = 0, yaw = 0, shade = 1, clip }) {
   const material = useSurfaceMaterial(surface, w, h, shade);
@@ -62,10 +63,10 @@ export function Box({ surface, left, top, w, h, d, z = 0, yaw = 0, shade = 1, cl
     <group position={[left, worldY(top), z + w * Math.abs(Math.sin(rad))]} rotation={[0, rad, 0]}>
       <mesh position={[w / 2, -h / 2, d / 2]} castShadow receiveShadow>
         <boxGeometry args={[w, h, d]} />
-        {/* `clip` is this backend's `overflow: hidden`. The door leaves slide
-            out of their opening and have to stop existing at its edge, exactly
-            as the CSS leaves are clipped by the frame they sit in — otherwise
-            an open door is two dark slabs parked across the shaft wall. */}
+        {/* `clip` is this backend's `overflow: hidden` — the door leaves slide
+            out of their opening and have to stop existing past the point
+            anything still hides them, exactly as the CSS leaves are clipped by
+            the frame they sit in. */}
         <meshStandardMaterial
           key={material.map ? 'grained' : 'flat'}
           {...material}

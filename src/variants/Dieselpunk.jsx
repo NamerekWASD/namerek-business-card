@@ -172,7 +172,7 @@ export default function Dieselpunk() {
         <SceneCanvas vw={vw} vh={vh} zIndex={LAYERS.shaft} name="shaft" dprCeiling={dprCeiling} moving={moving} onLost={markContextLost}>
           <ShaftScene
             vw={vw} vh={vh} pos={floorPos} floorPx={floorPitch}
-            lamps={lamps} ticker={ticker} ride={ride} deck={deckIndex}
+            ticker={ticker} ride={ride} deck={deckIndex}
             intro={introClosure(t)}
             // While the black rectangle is up, the shaft is held in the state
             // that needs the most work drawn: every landing shown, every fitting
@@ -265,7 +265,7 @@ export default function Dieselpunk() {
           <NearScene
             vw={vw} vh={vh} pos={floorPos} floorPx={floorPitch}
             deck={deckIndex} intro={introClosure(t)} ticker={ticker}
-            lamps={lamps} ride={ride}
+            ride={ride}
             dim={dim} onSettle={boot.settle}
           />
         </SceneCanvas>
@@ -281,7 +281,7 @@ export default function Dieselpunk() {
           content because it is nearer than the landing the content sits on */}
       {!r3f && <CageFront vw={vw} vh={vh} lamps={lamps} />}
 
-      <Lighting aperture={aperture} closure={closure} lamps={lamps} vw={vw} vh={vh} dim={r3f ? dim : 1} />
+      <Lighting aperture={aperture} closure={closure} pos={floorPos} floorPx={floorPitch} vw={vw} vh={vh} dim={r3f ? dim : 1} />
 
       {/* The selector is mounted on the cage, not above the landing door. A lift's
           floor buttons live in the cabin — and had they gone on the shaft wall

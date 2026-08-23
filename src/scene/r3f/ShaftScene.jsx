@@ -1,6 +1,6 @@
 import { memo, useMemo } from 'react';
 import { CatmullRomCurve3, DoubleSide, Vector3 } from 'three';
-import { SHAFT_DEPTH } from '../model/camera.js';
+import { CAM_ORIGIN_Y, SHAFT_DEPTH } from '../model/camera.js';
 import {
   BACK_OVERSCAN, COUNTERWEIGHT_INSET_X, COUNTERWEIGHT_Z, DOORWAY_H_FRAC, DOORWAY_W_FRAC,
   LANDING_SETBACK, PENDANT_DROP_FRAC, PENDANT_HEAD_RISE, counterweightY, landingCeilingY,
@@ -22,7 +22,7 @@ import useRideMotion from '../renderers/r3f/useRideMotion.js';
 import LandingProps from './LandingProps.jsx';
 import LandingScreen from './LandingScreen.jsx';
 import { DECKS, SCREEN_SIDE } from '../../lift/decks.js';
-import { doorClosureAt, openFloor } from '../../lift/ride.js';
+import { doorClosureAt } from '../../lift/ride.js';
 
 // The far half of the scene in WebGL: the corridor walls, the blind wall at the
 // end of the shaft, the landings cut into it, the machinery running down the
@@ -396,6 +396,43 @@ function BackWall({ vw, vh, pos, floorPx, ticker, ride, deck, intro, warm }) {
 }
 
 /**
+ * The row of bulkhead fittings on the shaft wall.
+ *
+ * It rides the ticker, and it is built as a *repeating run* rather than as
+ * whatever `lampsAt` happens to return for this frame. Both halves of that
+ * matter and they are the same lesson the rivet seams already carry: the
+ * fittings are one per floor and therefore evenly spaced by exactly one floor
+ * pitch, so a fixed handful of them scrolled by the travel modulo that pitch is
+ * the same picture as a list rebuilt every frame — with no fitting ever mounted
+ * or unmounted, and no React commit standing between the wall moving and the
+ * lamp bolted to it moving with it.
+ *
+ * That last part is the whole point. Positioned from props, the row updated only
+ * when React could commit the tree, which on a high-refresh display is a third
+ * of the rate the wall itself moves at: the wall slid and the lamps hopped along
+ * behind it.
+ */
+function LampRow({ vw, vh, floorPx, pos, ticker, dim }) {
+  const x = vw * (0.5 - LAMPS.side);
+  const origin = vh * CAM_ORIGIN_Y - LAMPS.rise * floorPx;
+
+  const row = useRideMotion(ticker, (group, floorPos) => {
+    const travel = floorPos * floorPx;
+    group.position.y = worldY(((travel % floorPx) + floorPx) % floorPx);
+  }, pos, [floorPx]);
+
+  // Two spare either side of the one in view. `LAMP_RANGE` is 1.7 floors, so
+  // two covers everything that still contributes and one would not.
+  return (
+    <group ref={row}>
+      {[-2, -1, 0, 1, 2].map((k) => (
+        <Lamp key={k} p={{ id: `row${k}`, x, y: origin - k * floorPx }} dim={dim} />
+      ))}
+    </group>
+  );
+}
+
+/**
  * The cable that replaced the guide rail, running the height of the shaft on
  * the lamp side. It wanders, and that is the whole reason it works where the
  * rail did not: a straight vertical bar facing the camera has both its long
@@ -506,24 +543,14 @@ function Counterweight({ vw, vh, pos, floorPx, ticker }) {
   );
 }
 
-function ShaftScene({ vw, vh, pos, floorPx, lamps, ticker, ride, deck, intro, warm, dim = 1, onSettle }) {
+function ShaftScene({ vw, vh, pos, floorPx, ticker, ride, deck, intro, warm, dim = 1, onSettle }) {
   // the room we can actually see into, which during a trip is not the deck we
   // set off from — see
-  const open = openFloor(ride, deck);
   return (
     <>
       <SceneLights
-        vw={vw} vh={vh} lamps={lamps} floorPx={floorPx} dim={dim}
-        deckTop={openingTop(vh, floorPx, open.floor) + pos * floorPx}
-        // Held wide open while the boot screen is up. Nothing is being lit —
-        // `dim` is nought under the screen — but a shadow map is drawn from the
-        // state the rig is *in*, and a landing light that is switched off has
-        // no shadow pass at all, so its depth shaders would go uncompiled until
-        // the frame a door first opened on them. That is the whole of `warm`:
-        // put the scene in the most demanding state it will ever be in while
-        // there is a black rectangle over it, and let the boot compile find
-        // everything.
-        closure={warm ? 0 : Math.max(open.closure, open.floor === deck ? intro : 0)}
+        vw={vw} vh={vh} floorPx={floorPx} ticker={ticker}
+        deck={deck} ride={ride} intro={intro} warm={warm} dim={dim}
       />
       <Room room="shaft">
         <Walls vw={vw} vh={vh} pos={pos} floorPx={floorPx} ticker={ticker} />
@@ -532,8 +559,8 @@ function ShaftScene({ vw, vh, pos, floorPx, lamps, ticker, ride, deck, intro, wa
       <Counterweight vw={vw} vh={vh} pos={pos} floorPx={floorPx} ticker={ticker} />
       {/* the fittings, bolted to the far wall either side of every landing.
           They are emissive meshes, not lights — the row is represented by the
-          single key light above, standing among them. */}
-      {lamps.map((L) => <Lamp key={L.id} p={L} dim={dim} />)}
+          rig above, standing among them. */}
+      <LampRow vw={vw} vh={vh} floorPx={floorPx} pos={pos} ticker={ticker} dim={dim} />
       </Room>
       {/* last, so its effect runs once every sibling above has attached its
           meshes and there is a whole scene to compile */}

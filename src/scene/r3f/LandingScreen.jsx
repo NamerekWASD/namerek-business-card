@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { useThree } from '@react-three/fiber';
 import { SURFACES } from '../model/materials.js';
 import { surfaceProps } from '../renderers/r3f/surfaceMaterial.js';
 import { worldY } from '../renderers/r3f/camera.js';
 import { screenGlow } from '../renderers/r3f/patterns.js';
-import { FRAMES, SPAN, markStrip, markSurface, paintMark } from '../renderers/r3f/screenMark.js';
+import { FRAMES, SPAN, clearMark, markStrip, markSurface, paintMark } from '../renderers/r3f/screenMark.js';
+import { invalidateScene } from '../renderers/r3f/frames.js';
 
 // The wall screen every landing shares: a fluted glass panel recessed into a
 // frame on the back wall, the same ribbing the arcade cabinet's own screen
@@ -42,10 +42,8 @@ export const SCREEN_TUNING = {
  * half a reveal ahead of where its own door is.
  */
 function LogoMark({ x, y, z, size, open, shut }) {
-  const invalidate = useThree((s) => s.invalidate);
   const [surface] = useState(() => (typeof document === 'undefined' ? null : markSurface()));
   const [frames, setFrames] = useState(null);
-  const [ready, setReady] = useState(false);
   const raf = useRef(0);
   // has this open cycle already shown its reveal — cleared on the next full close
   const playing = useRef(false);
@@ -63,7 +61,10 @@ function LogoMark({ x, y, z, size, open, shut }) {
     if (!surface) return undefined;
     if (shut) {
       playing.current = false;
-      setReady(false);
+      // Wiped, not unmounted — see the note on the mesh below.
+      clearMark(surface.canvas);
+      surface.texture.needsUpdate = true;
+      invalidateScene();
       return undefined;
     }
     if (!frames || !open || playing.current) return undefined;
@@ -79,7 +80,12 @@ function LogoMark({ x, y, z, size, open, shut }) {
       lastIndex = index;
       paintMark(surface.canvas, frames[index]);
       surface.texture.needsUpdate = true;
-      invalidate();
+      // The whole scene, not this canvas. The reveal runs for two seconds with
+      // the lift standing still, so both canvases are on demand — and asking
+      // only this one left the near canvas, which holds the doors, sitting out
+      // a couple of thousand composites without drawing. That is the door
+      // flicker: see `frames.js`.
+      invalidateScene();
     };
     const t0 = performance.now();
     const step = () => {
@@ -89,12 +95,29 @@ function LogoMark({ x, y, z, size, open, shut }) {
       if (p < 1) raf.current = requestAnimationFrame(step);
     };
     show(0);
-    setReady(true);
     raf.current = requestAnimationFrame(step);
     return () => { live = false; cancelAnimationFrame(raf.current); };
-  }, [surface, frames, open, shut, invalidate]);
+  }, [surface, frames, open, shut]);
 
-  if (!surface || !ready) return null;
+  if (!surface) return null;
+  // **Built once, and never unbuilt.** This mesh used to be gated on the reveal
+  // having started — `null` until the doors opened, `null` again once they shut —
+  // and that is a mount and an unmount on every single visit to this floor. A
+  // mount is a fresh material, a fresh material is a shader compiled and a
+  // program linked, and the driver does that work synchronously on the frame
+  // that asks for it. The frame that asked was the one where the leaves finish
+  // parting, so arriving at the ground floor stuttered right at the end of the
+  // animation — every time, and nowhere else, because this is the only landing
+  // that carries the mark. Measured: two `compileShader` calls and a
+  // `linkProgram` on each arrival here, none at all on any other floor.
+  //
+  // So the mesh stays for the life of the page and the *canvas* carries the
+  // state. Cleared, it is fully transparent and draws nothing; there is no
+  // `visible` flag to get wrong, and it is on screen during the boot warm-up
+  // (`Landing` forces its fittings visible under `warm`), which is where the one
+  // compile it ever needs now happens — behind the black rectangle, with nobody
+  // looking. This is the rule `Landing` states for the room around it; the mark
+  // was the one thing in here still breaking it.
   return (
     <mesh position={[x, worldY(y), z]}>
       <planeGeometry args={[size, size]} />

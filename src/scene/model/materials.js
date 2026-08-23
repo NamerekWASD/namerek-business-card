@@ -36,7 +36,14 @@ export const SURFACES = {
   cageRoof: { from: '#242019', to: '#12100d', tile: 'steel', scale: 190, tex: 0.3, rough: 0.78, metal: 0.3 },
   cageFloor: { from: '#3c342a', to: '#201b15', tile: 'steel', scale: 210, tex: 0.34, rough: 0.74, metal: 0.34 },
   cageSteel: { from: '#3b352d', to: '#1e1a15', tile: 'steel', scale: 130, tex: 0.36, rough: 0.7, metal: 0.38 },
-  doorLeaf: { from: '#3d3123', to: '#1c1610', tile: 'rust', scale: 280, tex: 0.26, rough: 0.86, metal: 0.12 },
+  // Blackened steel, not the rust it used to carry — it read as a warm brown
+  // box next to the frame's grey the moment the two actually meet (see the
+  // leaf's own reveal at the frame's outer tier), and the frame stays grey.
+  // Kept warm like every other steel in this catalogue (`cageSteel`, `steel`,
+  // `doorFrame` below all run R>G>B, never B>G) — a cooler, bluer grey here
+  // was the one hex in the file fighting the cineon grade instead of riding
+  // it, which is what read as a flat, textureless slab under real exposure.
+  doorLeaf: { from: '#332e28', to: '#151210', tile: 'steel', scale: 240, tex: 0.3, rough: 0.68, metal: 0.3 },
   doorFrame: { from: '#4a4137', to: '#231e19', tile: 'steel', scale: 160, tex: 0.32, rough: 0.72, metal: 0.34 },
   // the small fittings — clips, shoes, rivetted plates, architrave members
   iron: { from: '#443626', to: '#241a11', tile: 'rust', scale: 70, tex: 0.3, rough: 0.84, metal: 0.16 },

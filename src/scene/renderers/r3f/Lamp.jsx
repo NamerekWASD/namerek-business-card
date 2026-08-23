@@ -38,19 +38,49 @@ const Lamp = memo(function Lamp({ p, dim = 1 }) {
 
   return (
     <group position={[p.x, worldY(p.y), 0]}>
-      {/* the cast base bolted to the wall */}
-      <mesh position={[0, 0, wall + 3]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
+      {/* The housing: the cast base bolted to the wall, and the body standing
+          off it. Neither casts, and that is a fix rather than a saving.
+          `lampsAt` puts this fitting's own light exactly at the glass — which
+          is where the light of a lamp comes from — so the base plate and the
+          body are *behind* the source, between it and the wall they are bolted
+          to. Left casting, they threw a hard black disc of their own onto the
+          wall immediately around the fitting: a lamp sitting in a shadow it had
+          cast itself, with the PCF dither on its edge, which is what was
+          showing as a dark crescent beside every fitting in the shaft. A source
+          does not occlude itself, and the housing has nothing else to shadow. */}
+      <mesh position={[0, 0, wall + 3]} rotation={[Math.PI / 2, 0, 0]} receiveShadow>
         <cylinderGeometry args={[radius * 1.05, radius * 1.05, 6, 24]} />
         <meshStandardMaterial {...iron} />
       </mesh>
-      {/* the body, standing off the wall */}
-      <mesh position={[0, 0, wall + proud / 2]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
-        <cylinderGeometry args={[radius * 0.82, radius * 0.9, proud, 20, 1, true]} />
-        <meshStandardMaterial {...surfaceProps(SURFACES.steel, 1)} side={DoubleSide} />
+      {/* The barrel takes a little light of its own, and it is the last piece
+          of the same smudge. Its outer flank faces *away* from the glass at its
+          own front rim, so no source in the scene reaches it — and a cool grey
+          crescent standing unlit against a warm lit wall reads as a shadow
+          whether or not anything cast it. Warm iron rather than the cool steel
+          it was, with the bounce a casting an inch from a burning lamp actually
+          picks up. */}
+      <mesh position={[0, 0, wall + proud / 2]} rotation={[Math.PI / 2, 0, 0]} receiveShadow>
+        <cylinderGeometry args={[radius * 0.94, radius * 0.84, proud, 20, 1, true]} />
+        <meshStandardMaterial
+          {...surfaceProps(SURFACES.iron, 1.15)}
+          side={DoubleSide}
+          emissive="#c08a44"
+          emissiveIntensity={0.1 * dim}
+          userData={{ selfLit: true }}
+        />
       </mesh>
-      {/* the glass: the only surface in the scene allowed to be its own source */}
+      {/* The glass: the only surface in the scene allowed to be its own source.
+          Wide enough to fill the housing's own aperture, which is the second
+          half of the shadow fix above. The fitting is off to one side of the
+          shaft and seen from well inboard of it, and the barrel's *back* rim
+          projects larger on screen than its front one does — so a glass cut
+          narrower than the barrel left a crescent of unlit housing interior
+          showing past its edge, on the same side and at the same size as the
+          shadow disc, and reading as the same smudge. The barrel flares toward
+          the front now as a reflector actually does, which puts its back rim
+          inside its front one and leaves nothing of the inside to see. */}
       <mesh position={[0, 0, wall + proud]}>
-        <circleGeometry args={[radius * 0.8, 24]} />
+        <circleGeometry args={[radius * 0.9, 24]} />
         <meshStandardMaterial
           // its own source, so the room's ambience must not overwrite it
           userData={{ selfLit: true }}
@@ -65,7 +95,7 @@ const Lamp = memo(function Lamp({ p, dim = 1 }) {
       </mesh>
       {/* the guard: a ring and two crossed bars, dark against the glass */}
       <mesh position={[0, 0, wall + proud + 6]} rotation={[0, 0, 0]}>
-        <torusGeometry args={[radius * 0.86, 3.5, 8, 28]} />
+        <torusGeometry args={[radius * 0.94, 3.5, 8, 28]} />
         <meshStandardMaterial color="#2a231a" roughness={0.75} metalness={0.2} />
       </mesh>
       {[0, Math.PI / 2].map((a) => (

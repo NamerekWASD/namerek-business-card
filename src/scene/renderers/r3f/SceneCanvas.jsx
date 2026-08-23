@@ -5,6 +5,7 @@ import { cameraProps } from './camera.js';
 import { TONE_CURVES, roomLight, useLightTuning } from './tuning.js';
 import { installSoftLight, wrapUniforms } from './softLight.js';
 import { installRoomTone, toneUniforms } from './roomTone.js';
+import { registerCanvas } from './frames.js';
 import { DEBUG_PANEL } from '../../effects/quality.js';
 
 // Both before anything can compile a material. `softLight` gives the fittings a
@@ -80,6 +81,11 @@ function Output() {
   const gl = useThree((s) => s.gl);
   const invalidate = useThree((s) => s.invalidate);
   const tuning = useLightTuning();
+
+  // This canvas joins the scene, so anything that asks the *scene* for a frame
+  // wakes it too. Both canvases are on demand at rest and R3F's `invalidate`
+  // reaches only its own; see `frames.js` for what that cost.
+  useLayoutEffect(() => registerCanvas(invalidate), [invalidate]);
 
   // The renderer is held on one arbitrary non-`NoToneMapping` value and left
   // there. It is not the curve any more — `roomTone` replaced the dispatcher

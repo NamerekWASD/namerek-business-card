@@ -9,12 +9,12 @@ import { SURFACES } from '../model/materials.js';
 import { Box, Panel } from '../renderers/r3f/Surface.jsx';
 import { surfaceProps } from '../renderers/r3f/surfaceMaterial.js';
 import { worldY } from '../renderers/r3f/camera.js';
-import { gateLattice, hazardStripe } from '../renderers/r3f/patterns.js';
+import { doorLeafFace, gateLattice, hazardStripe } from '../renderers/r3f/patterns.js';
 import useRideMotion from '../renderers/r3f/useRideMotion.js';
 import SceneLights from './SceneLights.jsx';
 import Room from '../renderers/r3f/Room.jsx';
 import { DECKS } from '../../lift/decks.js';
-import { doorClosureAt, openFloor } from '../../lift/ride.js';
+import { doorClosureAt } from '../../lift/ride.js';
 import SceneWarmup from './SceneWarmup.jsx';
 import CanvasBoot from '../../boot/CanvasBoot.jsx';
 
@@ -23,6 +23,32 @@ import CanvasBoot from '../../boot/CanvasBoot.jsx';
 // second layer because the decks are genuinely *between* the two halves of this
 // scene — they sit on the landing, behind the doors — and no z-index inside one
 // canvas can express that.
+
+// How far inside the architrave's own depth budget a leaf sits, and how thick
+// it is.
+const LEAF_Z_FRAC = 0.3;
+const LEAF_D = 10;
+// How far the astragal — the meeting stile the two leaves seal against — stands
+// proud of the plate behind it, and how wide it is as a fraction of one leaf.
+const ASTRAGAL_D = 7;
+const ASTRAGAL_W = 0.022;
+
+// The leaves carry their own light, and that is not a stylistic choice. The
+// shaft's fittings stand `LAMPS.proud` off the far wall; a shut leaf's face ends
+// up a few pixels in *front* of them, in their plane, so its cosine term is
+// nought and no lamp in this scene reaches it. `Room`'s ambience is a flat
+// emissive, and a flat emissive cannot carry a pattern — which is why a leaf
+// with a tile on it and a decal over it still drew as one black rectangle.
+//
+// So the leaf is graded the way the CSS backend graded everything: the light is
+// painted into `doorLeafFace`, and the face plate wears that painting as its
+// `emissiveMap`. `selfLit` keeps `Room` from overwriting it with the flat value
+// on the next commit — the same flag the lamp glass and the marquee already use.
+const LEAF_GLOW = '#ffdcae';
+const LEAF_GLOW_I = 0.26;
+// and the astragal's own, which belongs to the architrave rather than to the
+// leaf — see the material that reads it
+const FRAME_TONE = '#8a7657';
 
 /** The four members of one tier of a frame. */
 function Tier({ vw, vh, top, tier }) {
@@ -49,6 +75,77 @@ function Tier({ vw, vh, top, tier }) {
 }
 
 /**
+ * One leaf of a landing door: the plate, its painted face, and the astragal it
+ * seals against its partner with.
+ *
+ * The astragal is real geometry rather than another stripe in the paint, and it
+ * is the one part of the leaf that has to be: when the leaves part, what says
+ * "two doors" instead of "one picture sliding" is a raised edge with its own
+ * silhouette moving against the plate behind it. Everything flat about the leaf
+ * is in `doorLeafFace`, which is where flat things belong.
+ *
+ * @param {{ side: 0 | 1 }} props `side` 0 is the left leaf, 1 the right
+ */
+function DoorLeaf({ side, left, top, w, h, z, clip }) {
+  const face = doorLeafFace(side);
+  const plate = surfaceProps(SURFACES.doorLeaf, 1);
+  const stileW = w * ASTRAGAL_W;
+  // 0 meets its partner on its own right, 1 on its own left
+  const stileX = side ? stileW / 2 : w - stileW / 2;
+
+  return (
+    <group position={[left, worldY(top), z]}>
+      <mesh position={[w / 2, -h / 2, LEAF_D / 2]} castShadow receiveShadow>
+        <boxGeometry args={[w, h, LEAF_D]} />
+        {/* `clip` is this backend's `overflow: hidden` — a leaf slides out of
+            its opening and has to stop existing where the frame stops hiding
+            it, exactly as the CSS leaves are clipped by the frame they sit in */}
+        <meshStandardMaterial {...plate} clippingPlanes={clip ?? null} />
+      </mesh>
+      {face && (
+        <mesh position={[w / 2, -h / 2, LEAF_D + 0.4]} receiveShadow>
+          <planeGeometry args={[w, h]} />
+          {/* The same painting twice over: as albedo, so what light does reach
+              the leaf lands on artwork rather than on a flat slab, and as
+              emissive, because for most of this door's life no light reaches it
+              at all. `color` holds the plate's own albedo rather than the
+              default white — `Room` reads a material's colour back as what it
+              bounces, and an unset one bounces white. */}
+          <meshStandardMaterial
+            map={face}
+            emissiveMap={face}
+            emissive={LEAF_GLOW}
+            emissiveIntensity={LEAF_GLOW_I}
+            color={plate.color}
+            roughness={0.64}
+            metalness={0.22}
+            clippingPlanes={clip ?? null}
+            userData={{ selfLit: true }}
+          />
+        </mesh>
+      )}
+      <mesh position={[stileX, -h / 2, LEAF_D + ASTRAGAL_D / 2]} castShadow receiveShadow>
+        <boxGeometry args={[stileW, h * 0.985, ASTRAGAL_D]} />
+        {/* The frame's casting, not the leaf's plate — an astragal is the same
+            ironwork as the architrave it shuts against, and giving it the leaf's
+            own tone at the leaf's own level put a pale pillar down the middle of
+            the doorway, brighter than anything it stood against. It is the one
+            part of a leaf with no painting on it, so it takes the room's whole
+            contribution flat across its width and has to be pitched by hand
+            against `doorFrame`'s own. */}
+        <meshStandardMaterial
+          {...surfaceProps(SURFACES.doorFrame, 1.1)}
+          emissive={FRAME_TONE}
+          emissiveIntensity={LEAF_GLOW_I * 0.34}
+          clippingPlanes={clip ?? null}
+          userData={{ selfLit: true }}
+        />
+      </mesh>
+    </group>
+  );
+}
+
+/**
  * One floor's doorway: the stepped frame, the returns bridging it back to the
  * wall, and the two leaves.
  *
@@ -62,35 +159,66 @@ function Doorway({ vw, vh, top, floor, deck, intro, ticker }) {
   const left = (vw - w) / 2;
   const leafW = w / 2;
 
-  // The opening, as two world-space planes. A leaf is clipped to the hole it
-  // belongs to, so sliding it open removes it rather than parking it across the
-  // shaft wall — which is what an open door does, and what the CSS backend gets
-  // for free from `overflow: hidden` on the frame.
-  const clip = useMemo(() => [
-    new Plane(new Vector3(1, 0, 0), -left),
-    new Plane(new Vector3(-1, 0, 0), left + w),
-  ], [left, w]);
-
   const leaves = useRideMotion(ticker, (group, _floorPos, snapshot) => {
-    // Only the in-progress ticks belong here, and that is the whole of the door
-    // flicker.
+    // **Both halves of "which door is open" come off the ticker, never off a
+    // prop.** This is the door flicker, and it is worth writing down exactly,
+    // because it has been chased in this component more than once and the
+    // component was never where it lived.
     //
-    // The tick that *settles* a ride notifies with `ride: null` in the same
-    // synchronous pass that updates the ticker's own deck — but this component's
-    // `deck` prop has not been re-rendered with that new value yet. Computing the
-    // rest state right then reads the floor we have just left, not the one we
-    // have arrived at, so the door that should be opening slams shut for a
-    // frame. The last in-progress tick has already eased it to within a hair of
-    // open; letting the re-render own the rest state leaves nothing to hand over
-    // but that correction, and it is instant.
-    if (snapshot && !snapshot.ride) return;
+    // `doorClosureAt` needs two things: the trip under way, and — if there is
+    // none — the floor we are standing at. The trip arrived here on the
+    // snapshot and was always right. The floor came from the `deck` *prop*,
+    // which is React's mirror of the ticker and is a commit behind. So any
+    // write that ran with no trip in hand computed the rest state for the floor
+    // we had just *left*: `doorClosureAt(0, null, 2)` is 1, and the door that
+    // was two-thirds open slammed shut for exactly one frame before the next
+    // tick corrected it. Logged live on a two-floor arrival, twice in the last
+    // 150ms of the trip — which is precisely where it is most visible, and why
+    // short trips flickered while long ones did not: on a long trip the same
+    // stray write lands while the doors are still shut and changes nothing.
+    //
+    // Reading `deckIndex` off the snapshot removes the disagreement rather than
+    // dodging it, so there is no longer a state this can be called in that
+    // produces a wrong answer — which is what the old guard here was for. It is
+    // gone, and the settle is better for it: the tick that ends a ride carries
+    // the arrived-at deck already (see `rideTicker`'s `tick`), so the doors now
+    // reach their rest state on that frame instead of waiting for a re-render.
     const ride = snapshot?.ride ?? null;
-    const shut = doorClosureAt(floor, ride, deck);
-    const closure = !ride && floor === deck ? Math.max(shut, intro) : shut;
+    const at = snapshot ? snapshot.deckIndex : deck;
+    const shut = doorClosureAt(floor, ride, at);
+    const closure = !ride && floor === at ? Math.max(shut, intro) : shut;
     const [a, b] = group.children;
     if (a) a.position.x = (closure - 1) * leafW;
     if (b) b.position.x = (1 - closure) * leafW;
   }, 0, [floor, deck, intro, leafW]);
+
+  // The opening, widened into the pocket the frame's own jambs make — so a leaf
+  // slides *behind* the architrave and is gone, instead of being cut off at the
+  // raw opening line with nothing standing there to hide the cut.
+  //
+  // How far it may be widened is not a taste call, and getting it wrong is
+  // visible from across the room. `FRAME_TIERS` steps *narrower and prouder* the
+  // further out it goes (see `geometry.js`), so the outermost jamb is also the
+  // shallowest one: at 0.3 of the architrave's depth it does not reach as far
+  // forward as the leaf's own front face does. Clip out to that jamb's full
+  // width and the strip of leaf between it and the next tier in has nothing in
+  // front of it — which drew as a bright vertical bar standing off the wall
+  // either side of every open doorway, and read exactly like a frame that had
+  // come unstuck.
+  //
+  // So the margin is the widest tier that genuinely stands in front of the leaf,
+  // read off the same table the frame is built from rather than written down
+  // here as a fraction to be re-tuned whenever the profile changes.
+  const clip = useMemo(() => {
+    const leafFront = ARCHITRAVE_DEPTH * LEAF_Z_FRAC + LEAF_D + ASTRAGAL_D;
+    const margin = FRAME_TIERS
+      .filter((tier) => ARCHITRAVE_DEPTH * tier.z > leafFront)
+      .reduce((widest, tier) => Math.max(widest, ARCHITRAVE_MEMBER_W * tier.m), 0);
+    return [
+      new Plane(new Vector3(1, 0, 0), margin - left),
+      new Plane(new Vector3(-1, 0, 0), left + w + margin),
+    ];
+  }, [left, w]);
 
   return (
     <group>
@@ -106,10 +234,10 @@ function Doorway({ vw, vh, top, floor, deck, intro, ticker }) {
       <group ref={leaves} position={[0, 0, 0]}>
         {[0, 1].map((s) => (
           <group key={s}>
-            <Box
-              surface={SURFACES.doorLeaf}
-              left={left + s * leafW} top={top} w={leafW} h={h} d={10}
-              z={-SHAFT_DEPTH + ARCHITRAVE_DEPTH * 0.34}
+            <DoorLeaf
+              side={/** @type {0 | 1} */ (s)}
+              left={left + s * leafW} top={top} w={leafW} h={h}
+              z={-SHAFT_DEPTH + ARCHITRAVE_DEPTH * LEAF_Z_FRAC}
               clip={clip}
             />
           </group>
@@ -285,17 +413,16 @@ function Cage({ vw, vh }) {
   );
 }
 
-function NearScene({ vw, vh, pos, floorPx, deck, intro, ticker, lamps, ride, dim = 1, onSettle }) {
-  const open = openFloor(ride, deck);
+function NearScene({ vw, vh, pos, floorPx, deck, intro, ticker, ride, dim = 1, onSettle }) {
   return (
     <>
       <SceneWarmup onSettle={onSettle} />
-      {/* its own copy of the same two sources — a canvas is a scene, and this
-          one has surfaces of its own to light */}
+      {/* its own copy of the same sources — a canvas is a scene, and this one
+          has surfaces of its own to light. It reads the same ticker, so the two
+          canvases cannot disagree about where the light is. */}
       <SceneLights
-        vw={vw} vh={vh} lamps={lamps} floorPx={floorPx} dim={dim}
-        deckTop={openingTop(vh, floorPx, open.floor) + pos * floorPx}
-        closure={Math.max(open.closure, open.floor === deck ? intro : 0)}
+        vw={vw} vh={vh} floorPx={floorPx} ticker={ticker}
+        deck={deck} ride={ride} intro={intro} dim={dim}
       />
       {/* the doors and the cage face the shaft, so they are lit by it */}
       <Room room="shaft">

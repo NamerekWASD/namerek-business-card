@@ -101,6 +101,23 @@ export function markSurface() {
 }
 
 /**
+ * Wipe the mark back to nothing, leaving the canvas — and therefore the texture,
+ * the material and its compiled program — exactly where they were.
+ *
+ * This is what "the mark goes away when the doors shut" has to mean. Unmounting
+ * the mesh instead is the same thing to look at and a different thing entirely
+ * to the driver: the last reference to a linked program goes with it, and the
+ * next arrival pays for a fresh compile on the exact frame the leaves finish
+ * parting. See `LogoMark`.
+ *
+ * @param {HTMLCanvasElement} canvas
+ */
+export function clearMark(canvas) {
+  const ctx = canvas.getContext('2d');
+  if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+/**
  * Paint one still, lit the way the CSS backend lights it.
  *
  * @param {HTMLCanvasElement} canvas

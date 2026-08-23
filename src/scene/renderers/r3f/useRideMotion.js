@@ -35,12 +35,42 @@ export default function useRideMotion(ticker, write, settled, deps = []) {
   const writeRef = useRef(write);
   writeRef.current = write;
 
-  // the settled position: mount, resize, and the rest between rides
+  // The settled position: mount, resize, and the rest between rides.
+  //
+  // **It asks the ticker, and never trusts `settled` while there is one.** This
+  // is the whole of a judder that has been chased more than once, so it is
+  // worth writing down exactly. `settled` is React's mirror of the very number
+  // the ticker is already writing here every frame — and a mirror is always a
+  // commit behind, because React schedules its work off the ticker's own
+  // notification rather than inside it. So during a ride this transform has two
+  // writers: the ticker's callback, with this frame's position, and this
+  // effect, with the previous one. Measured on a four-floor trip, the shaft
+  // stepped *backwards* by a frame's worth of travel every time React committed
+  // — about one frame in three — which is a judder, not a flicker, but it lands
+  // hardest at the end of a trip where the ride profile's own overshoot is
+  // already reversing direction, and it moves the doorway against the leaves
+  // opening inside it.
+  //
+  // Reading the live snapshot makes the two writers agree by construction
+  // rather than by luck of ordering. `settled` stays as the answer for a scene
+  // with no ticker at all — tests, and any renderer that has not got one yet —
+  // and is still what re-runs this effect, which is exactly what it is good
+  // for: knowing that something changed.
+  // It also hands the write the ticker's *snapshot*, not `null`. Passing `null`
+  // said "there is no trip under way", and this effect runs whenever React
+  // commits — including in the middle of one. A writer that believes it is at
+  // rest computes a rest state, and for the doors that meant reading the floor
+  // we had just left and slamming a two-thirds-open leaf shut for exactly one
+  // frame. `null` stays the answer only where there is genuinely nothing to
+  // ask, which is a scene with no ticker at all.
   useLayoutEffect(() => {
-    if (ref.current) writeRef.current(ref.current, settled, null);
+    if (ref.current) {
+      const snapshot = ticker ? ticker.getSnapshot() : null;
+      writeRef.current(ref.current, snapshot ? snapshot.floorPos : settled, snapshot);
+    }
     invalidate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settled, invalidate, ...deps]);
+  }, [settled, invalidate, ticker, ...deps]);
 
   useEffect(() => {
     if (!ticker) return undefined;
