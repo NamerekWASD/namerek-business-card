@@ -120,7 +120,12 @@ describe('the shaft lights', () => {
 // closure, because the failure it guards against is not "somebody adds a light"
 // — it is "some combination of states produces one more than expected".
 describe('the source budget', () => {
-  it('never asks for more than two lights, in any state', () => {
+  // Exactly this many, not at most: see `lightRig`. A budget that is merely
+  // bounded is met by a rig that swings between three lights and four, and that
+  // swing is a full shader recompile of the room on whichever frame it happens
+  // — which, since the thing that swung it was the landing light, was always
+  // the frame a door started to open.
+  it('asks for the same lights in every state, however far the doors are open', () => {
     let sawKey = false;
     let sawLanding = false;
     for (let pos = -0.5; pos <= 3.5; pos += 1 / 32) {
@@ -133,7 +138,7 @@ describe('the source budget', () => {
           deckTop: 30,
           closure,
         });
-        expect(rig.length).toBeLessThanOrEqual(maxLights());
+        expect(rig.length).toBe(maxLights());
         expect(new Set(rig.map((l) => l.id)).size).toBe(rig.length);
         sawKey ||= rig.some((l) => l.kind === 'shaft');
         sawLanding ||= rig.some((l) => l.kind === 'landing');
@@ -165,17 +170,25 @@ describe('the source budget', () => {
     }
   });
 
-  it('drops the landing light rather than dimming it behind a shut door', () => {
+  // The rig used to drop the landing light behind a shut door, and that one
+  // line was the door-opening hitch. three.js compiles the light count into
+  // every shader (`numPointLights` is part of the program cache key), so a rig
+  // that grows by one on the frame a door starts to part invalidates every
+  // program in the room and blocks on the driver relinking them. So: same
+  // number of sources in every state, and a shut door is a source at zero.
+  it('keeps the landing light in the rig, dark, behind a shut door', () => {
     const shut = lightRig({
       vw, vh, lamps: lampsAt(vw, vh, 1, floorPitch), floorPitch, deckTop: 30, closure: 1,
     });
-    expect(shut.every((l) => l.kind === 'shaft')).toBe(true);
+    const landing = shut.filter((l) => l.kind === 'landing');
+    expect(landing).toHaveLength(1);
+    expect(landing[0].intensity).toBe(0);
   });
 });
 
 describe('the landing light', () => {
-  it('dies with the doors', () => {
-    expect(landingLight(vw, vh, 30, 1)).toBeNull();
+  it('dies with the doors — down to nothing, but never away', () => {
+    expect(landingLight(vw, vh, 30, 1).intensity).toBe(0);
     const open = landingLight(vw, vh, 30, 0);
     const half = landingLight(vw, vh, 30, 0.5);
     expect(half.intensity).toBeCloseTo(open.intensity / 2, 6);

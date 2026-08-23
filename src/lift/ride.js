@@ -44,14 +44,22 @@ export const PROFILE_DISTANCE = 0.4 * ACCEL_PHASE + CRUISE_PHASE + DECEL_PHASE /
 
 // Where the brakes stop biting and the overshoot starts damping out.
 const SETTLE_FROM = 0.78;
-// How far the cabin overshoots its floor before settling back onto it.
+// How far the cabin overshoots its floor before settling back onto it, in
+// floors — a hydraulic characteristic of the brakes, not of the trip. Applied
+// as a fraction of *this* progress curve (0..1 per trip), it used to scale
+// with distance travelled: a one-floor hop overshot by 0.04 floors, but a
+// three-floor trip overshot by 0.12, three times the wobble for a brake doing
+// the same job. Callers now divide it out by `dist` so the overshoot stays
+// one physical amount regardless of how far the cabin travelled to get there.
 export const SETTLE_OVERSHOOT = 0.04;
 
 /**
  * @param {number} progress 0..1 through the trip
+ * @param {number} [dist] floors travelled this trip, used only to keep the
+ *   brake overshoot a constant physical size instead of growing with distance
  * @returns {number} 0..1 of the distance covered, overshooting slightly near the end
  */
-export function liftEase(progress) {
+export function liftEase(progress, dist = 1) {
   if (progress <= 0) return 0;
   if (progress >= 1) return 1;
   let distance;
@@ -68,7 +76,7 @@ export function liftEase(progress) {
   // the arrival is what makes it read as machinery rather than a tween
   if (progress <= SETTLE_FROM) return base;
   const k = (progress - SETTLE_FROM) / (1 - SETTLE_FROM);
-  return base + Math.sin(k * Math.PI * 2) * SETTLE_OVERSHOOT * (1 - k);
+  return base + Math.sin(k * Math.PI * 2) * (SETTLE_OVERSHOOT / Math.max(1, dist)) * (1 - k);
 }
 
 // Landing doors, folded into the ride rather than added to it. Closing runs over

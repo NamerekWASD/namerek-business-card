@@ -173,7 +173,13 @@ export default function Dieselpunk() {
           <ShaftScene
             vw={vw} vh={vh} pos={floorPos} floorPx={floorPitch}
             lamps={lamps} ticker={ticker} ride={ride} deck={deckIndex}
-            intro={introClosure(t)} warm={!booted}
+            intro={introClosure(t)}
+            // While the black rectangle is up, the shaft is held in the state
+            // that needs the most work drawn: every landing shown, every fitting
+            // in place, every light on. That is what the boot screen is for —
+            // `CanvasBoot` compiles what it can see, and what it cannot see it
+            // leaves for the frame someone is looking at. See `ShaftScene`.
+            warm={!booted}
             dim={dim} onSettle={boot.settle}
           />
         </SceneCanvas>

@@ -21,12 +21,6 @@ export const SCREEN_TUNING = {
   markSize: 0.72, // the logo's size as a fraction of the glass height
 };
 
-// The reveal plays once for the life of the page, the same rule the cabinet's
-// own mark used to follow — the landing this screen belongs to mounts and
-// unmounts as it comes in and out of ride range, and a logo that redraws
-// itself every arrival would be a tic rather than a flourish.
-let revealed = false;
-
 /**
  * The mark, drawing itself in on the ground-floor screen only.
  *
@@ -34,39 +28,71 @@ let revealed = false;
  * just aimed at a plain plane instead of the cabinet's glass mesh, which is
  * why it needs no `planarUV` — a `planeGeometry` already unwraps 0..1 the
  * way this wants.
+ *
+ * The landing this mounts in is built once and kept around hidden rather than
+ * unbuilt — see `Landing` — so the strip is decoded eagerly but held on the
+ * first frame until `open` says the leaves have actually finished parting.
+ * Starting on mount instead used to run the whole reveal behind a shut (or
+ * still-opening) door, so by the time anyone could see the screen the
+ * animation was already over.
+ *
+ * It plays again on every arrival, not just once for the life of the page —
+ * `shut` clears the mark back to nothing the moment the doors have fully
+ * closed, so an unrelated trip through another floor cannot leave it sitting
+ * half a reveal ahead of where its own door is.
  */
-function LogoMark({ x, y, z, size }) {
+function LogoMark({ x, y, z, size, open, shut }) {
   const invalidate = useThree((s) => s.invalidate);
   const [surface] = useState(() => (typeof document === 'undefined' ? null : markSurface()));
+  const [frames, setFrames] = useState(null);
   const [ready, setReady] = useState(false);
   const raf = useRef(0);
+  // has this open cycle already shown its reveal — cleared on the next full close
+  const playing = useRef(false);
 
   useEffect(() => {
     if (!surface) return undefined;
     let live = true;
-    markStrip().then((frames) => {
-      if (!live || !frames.length) return;
-      const last = frames[frames.length - 1];
-      const show = (frame) => {
-        paintMark(surface.canvas, frame);
-        surface.texture.needsUpdate = true;
-        invalidate();
-      };
-      if (revealed) { show(last); setReady(true); return; }
-      revealed = true;
-      const t0 = performance.now();
-      const step = () => {
-        if (!live) return;
-        const p = Math.min(1, (performance.now() - t0) / (SPAN * 1000));
-        show(frames[Math.min(frames.length - 1, Math.round(p * (FRAMES - 1)))]);
-        if (p < 1) raf.current = requestAnimationFrame(step);
-      };
-      show(frames[0]);
-      setReady(true);
-      raf.current = requestAnimationFrame(step);
+    markStrip().then((loaded) => {
+      if (live && loaded.length) setFrames(loaded);
     });
+    return () => { live = false; };
+  }, [surface]);
+
+  useEffect(() => {
+    if (!surface) return undefined;
+    if (shut) {
+      playing.current = false;
+      setReady(false);
+      return undefined;
+    }
+    if (!frames || !open || playing.current) return undefined;
+    playing.current = true;
+    let live = true;
+    // `paintMark` runs two shadow-blur passes over a 512² canvas — cheap once,
+    // not sixty times a second. rAF ticks far more often than the strip has
+    // stills, so most ticks would ask to redraw a frame already on the canvas;
+    // this only repaints when the chosen still actually changes.
+    let lastIndex = -1;
+    const show = (index) => {
+      if (index === lastIndex) return;
+      lastIndex = index;
+      paintMark(surface.canvas, frames[index]);
+      surface.texture.needsUpdate = true;
+      invalidate();
+    };
+    const t0 = performance.now();
+    const step = () => {
+      if (!live) return;
+      const p = Math.min(1, (performance.now() - t0) / (SPAN * 1000));
+      show(Math.min(frames.length - 1, Math.round(p * (FRAMES - 1))));
+      if (p < 1) raf.current = requestAnimationFrame(step);
+    };
+    show(0);
+    setReady(true);
+    raf.current = requestAnimationFrame(step);
     return () => { live = false; cancelAnimationFrame(raf.current); };
-  }, [surface, invalidate]);
+  }, [surface, frames, open, shut, invalidate]);
 
   if (!surface || !ready) return null;
   return (
@@ -89,7 +115,7 @@ function LogoMark({ x, y, z, size }) {
  * that width, `side` picking which: the page content takes the other half,
  * see `SCREEN_SIDE` in `lift/decks.js`.
  */
-function LandingScreen({ floor, side, left, w, floorY, ceilingY, back }) {
+function LandingScreen({ floor, side, left, w, floorY, ceilingY, back, doorOpen, doorShut }) {
   const t = SCREEN_TUNING;
   const half = w / 2;
   const slotLeft = side === 'left' ? left : left + half;
@@ -122,7 +148,10 @@ function LandingScreen({ floor, side, left, w, floorY, ceilingY, back }) {
         />
       </mesh>
       {floor === 0 && (
-        <LogoMark x={cx} y={cy} z={glassZ + 0.5} size={glassH * t.markSize} />
+        <LogoMark
+          x={cx} y={cy} z={glassZ + 0.5} size={glassH * t.markSize}
+          open={doorOpen} shut={doorShut}
+        />
       )}
     </group>
   );

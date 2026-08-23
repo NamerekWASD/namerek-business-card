@@ -54,12 +54,58 @@ function SceneLights({ vw, vh, lamps, floorPx, deckTop, closure, dim = 1 }) {
       // value, cost is flat regardless of how wide it is set), so it can be
       // generous without costing anything back.
       light.shadow.radius = 14;
+
+      // A dark light still has a shadow map, and three would still redraw its
+      // six cube faces every frame for a contribution of exactly nothing. The
+      // rig keeps its full complement of sources at all times now — that is
+      // what stops the scene recompiling every shader when a door opens, see
+      // `landingLight` — so the saving that used to come from removing a light
+      // has to come from here instead.
+      //
+      // `needsUpdate` on the first pass while dark is not belt-and-braces: the
+      // cubemap is allocated lazily inside the shadow pass, and six 2048²
+      // targets appearing on the frame a door starts to open is the same class
+      // of hitch, just at the driver rather than the compiler. One pass while
+      // nobody is looking gets them made.
+      //
+      // Read off the rig rather than off `light.intensity`, which is the rig's
+      // figure times `dim`. `dim` is nought for the whole of the boot screen
+      // and the first frames of the intro, so gating on it would park every
+      // shadow map through exactly the stretch that exists to get this work
+      // done unseen — and then unpark them, and compile their depth shaders, on
+      // the frames the lamps are striking. This asks the question that was
+      // meant: is this fitting switched on, supply or no supply.
+      const lit = (rig[index]?.intensity ?? 0) > 0;
+      light.shadow.autoUpdate = lit;
+      if (!lit && light.shadow.map === null) light.shadow.needsUpdate = true;
     }
   });
 
   return rig.map((light, index) => (
     <pointLight
-      key={light.id}
+      // Keyed by seat, not by fitting — and that is a GPU lifetime decision
+      // rather than a React one.
+      //
+      // The rig is the three nearest fittings plus the room, so riding one
+      // floor rotates one fitting out of the row and another in. Keyed by lamp
+      // id, that is an unmount and a mount: React throws a `PointLight` away
+      // and builds a new one, and a new point light means a new `shadow`, which
+      // means six fresh 2048² faces allocated from the driver and six more
+      // handed back — per floor, per canvas, in the middle of a ride. It is the
+      // reason a four-floor trip hitched where a one-floor trip did not: the
+      // cost was linear in the distance travelled.
+      //
+      // Keyed by seat, the same light object is re-aimed instead. Nothing is
+      // drawn differently: what reaches the scene is the rig's positions and
+      // intensities, which this component does not touch either way. The
+      // handover is invisible for the same reason it always was — the fitting
+      // leaving and the fitting arriving are the same distance from the cage at
+      // the moment they swap, so they are at the same brightness.
+      //
+      // Safe only because the rig is a fixed length in every state; if that
+      // ever stops being true, a seat could go empty and this becomes a light
+      // that vanishes rather than moves. `lighting.test.js` holds that.
+      key={index}
       ref={(node) => { lights.current[index] = node; }}
       position={[light.position[0], worldY(light.position[1]), light.position[2]]}
       // `dim` is the supply, not the fitting: one scalar over the whole rig, so

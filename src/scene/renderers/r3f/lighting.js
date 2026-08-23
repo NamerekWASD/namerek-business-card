@@ -94,6 +94,15 @@ function smoothstep(edge0, edge1, x) {
  * beyond the row's own edge are faded out before they vanish, for the same
  * reason as before: what pops in must already be contributing nothing.
  *
+ * The nearest `shaftLights` fittings are kept whether or not they still reach —
+ * a tapered-out one is kept at zero rather than dropped. Same picture either
+ * way, and it means the number of lights in the scene does not depend on where
+ * the cage happens to be standing. See `lightRig` for why that matters.
+ *
+ * Ranked by distance rather than by the reach computed from it: reach is a
+ * strictly decreasing function of distance, so the order is the same one, and
+ * distance still separates two fittings that have both tapered to nothing.
+ *
  * @param {Lamp[]} lamps
  * @param {Point3} at the point the rig is calibrated for — the cage
  * @param {number} [range] how far the row extends, in scene pixels
@@ -107,8 +116,7 @@ export function shaftLights(lamps, at, range = Infinity) {
       const reach = lampFalloff(d) * (1 - smoothstep(range * 0.55, range, d));
       return { lamp: L, d, reach };
     })
-    .filter((entry) => entry.reach > 0)
-    .sort((a, b) => b.reach - a.reach)
+    .sort((a, b) => a.d - b.d)
     .slice(0, tuning.shaftLights)
     .map(({ lamp, d, reach }) => ({
       id: lamp.id,
@@ -134,17 +142,35 @@ export const pendantAt = (vw, vh, openingTopY) => [vw / 2, pendantAnchorY(vh, op
 
 /**
  * The landing's own fitting: a spot in the depth of the active floor, aimed back
- * out through the opening. It dies with the doors, because a room you cannot see
- * into contributes nothing and a light left burning behind a shut door is two
- * sources' worth of budget spent on nothing.
+ * out through the opening. It fades out with the doors, because a room you
+ * cannot see into contributes nothing.
+ *
+ * It *fades*, and it is never removed. That distinction is not a taste call —
+ * it is the whole of the door-opening hitch. three.js compiles the number of
+ * lights in the scene into every shader it builds (`numPointLights` and
+ * `numPointLightShadows` are both in the program cache key), so a light that
+ * comes and goes means every material in the room needs a second program, and
+ * the frame that first draws with it blocks until the driver has linked the
+ * lot. Measured on this scene that was a ~500 ms stall on a cold load and ~80 ms
+ * warm, landing exactly on the frame the leaves start to part — on the intro at
+ * `DOOR_SHAKE_END`, and again at every arrival.
+ *
+ * A source at zero intensity contributes nothing and costs one more set of
+ * uniforms. `SceneLights` parks its shadow map while it is dark, which is where
+ * the real cost of an unused light would otherwise be.
  *
  * @param {number} vw @param {number} vh
  * @param {number} openingTopY where this floor's opening sits right now
  * @param {number} closure 0 open, 1 shut
  */
 export function landingLight(vw, vh, openingTopY, closure) {
-  const open = Math.max(0, 1 - closure);
-  if (open <= 0.02) return null;
+  // Below this the room is shut and the fitting is off. Kept as a threshold
+  // rather than letting the last two percent trail away, so "the door is shut"
+  // is one answer rather than a very small number — `SceneLights` reads
+  // `intensity === 0` to decide whether this light's shadow map is worth
+  // drawing at all.
+  const ajar = Math.max(0, 1 - closure);
+  const open = ajar > 0.02 ? ajar : 0;
   const tuning = readLight();
   return {
     // exactly where the pendant hangs — a light that comes from anywhere else
@@ -161,26 +187,35 @@ export function landingLight(vw, vh, openingTopY, closure) {
 }
 
 /**
- * The whole rig, as data: at most two entries, ever.
+ * The whole rig, as data — and always the same number of entries.
  *
  * This exists so the scene's central constraint is something a test can hold
  * rather than something a reviewer has to count in a scene graph. The component
- * that renders lights maps over this and adds nothing of its own, so "there are
- * never more than two physical sources" is checkable without a browser, a
- * canvas or a GPU — see `lighting.test.js`.
+ * that renders lights maps over this and adds nothing of its own, so the source
+ * budget is checkable without a browser, a canvas or a GPU — see
+ * `lighting.test.js`.
  *
- * @returns {{ kind: 'key' | 'landing', [k: string]: unknown }[]}
+ * The count being *fixed* rather than merely bounded is the load-bearing part.
+ * three.js keys its shader programs on how many lights are in the scene, so a
+ * rig that grows by one when a door opens invalidates every program in the room
+ * on that exact frame and blocks until the driver has linked their replacements.
+ * A light that is present and dark costs a handful of uniforms; a light that
+ * appears costs the whole scene a recompile. See `landingLight`.
+ *
+ * @returns {{ kind: 'shaft' | 'landing', [k: string]: unknown }[]}
  */
 export function lightRig({ vw, vh, lamps, floorPitch, deckTop, closure }) {
   const rig = shaftLights(lamps, cageCentre(vw, vh), lampRangePx(floorPitch))
     .map((light) => ({ kind: /** @type {const} */ ('shaft'), ...light }));
   const landing = landingLight(vw, vh, deckTop, closure);
-  if (landing) rig.push({ kind: /** @type {const} */ ('landing'), id: 'landing', ...landing });
+  rig.push({ kind: /** @type {const} */ ('landing'), id: 'landing', ...landing });
   return rig;
 }
 
 /**
- * The most sources this scene will ever ask for: the fittings, and the room.
+ * How many sources this scene asks for: the fittings, and the room. Not a
+ * ceiling any more — the number it returns is the number the rig always has,
+ * in every state. See `lightRig`.
  *
  * A function rather than a constant now that the count is a knob. It was a
  * constant compared against a rig built from the same constant, which is a test

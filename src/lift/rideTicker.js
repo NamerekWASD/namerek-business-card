@@ -23,11 +23,19 @@ import { liftDuration, liftEase } from './ride.js';
 
 const velocityOf = (ride) => {
   if (!ride) return 0;
+  // A scrubbed trip is a real trip everywhere else in this file, but it is
+  // written by hand — `{ from, to, p }`, from `__shots` or the debug slider —
+  // and it carries no duration, because a trip held still does not have one.
+  // Divided by `undefined` that made the velocity `NaN`, which travelled all
+  // the way out to `stdDeviation="0 NaN"` on the motion-blur filter and had the
+  // browser reject it. A held trip is not moving, so: no duration, no speed.
+  if (!ride.dur) return 0;
   // signed floors/second, sampled off the easing curve rather than off frame
   // deltas so it stays stable when a frame is dropped
   const d = 0.01;
-  const a = liftEase(Math.max(0, ride.p - d));
-  const b = liftEase(Math.min(1, ride.p + d));
+  const dist = Math.abs(ride.to - ride.from);
+  const a = liftEase(Math.max(0, ride.p - d), dist);
+  const b = liftEase(Math.min(1, ride.p + d), dist);
   return ((ride.to - ride.from) * (b - a)) / (2 * d) / (ride.dur / 1000);
 };
 
@@ -48,7 +56,9 @@ export function createRideTicker() {
   const subscribers = new Set();
 
   const snapshotOf = (ride) => ({
-    floorPos: ride ? ride.from + (ride.to - ride.from) * liftEase(ride.p) : deckIndex,
+    floorPos: ride
+      ? ride.from + (ride.to - ride.from) * liftEase(ride.p, Math.abs(ride.to - ride.from))
+      : deckIndex,
     ride,
     velocity: velocityOf(ride),
     moving: !!ride,

@@ -182,7 +182,19 @@ function SceneCanvas({ vw, vh, zIndex, name, dprCeiling = 2, moving = false, onL
         // the origin at *creation*, before any effect has run.
         camera={{ ...cameraProps(vw, vh), rotation: [0, 0, 0], manual: true }}
         style={{ pointerEvents: 'none' }}
-        shadows={"soft"}
+        // `percentage`, not `soft`, and that is a bug fix rather than a
+        // downgrade: `soft` asks for `PCFSoftShadowMap`, which three deprecated
+        // and now silently rewrites to `PCFShadowMap` — inside its own shadow
+        // pass, *every time it runs*, with a `console.warn` each time. R3F
+        // re-applies the requested type whenever this Canvas re-renders, which
+        // during a ride is every frame, so the two sat there arguing: measured
+        // at 74 rewrites per trip. Nothing was ever drawn softly for it.
+        //
+        // Asking for what was actually being used ends the argument, and the
+        // picture is identical to the pixel. The soft edge in this scene comes
+        // from `shadow.radius` in `SceneLights` — three's point-light PCF path
+        // blurs a five-tap disk by it at flat cost — and never came from here.
+        shadows="percentage"
       >
         <CameraRig vw={vw} vh={vh} />
         <Output />

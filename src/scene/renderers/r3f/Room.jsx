@@ -36,9 +36,16 @@ import { roomLight, useLightTuning } from './tuning.js';
  * floors are furnished and unfurnished, and a prop that arrives untagged is a
  * prop lit by the wrong building.
  *
- * @param {{ room: 'shaft' | 'landing', children: React.ReactNode }} props
+ * `visible` is forwarded to the group it wraps, because a room is also the
+ * natural unit of "nobody can see in here": one flag, and the renderer skips
+ * the whole subtree at `projectObject` — the camera pass and all six faces of
+ * every shadow cube alike. Hiding is not unmounting, and that is the point:
+ * what is hidden costs nothing to draw but keeps its geometry, its materials
+ * and their compiled programs, so coming back into view is free.
+ *
+ * @param {{ room: 'shaft' | 'landing', visible?: boolean, children: React.ReactNode }} props
  */
-function Room({ room, children }) {
+function Room({ room, visible = true, children }) {
   const group = useRef(null);
   const { ambient } = roomLight(useLightTuning(), room);
 
@@ -92,7 +99,7 @@ function Room({ room, children }) {
   // mechanism that also reaches the meshes React did not build (the cabinet's
   // GLB, the instanced rivets). A second, parallel way of answering the same
   // question is a second thing to keep in step.
-  return <group ref={group}>{children}</group>;
+  return <group ref={group} visible={visible}>{children}</group>;
 }
 
 export default Room;

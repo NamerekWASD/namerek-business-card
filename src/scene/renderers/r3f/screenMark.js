@@ -25,7 +25,7 @@ import { CanvasTexture, SRGBColorSpace } from 'three';
 import markUrl from '../../../assets/logo-namerek-animated.svg';
 
 /** How many stills the reveal is cut into. */
-export const FRAMES = 30;
+export const FRAMES = 120;
 /** How long the authored animation runs before it settles, in seconds. */
 export const SPAN = 2.05;
 /** Side of the canvas the mark is drawn onto. The mark is square. */

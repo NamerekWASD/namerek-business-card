@@ -238,14 +238,22 @@ function Pendant({ vw, vh, top }) {
  * Memoized, and this is the one that matters most. `BackWall` recomputes and
  * re-renders every ride tick — it has to, `shut` is continuous — but its own
  * body is cheap. This is not: the pendant alone is dozens of meshes, and with
- * the cabinet and the wall props behind it, re-running this function on every
- * tick was re-diffing that whole subtree sixty-odd times a second for a result
- * that is almost always byte-identical (`furnished` flips at most twice a
- * ride, everything else here is fixed for a given floor and viewport). That
- * shows up as the ride hitching hardest exactly when a door is open — the one
- * moment this subtree is actually mounted.
+ * the wall props behind it, re-running this function on every tick was
+ * re-diffing that whole subtree sixty-odd times a second for a result that is
+ * almost always byte-identical. Nothing here depends on where the cage is any
+ * more — `top` is a property of the floor, and the stack above does the
+ * riding — so the memo holds for the whole life of the page.
+ *
+ * **Built once, shown or hidden after that.** Both flags below are `visible`,
+ * never a mount, and that is not the same thing as the old gate giving up: a
+ * hidden subtree is skipped whole by the renderer, in the camera pass and in
+ * every shadow pass, so it costs exactly what an unmounted one did to draw.
+ * What it no longer costs is the *rebuilding* — geometry uploaded again,
+ * materials made again, and the last reference to a compiled shader program
+ * dropped on the way out, so the driver has to link it a second time on the
+ * frames the doors are parting.
  */
-const Landing = memo(function Landing({ vw, vh, top, floor, furnished }) {
+const Landing = memo(function Landing({ vw, vh, top, floor, furnished, shown, doorOpen, doorShut }) {
   const w = vw * DOORWAY_W_FRAC;
   const left = (vw - w) / 2;
   const back = -SHAFT_DEPTH - LANDING_SETBACK;
@@ -269,7 +277,7 @@ const Landing = memo(function Landing({ vw, vh, top, floor, furnished }) {
   return (
     // Its own room, so the shaft's fittings cannot light it through the masonry
     // between them. See  — this is the wall, as far as light is concerned.
-    <Room room="landing">
+    <Room room="landing" visible={shown}>
       {/* the back wall, between the floor and ceiling lines only */}
       <Panel surface={SURFACES.landing} left={roomLeft} top={ceilingY} w={roomW} h={floorY - ceilingY} z={back} />
       {/* the floor and the ceiling, real planes receding from the doorway
@@ -291,14 +299,18 @@ const Landing = memo(function Landing({ vw, vh, top, floor, furnished }) {
         <boxGeometry args={[roomW, 12, 10]} />
         <meshStandardMaterial {...surfaceProps(SURFACES.landing, 1.3)} />
       </mesh>
-      {furnished && <Pendant vw={vw} vh={vh} top={top} />}
-      {furnished && <LandingProps idx={floor} vw={vw} vh={vh} top={top} />}
-      {furnished && (
+      {/* The fittings. Behind a shut door there is nothing to see, so they are
+          not drawn — but they stay built, for the reason in this component's
+          own note. */}
+      <group visible={furnished}>
+        <Pendant vw={vw} vh={vh} top={top} />
+        <LandingProps idx={floor} vw={vw} vh={vh} top={top} />
         <LandingScreen
           floor={floor} side={SCREEN_SIDE[floor]} left={left} w={w}
           floorY={floorY} ceilingY={ceilingY} back={back}
+          doorOpen={doorOpen} doorShut={doorShut}
         />
-      )}
+      </group>
     </Room>
   );
 });
@@ -316,9 +328,9 @@ function BackWall({ vw, vh, pos, floorPx, ticker, ride, deck, intro, warm }) {
   const slots = [here - 2, here - 1, here, here + 1, here + 2];
 
   // The whole stack of floors rides on one group, written straight to the
-  // object every ride frame. `pos` still decides which floors are built and
-  // which are furnished — that is structural, and does not need to be fresh
-  // sixty times a second.
+  // object every ride frame. `pos` still decides which stretch of masonry is
+  // built and which landings are lit — that is structural, and does not need to
+  // be fresh sixty times a second.
   const stack = useRideMotion(ticker, (group, floorPos) => {
     group.position.y = worldY(floorPos * floorPx);
   }, pos, [floorPx]);
@@ -331,34 +343,51 @@ function BackWall({ vw, vh, pos, floorPx, ticker, ride, deck, intro, warm }) {
       <Panel surface={SURFACES.backWall} left={left + w} top={-overscan} w={vw - left - w} h={vh + overscan * 2} z={-SHAFT_DEPTH} />
 
       <group ref={stack}>
+        {/* The masonry: a window of five floors around wherever the cage is,
+            because the shaft is unbounded and the wall has to be built as it
+            arrives. Every panel here shares one material with the wall above
+            and below it, so sliding this window compiles nothing. */}
         {slots.map((f) => {
           const top = openingTop(vh, floorPx, f);
           const isDeck = f >= 0 && f < DECKS.length;
-          // A corridor is only ever seen through an open door, so a shut one is
-          // a wall and everything behind it is work done for nobody.
-          const shut = ride ? doorClosureAt(f, ride, deck) : Math.max(doorClosureAt(f, null, deck), f === deck ? intro : 1);
           return (
             <group key={f}>
               <Panel surface={SURFACES.backWall} left={left} top={top + h} w={w} h={floorPx - h} z={-SHAFT_DEPTH} />
-              {isDeck
-                ? (
-                  <Landing
-                    vw={vw} vh={vh} top={top} floor={f}
-                    // The shut door normally means nobody is looking, so the
-                    // landing behind it stays unbuilt. But that gate is exactly
-                    // why the very first door-opening used to be a slideshow:
-                    // the cabinet, the pendant and everything they are made of
-                    // mounted — and compiled their shaders — for the first time
-                    // on the same frames the door was already swinging open.
-                    // `warm` forces this one build to happen a beat earlier,
-                    // behind a door that is still fully shut, so there is
-                    // nothing left to compile once there is something to see.
-                    furnished={Math.abs(f - pos) < 1.25 && (shut < 0.985 || (warm && f === deck))}
-                  />
-                )
-                /* dead shaft above the top floor and below the bottom one */
-                : <Panel surface={SURFACES.backWall} left={left} top={top} w={w} h={h} z={-SHAFT_DEPTH} />}
+              {/* dead shaft above the top floor and below the bottom one */}
+              {!isDeck && <Panel surface={SURFACES.backWall} left={left} top={top} w={w} h={h} z={-SHAFT_DEPTH} />}
             </group>
+          );
+        })}
+
+        {/* The landings, all of them, for the life of the page — hidden, not
+            unbuilt. There are four, they never move relative to one another,
+            and the alternative is the door-opening hitch: a room's worth of
+            geometry uploaded and a shader program relinked on the exact frames
+            the leaves are parting. Hidden costs nothing to draw; unbuilt costs
+            everything to come back. */}
+        {DECKS.map((_, f) => {
+          const top = openingTop(vh, floorPx, f);
+          // A corridor is only ever seen through an open door, so a shut one is
+          // a wall and everything behind it is drawn for nobody.
+          const shut = ride
+            ? doorClosureAt(f, ride, deck)
+            : Math.max(doorClosureAt(f, null, deck), f === deck ? intro : 1);
+          return (
+            <Landing
+              key={f}
+              vw={vw} vh={vh} top={top} floor={f}
+              // the room itself, once it is near enough to be seen into at all
+              shown={warm || Math.abs(f - pos) < 2.5}
+              // and its fittings, once there is a door open on them
+              furnished={warm || shut < 0.985}
+              // real closure, unlike `furnished` above never forced by `warm` —
+              // a screen mark keyed off these only ever starts once the leaves
+              // have actually finished parting, never mid-swing and never
+              // during the boot warm-up, and resets once they have fully shut
+              // again so the next arrival gets the reveal too, not a static mark
+              doorOpen={shut <= 0}
+              doorShut={shut >= 1}
+            />
           );
         })}
       </group>
@@ -486,7 +515,15 @@ function ShaftScene({ vw, vh, pos, floorPx, lamps, ticker, ride, deck, intro, wa
       <SceneLights
         vw={vw} vh={vh} lamps={lamps} floorPx={floorPx} dim={dim}
         deckTop={openingTop(vh, floorPx, open.floor) + pos * floorPx}
-        closure={Math.max(open.closure, open.floor === deck ? intro : 0)}
+        // Held wide open while the boot screen is up. Nothing is being lit —
+        // `dim` is nought under the screen — but a shadow map is drawn from the
+        // state the rig is *in*, and a landing light that is switched off has
+        // no shadow pass at all, so its depth shaders would go uncompiled until
+        // the frame a door first opened on them. That is the whole of `warm`:
+        // put the scene in the most demanding state it will ever be in while
+        // there is a black rectangle over it, and let the boot compile find
+        // everything.
+        closure={warm ? 0 : Math.max(open.closure, open.floor === deck ? intro : 0)}
       />
       <Room room="shaft">
         <Walls vw={vw} vh={vh} pos={pos} floorPx={floorPx} ticker={ticker} />
