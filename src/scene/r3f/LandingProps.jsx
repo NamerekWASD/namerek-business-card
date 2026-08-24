@@ -1,8 +1,8 @@
-import { useMemo } from 'react';
-import { QuadraticBezierCurve3, Vector3 } from 'three';
+import { useMemo, useRef } from 'react';
+import { CatmullRomCurve3, QuadraticBezierCurve3, Vector3 } from 'three';
 import { CAM_PERSPECTIVE, SHAFT_DEPTH } from '../model/camera.js';
 import {
-  DOORWAY_W_FRAC, LANDING_SETBACK, landingFloorY, pxPerM,
+  DOORWAY_W_FRAC, LANDING_SETBACK, landingCeilingY, landingFloorY, pxPerM,
 } from '../model/geometry.js';
 import { SURFACES } from '../model/materials.js';
 import { surfaceProps } from '../renderers/r3f/surfaceMaterial.js';
@@ -11,6 +11,7 @@ import { useLightTuning } from '../renderers/r3f/tuning.js';
 import {
   benchTop, cratePanel, patchBayPlate, postBoxCard, postBoxSkin,
 } from '../renderers/r3f/propArt.js';
+import usePilotLamps, { LAMP_DARK } from '../renderers/r3f/pilotLamps.js';
 import { SCREEN_SIDE } from '../../lift/decks.js';
 
 // One identifying object per landing, so a floor is somewhere rather than a
@@ -141,7 +142,7 @@ const artwork = (map, ambient, weight = FACE.side) => (map ? {
 // four tenths of a metre, a smear of specks at the far end of a corridor.
 //
 // What it needed was not a different idea but the room to state the one it has,
-// and three things to stop it reading as a sticker on the wall:
+// and four things to stop it reading as a sticker on the wall:
 //
 // *Size.* A distribution panel of this period is a cast case the better part of
 // a metre tall, hung at hand height because someone has to work at it.
@@ -150,21 +151,32 @@ const artwork = (map, ambient, weight = FACE.side) => (map ? {
 // hinged door swung back gives it one, throws a shadow across the wall behind
 // it, and says the thing is in use rather than sealed.
 //
-// *Conduit.* It runs down to the skirting and up to the cornice. This is the
-// detail that makes it part of the building instead of an object placed against
-// it — and a panel wired into the fabric of the shaft is a better statement of
-// the idea than the jack field alone ever was.
+// *Its supply, arriving somewhere.* A cable rising out of a gland on the top of
+// the case and running away under the cornice is what makes the panel part of
+// the building rather than an object placed against it.
+//
+// *Lamps that are not all doing the same thing.* See `usePilotLamps`.
 //
 // It is also, measured, the best-lit spot in the room: hung at 1.5 m on the
 // centre gutter it faces the pendant almost square-on, where a prop on the
 // floor catches it at a graze.
 
-const JACK_ROWS = [0.23, 0.52, 0.81]; // down the plate, matching the bake's strips
-const JACK_COLS = [0, 1, 2, 3, 4, 5].map((c) => 0.07 + (0.86 * (c + 0.5)) / 6);
+const JACK_ROWS = [0.185, 0.385, 0.585]; // down the plate, under the bake's strips
+const JACK_COLS = [0, 1, 2, 3, 4, 5].map((c) => 0.075 + (0.85 * (c + 0.5)) / 6);
 // …and the ones that are bridged. Without the cords it is a grid of holes.
 const CORDS = [[0, 1, 2, 4], [1, 0, 0, 5], [2, 2, 1, 3]]; // [rowA, colA, rowB, colB]
+// Which of the six lamps has a cord in its circuit, which is what decides
+// whether it sits lit and drops out or sits dark and blips — see
+// `usePilotLamps`. Taken from `CORDS` rather than written out again, so a
+// patched circuit cannot end up with an idle lamp over it.
+const PATCHED = [0, 1, 2, 3, 4, 5].map(
+  (c) => CORDS.some(([, ca, , cb]) => ca === c || cb === c),
+);
+// where the lamps sit on the plate, matching the sockets the bake paints
+const LAMP_ROW = 0.7;
+const LAMP_COLS = [0, 1, 2, 3, 4, 5].map((c) => 0.115 + (c * 0.77) / 5);
 
-function PatchBay({ M, x, y, z, ambient }) {
+function PatchBay({ M, x, y, z, ambient, live }) {
   const caseW = 0.78 * M;
   const caseH = 0.98 * M;
   const caseD = 0.16 * M;
@@ -177,11 +189,9 @@ function PatchBay({ M, x, y, z, ambient }) {
   const steel = surfaceProps(SURFACES.steel, 1);
   const brass = { color: '#8a6326', roughness: 0.42, metalness: 0.72 };
 
-  /** A jack's position on the plate, in the case's own local frame. */
-  const jackAt = (row, col) => [
-    (JACK_COLS[col] - 0.5) * plateW,
-    (0.5 - JACK_ROWS[row]) * plateH,
-  ];
+  /** A point on the plate, in the case's own local frame. */
+  const onPlate = (u, v) => [(u - 0.5) * plateW, (0.5 - v) * plateH];
+  const jackAt = (row, col) => onPlate(JACK_COLS[col], JACK_ROWS[row]);
 
   const cords = useMemo(() => CORDS.map(([ra, ca, rb, cb]) => {
     const [ax, ay] = jackAt(ra, ca);
@@ -196,6 +206,12 @@ function PatchBay({ M, x, y, z, ambient }) {
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [M, plateW, plateH]);
+
+  // The live board. The materials are collected by ref and written to directly,
+  // never through state — see `usePilotLamps` for why, and for why this costs
+  // the scene almost nothing despite running while nobody is riding.
+  const lampMaterials = useRef([]);
+  usePilotLamps(lampMaterials, PATCHED, live);
 
   // the case's own front plane, which everything inside it is measured from
   const front = caseD / 2;
@@ -222,6 +238,27 @@ function PatchBay({ M, x, y, z, ambient }) {
           <meshStandardMaterial {...steel} />
         </mesh>
       ))}
+
+      {/* ── the gland ────────────────────────────────────────────────────────
+          Where the supply enters, on the top of the case. It is three turned
+          steps and a lock nut, and it is doing more work than its size
+          suggests: it is the thing that makes the cable above *belong to this
+          box*. A pipe that merely passes near a panel is a pipe passing near a
+          panel, which is exactly how the old conduit read — it ran floor to
+          ceiling straight through the case and touched nothing. */}
+      <group position={[GLAND_X * caseW, caseH / 2, 0]}>
+        {[[0.075, 0.03, 0], [0.055, 0.035, 0.032], [0.042, 0.05, 0.062]].map(([r, hh, oy]) => (
+          <mesh key={r} position={[0, (oy + hh / 2) * M, 0]} castShadow receiveShadow>
+            <cylinderGeometry args={[r * M, r * M * 1.08, hh * M, 12]} />
+            <meshStandardMaterial {...surfaceProps(SURFACES.iron, 1.1)} />
+          </mesh>
+        ))}
+        {/* the lock nut: a hexagon, because that is what says "threaded" */}
+        <mesh position={[0, 0.048 * M, 0]} castShadow receiveShadow>
+          <cylinderGeometry args={[0.062 * M, 0.062 * M, 0.022 * M, 6]} />
+          <meshStandardMaterial {...steel} />
+        </mesh>
+      </group>
 
       {/* the plate, recessed inside the bezel */}
       <mesh position={[0, 0, front + 0.058 * M]} receiveShadow>
@@ -268,8 +305,61 @@ function PatchBay({ M, x, y, z, ambient }) {
         }))}
       </group>
 
-      {/* the door, hinged on the left and swung back against the wall */}
-      <group position={[-caseW / 2, 0, front]} rotation={[0, 1.98, 0]}>
+      {/* ── the row of pilot lamps ───────────────────────────────────────────
+          A bead of glass in a brass bezel, one per circuit. Each is its own
+          material because each is driven separately; sharing one would make the
+          whole row blink in step, which is the single thing that would give the
+          game away. */}
+      <group position={[0, 0, front + 0.062 * M]}>
+        {LAMP_COLS.map((u, i) => {
+          const [lx, ly] = onPlate(u, LAMP_ROW);
+          return (
+            <group key={u} position={[lx, ly, 0]}>
+              <mesh rotation={[Math.PI / 2, 0, 0]} castShadow>
+                <cylinderGeometry args={[0.021 * M, 0.023 * M, 0.016 * M, 12]} />
+                <meshStandardMaterial {...brass} />
+              </mesh>
+              <mesh position={[0, 0, 0.011 * M]}>
+                <sphereGeometry args={[0.016 * M, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
+                <meshStandardMaterial
+                  ref={(node) => { lampMaterials.current[i] = node; }}
+                  userData={{ selfLit: true }}
+                  color="#2e1c06"
+                  emissive={PATCHED[i] ? '#ffb454' : '#ff8f3c'}
+                  emissiveIntensity={LAMP_DARK}
+                  roughness={0.3}
+                />
+              </mesh>
+            </group>
+          );
+        })}
+      </group>
+
+      {/* the mains pilot, above the field and steady — the one lamp on the
+          board that says the panel has power rather than traffic */}
+      <mesh position={[caseW * 0.36, caseH * 0.42, front + 0.062 * M]} rotation={[Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[0.019 * M, 0.019 * M, 0.02 * M, 10]} />
+        <meshStandardMaterial {...brass} />
+      </mesh>
+      <mesh position={[caseW * 0.36, caseH * 0.42, front + 0.074 * M]}>
+        <sphereGeometry args={[0.016 * M, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
+        <meshStandardMaterial
+          userData={{ selfLit: true }}
+          color="#3a2408"
+          emissive="#ffb454"
+          emissiveIntensity={3}
+        />
+      </mesh>
+
+      {/* ── the door ─────────────────────────────────────────────────────────
+          Hinged on the left and standing open a little past square.
+          It used to be swung 113°, and at that angle it went *into the wall*:
+          a 0.78 m leaf turning about a hinge 0.08 m proud of the plaster
+          reaches 0.72 m back and 0.31 m across, so all that emerged was its
+          own edge — a pair of unexplained vertical stripes beside the case,
+          which is exactly what Mykolai circled in red. A door has to come out
+          into the room to read as a door. */}
+      <group position={[-caseW / 2, 0, front]} rotation={[0, -1.78, 0]}>
         <mesh position={[caseW / 2, 0, -0.012 * M]} castShadow receiveShadow>
           <boxGeometry args={[caseW, caseH, 0.024 * M]} />
           <meshStandardMaterial {...surfaceProps(SURFACES.iron, 1.05)} />
@@ -284,53 +374,145 @@ function PatchBay({ M, x, y, z, ambient }) {
           <meshStandardMaterial {...steel} />
         </mesh>
       </group>
-
-      {/* the pilot lamp: a dead panel is not a landmark */}
-      <mesh position={[caseW * 0.36, caseH * 0.42, front + 0.062 * M]} rotation={[Math.PI / 2, 0, 0]}>
-        <cylinderGeometry args={[0.019 * M, 0.019 * M, 0.02 * M, 10]} />
-        <meshStandardMaterial {...brass} />
-      </mesh>
-      <mesh position={[caseW * 0.36, caseH * 0.42, front + 0.074 * M]}>
-        <sphereGeometry args={[0.016 * M, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
-        <meshStandardMaterial
-          userData={{ selfLit: true }}
-          color="#3a2408"
-          emissive="#ffb454"
-          emissiveIntensity={3}
-        />
-      </mesh>
+      {/* the hinges themselves, on the case rather than on the leaf — a door
+          that pivots about nothing is a door floating beside a box */}
+      {[-1, 1].map((s) => (
+        <mesh key={s} position={[-caseW / 2, s * caseH * 0.32, front]} rotation={[0, 0, 0]} castShadow>
+          <cylinderGeometry args={[0.018 * M, 0.018 * M, 0.1 * M, 8]} />
+          <meshStandardMaterial {...steel} />
+        </mesh>
+      ))}
     </group>
   );
 }
 
+/** Where the gland sits on the top of the case, as a fraction of its width. */
+const GLAND_X = 0.24;
+
 /**
- * The conduit the patch bay is wired through, running down to the skirting and
- * up into the cornice, with saddle clips at intervals.
+ * A scene x that projects clear off the side of the doorway, at this depth.
  *
- * Separate from the panel because it belongs to the *building* rather than to
- * the fitting: it is drawn against the wall plane, not against the case that
- * stands proud of it.
+ * Needed because the landing sits `LANDING_SETBACK` further from the camera
+ * than the opening it is seen through, so scene coordinates out there are not
+ * screen coordinates — running the cable to `vw * 0.99` put its cut end
+ * *exactly* on the pier's edge, which is the one place a run must not stop. It
+ * has to disappear behind the masonry, the way the corridor itself does.
+ *
+ * @param {number} vw @param {number} z
  */
-function Conduit({ M, x, z, fromY, toY }) {
-  const r = 0.022 * M;
-  const run = Math.abs(toY - fromY);
-  const clips = Math.max(1, Math.round(run / (0.55 * M)));
+const offRoom = (vw, z) => vw / 2 + vw * 0.58 * ((CAM_PERSPECTIVE - z) / CAM_PERSPECTIVE);
+
+/**
+ * The cable the patch bay is fed by: up out of the gland, and away to the right
+ * under the cornice.
+ *
+ * ── the route, and why it is this one ───────────────────────────────────────
+ * The old conduit ran floor to ceiling in two straight pieces with the case
+ * sitting in front of the middle of it, so it arrived from under the skirting
+ * and left into the plaster having touched nothing on the way. Mykolai read it
+ * as "a black stripe with white dots" and said so — and he is right that it is
+ * not a cable, because nothing about it says where it comes from or what it is
+ * for. In a dieselpunk building services are *on* the fabric, not buried in it.
+ *
+ * So: it leaves the top of the case, rises to just under the cornice, turns
+ * right on a radius rather than a mitre — a cable of this gauge cannot be bent
+ * square and one drawn square reads as a diagram — and runs off along the wall
+ * past the pier, which is where the corridor continues.
+ *
+ * Down is deliberately nothing. A single run that starts at the thing it feeds
+ * and leaves in one direction is legible; two runs leaving a box in opposite
+ * directions is a pipe the box happens to be near.
+ *
+ * ── and the saddles ─────────────────────────────────────────────────────────
+ * The clips were the other half of the complaint: white dots at intervals whose
+ * purpose was not obvious. They were a flat box behind the pipe in
+ * `SURFACES.steel`, the one cold blue-grey in a catalogue that is otherwise
+ * warm, so they read as specks of light rather than as ironmongery. They are
+ * saddles now — a band that goes *round* the cable with a foot either side and
+ * a bolt through each foot, in the same iron as everything else on this wall.
+ * A band around a pipe is self-explanatory in a way a rectangle behind one is
+ * not.
+ */
+function WallCable({ M, from, runY, toX, radius, z }) {
+  const r = 0.036 * M;
+
+  const { curve, saddles } = useMemo(() => {
+    const bend = Math.min(radius, Math.abs(runY - from[1]), Math.abs(toX - from[0]));
+    const pts = [];
+    // the rise
+    pts.push(new Vector3(from[0], worldY(from[1]), z));
+    pts.push(new Vector3(from[0], worldY(runY + bend), z));
+    // the bend, as a real quarter arc sampled rather than a bezier guessed at —
+    // a constant-radius corner is what a cable pulled round a former looks like
+    const steps = 8;
+    for (let i = 1; i < steps; i += 1) {
+      const a = (i / steps) * (Math.PI / 2);
+      pts.push(new Vector3(
+        from[0] + bend * (1 - Math.cos(a)),
+        worldY(runY + bend * (1 - Math.sin(a))),
+        z,
+      ));
+    }
+    // and the run
+    pts.push(new Vector3(from[0] + bend, worldY(runY), z));
+    pts.push(new Vector3(toX, worldY(runY), z));
+    const c = new CatmullRomCurve3(pts, false, 'catmullrom', 0.02);
+
+    // Saddles at a fixed spacing along the cable's own length rather than along
+    // either axis, so the run and the rise are clipped at the same pitch and
+    // none of them lands on the bend.
+    const length = c.getLength();
+    const count = Math.max(2, Math.round(length / (0.62 * M)));
+    const at = [];
+    for (let i = 0; i < count; i += 1) {
+      const t = (i + 0.5) / count;
+      const p = c.getPointAt(t);
+      const tangent = c.getTangentAt(t);
+      at.push({ p, roll: Math.atan2(tangent.y, tangent.x) });
+    }
+    return { curve: c, saddles: at };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [M, from[0], from[1], toX, runY, radius, z]);
+
+  // Its own material rather than the catalogue's iron, and this is the whole of
+  // "make it read as a cable". A run under the cornice is the furthest point in
+  // the room from the pendant, so at the iron's albedo it comes back as a black
+  // stripe with the saddles glinting on it — which is precisely the thing being
+  // fixed, just moved up a wall. What tells a cylinder from a stripe is the
+  // highlight running down its length, and that needs a surface smooth enough
+  // to have one: lead sheathing, half rough, half metal. The saddles are pitched
+  // brighter still so they read as separate ironmongery clamped over it.
+  const sheath = { color: '#4a4136', roughness: 0.44, metalness: 0.6 };
+  const strap = { color: '#6b5f4c', roughness: 0.5, metalness: 0.55 };
+
   return (
-    <group position={[x, worldY((fromY + toY) / 2), z]}>
+    <group>
       <mesh castShadow receiveShadow>
-        <cylinderGeometry args={[r, r, run, 10]} />
-        <meshStandardMaterial {...surfaceProps(SURFACES.iron, 0.95)} />
+        <tubeGeometry args={[curve, 110, r, 16, false]} />
+        <meshStandardMaterial {...sheath} />
       </mesh>
-      {Array.from({ length: clips }).map((_, i) => (
-        <mesh
-          // eslint-disable-next-line react/no-array-index-key
-          key={i}
-          position={[0, run * ((i + 0.5) / clips - 0.5), -r * 0.7]}
-          castShadow
-        >
-          <boxGeometry args={[r * 3.4, r * 0.9, r * 1.6]} />
-          <meshStandardMaterial {...surfaceProps(SURFACES.steel, 1.1)} />
-        </mesh>
+      {saddles.map(({ p, roll }, i) => (
+        // eslint-disable-next-line react/no-array-index-key
+        <group key={i} position={[p.x, p.y, p.z]} rotation={[0, 0, roll - Math.PI / 2]}>
+          {/* the band round the cable */}
+          <mesh rotation={[Math.PI / 2, 0, 0]} castShadow>
+            <torusGeometry args={[r * 1.12, r * 0.2, 6, 14]} />
+            <meshStandardMaterial {...strap} />
+          </mesh>
+          {/* its two feet, flat to the wall, with a bolt through each */}
+          {[-1, 1].map((s) => (
+            <group key={s} position={[s * r * 1.22, 0, -r * 0.62]}>
+              <mesh castShadow>
+                <boxGeometry args={[r * 0.62, r * 0.55, r * 1.5]} />
+                <meshStandardMaterial {...strap} />
+              </mesh>
+              <mesh position={[0, 0, r * 0.1]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+                <cylinderGeometry args={[r * 0.17, r * 0.17, r * 0.5, 6]} />
+                <meshStandardMaterial color="#7d7159" roughness={0.42} metalness={0.6} />
+              </mesh>
+            </group>
+          ))}
+        </group>
       ))}
     </group>
   );
@@ -705,7 +887,7 @@ function PostBox({ M, x, floorY, z, ambient, yaw }) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-function LandingProps({ idx, vw, vh, top }) {
+function LandingProps({ idx, vw, vh, top, live = true }) {
   const M = pxPerM(vh);
   const floorY = landingFloorY(vh, top);
   const back = -SHAFT_DEPTH - LANDING_SETBACK;
@@ -714,6 +896,9 @@ function LandingProps({ idx, vw, vh, top }) {
   // furniture goes.
   const content = SCREEN_SIDE[idx] === 'left' ? 'right' : 'left';
   const { landingAmbient: ambient } = useLightTuning();
+  const ceilingY = landingCeilingY(vh, top);
+  // where the patch bay hangs, which its cable has to leave from
+  const bayX = vw / 2 + 0.1 * M * (content === 'right' ? -1 : 1);
   // A prop standing under the column is turned back toward the middle of the
   // room, which is where both the pendant and the camera are: it puts a lit
   // face and a dark one on the same object, and it is the difference between a
@@ -734,11 +919,23 @@ function LandingProps({ idx, vw, vh, top }) {
               stands in the gutter between the column and the wall screen, at
               the height someone would actually work at it. */}
           <PatchBay
-            M={M} x={vw / 2 + 0.1 * M * (content === 'right' ? -1 : 1)}
-            y={floorY - 1.54 * M} z={back + 0.05 * M} ambient={ambient}
+            M={M} x={bayX} y={floorY - 1.54 * M} z={back + 0.05 * M}
+            ambient={ambient} live={live}
           />
-          <Conduit M={M} x={vw / 2 + (content === 'right' ? -0.1 : 0.1) * M + 0.31 * M} z={back + 0.03 * M} fromY={floorY - 2.03 * M} toY={floorY - 3.0 * M} />
-          <Conduit M={M} x={vw / 2 + (content === 'right' ? -0.1 : 0.1) * M + 0.31 * M} z={back + 0.03 * M} fromY={floorY - 1.05 * M} toY={floorY - 0.04 * M} />
+          {/* Up out of the gland and away to the right under the cornice, and
+              nothing at all downward — see `WallCable`. It stands a little
+              proud of the plaster on its saddles, and it runs past the pier
+              rather than stopping at the edge of what can be seen: a corridor
+              carries on, and a cable that ends in mid-air at the frame edge is
+              the same fault as one that vanished into the skirting. */}
+          <WallCable
+            M={M}
+            from={[bayX + GLAND_X * 0.78 * M, floorY - 2.09 * M]}
+            runY={ceilingY + 0.22 * M}
+            toX={offRoom(vw, back + 0.05 * M)}
+            radius={0.24 * M}
+            z={back + 0.05 * M}
+          />
         </>
       )}
       {idx === 1 && (

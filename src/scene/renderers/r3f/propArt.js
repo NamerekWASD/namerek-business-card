@@ -408,63 +408,203 @@ export const cratePanel = (boards = 5, stencilled = false) => bake(
 );
 
 // ── the patch bay ────────────────────────────────────────────────────────────
-// The one prop that is about the site's own subject: a board of jacks with two
-// of them bridged is, underneath the brass, a switched network. That idea was
-// always there and always illegible, because the board was 132 scene pixels
+// The one prop that is about the site's own subject: a board of jacks with
+// three of them bridged is, underneath the brass, a switched network. That idea
+// was always there and always illegible, because the board was 132 scene pixels
 // across — a smear of specks at the far end of a corridor. What it needed was
 // not a different idea but the size to state the one it has.
 //
-// So it is a real distribution panel now: a cast case with a stepped bezel (the
+// So it is a real distribution panel: a cast case with a stepped bezel (the
 // period's grammar is the step, per the styling system), a hinged door standing
-// open, and the jack field inside it. This bakes the field's own backplate —
-// the engraved designation strip and the ruled rows the jacks are drilled
-// through. The jacks and the cords are geometry: a brass eyelet catches the
+// open, and the jack field inside it. This bakes the field's own backplate. The
+// jacks, the cords and the pilot lamps are geometry: a brass eyelet catches the
 // light on its own and a painted dot never will, which is the same call the
 // gate-versus-bolts note in `patterns.js` makes.
+//
+// ── drawn to the frame reference ────────────────────────────────────────────
+// Mykolai's reference for the wall screen's frame is the style note for this
+// panel too — he said so directly. What that image does, and what is copied
+// here, is three things and no more: **dark aged cast metal** as the field,
+// **brass** as the only bright accent and only ever on a raised member, and
+// **engraved cream strips** carrying the legend. Everything else in it is wear.
+// There is no fourth colour, and no gradient that is not a form.
+//
+// The lettering stays illegible on purpose, and that is a rule in this file
+// rather than a shortcut: turning readable text into a texture is how a scene
+// loses its typography — the same reason the landing's own signage stays out of
+// these bakes. What is here is the *look* of a struck designation strip at two
+// metres.
 
-export const patchBayPlate = () => bake('patchbay:plate', 320, 384, (ctx, w, h) => {
+// the panel's three tones, and there are only three
+const CAST = '#241f18';   // the crackle-finished field
+const BRASS = '#8a6a2e';  // raised members only
+const LEGEND = '#8b8168'; // the engraved strips
+
+export const patchBayPlate = () => bake('patchbay:plate', 384, 448, (ctx, w, h) => {
   const rnd = seeded(0x9ac);
-  // dark crackle-finish panel enamel, the standard for instrument work of the
-  // period and the reason the brass reads at all
-  ctx.fillStyle = '#241f18';
+
+  // ── the field ──────────────────────────────────────────────────────────────
+  // Crackle-finish panel enamel, the standard for instrument work of the period
+  // and the reason the brass reads at all.
+  ctx.fillStyle = CAST;
   ctx.fillRect(0, 0, w, h);
-  for (let i = 0; i < 2600; i += 1) {
+  for (let i = 0; i < 3400; i += 1) {
     ctx.globalAlpha = 0.05 + rnd() * 0.14;
     ctx.fillStyle = rnd() > 0.5 ? '#3a3227' : '#12100c';
     ctx.beginPath();
     ctx.arc(rnd() * w, rnd() * h, 0.6 + rnd() * 2.6, 0, Math.PI * 2);
     ctx.fill();
   }
+  // and the crazing itself: hairlines that wander and stop, which is what tells
+  // crackle enamel from noise
+  ctx.globalAlpha = 0.45;
+  ctx.strokeStyle = '#0d0b08';
+  ctx.lineWidth = 0.7;
+  for (let i = 0; i < 90; i += 1) {
+    let x = rnd() * w;
+    let y = rnd() * h;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    for (let k = 0; k < 3 + Math.floor(rnd() * 4); k += 1) {
+      x += (rnd() - 0.5) * 34;
+      y += (rnd() - 0.5) * 34;
+      ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
   ctx.globalAlpha = 1;
 
-  // the designation strips: a cream field between the rows of jacks, engraved
-  // rather than printed, with the numbering struck into it
-  const rows = 3;
-  for (let r = 0; r < rows; r += 1) {
-    const y = h * (0.145 + r * 0.29);
-    ctx.fillStyle = '#8b8168';
-    ctx.fillRect(w * 0.07, y, w * 0.86, 15);
-    ctx.globalAlpha = 0.35;
+  // ── the brass bead ─────────────────────────────────────────────────────────
+  // One raised line round the field, with its own shadow inside it. It is the
+  // only thing on the plate allowed to be bright, and it is what makes
+  // everything within it read as recessed.
+  ctx.globalAlpha = 0.5;
+  ctx.strokeStyle = BRASS;
+  ctx.lineWidth = 3;
+  ctx.strokeRect(10, 10, w - 20, h - 20);
+  ctx.globalAlpha = 0.3;
+  ctx.strokeStyle = '#0e0c08';
+  ctx.lineWidth = 1.2;
+  ctx.strokeRect(13, 13, w - 26, h - 26);
+  ctx.globalAlpha = 1;
+
+  // ── the designation strips ─────────────────────────────────────────────────
+  // A cream field between the rows of jacks, engraved rather than printed, with
+  // the numbering struck into it. Each sits in a shallow rebate: a dark line
+  // above it and a lighter one below, and that pair is the whole of why a strip
+  // reads as let into the panel rather than stuck onto it.
+  for (let r = 0; r < 3; r += 1) {
+    const y = h * (0.1 + r * 0.2);
+    const sx = w * 0.075;
+    const sw = w * 0.85;
+    ctx.fillStyle = '#0c0a07';
+    ctx.fillRect(sx - 2, y - 2, sw + 4, 21);
+    ctx.fillStyle = LEGEND;
+    ctx.fillRect(sx, y, sw, 17);
+    // the strip's own age: celluloid that has yellowed unevenly
+    for (let i = 0; i < 70; i += 1) {
+      ctx.globalAlpha = 0.05 + rnd() * 0.12;
+      ctx.fillStyle = rnd() > 0.5 ? '#5b533f' : '#a49a7e';
+      ctx.beginPath();
+      ctx.arc(sx + rnd() * sw, y + rnd() * 17, 1 + rnd() * 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 0.3;
     ctx.fillStyle = '#514a3c';
-    ctx.fillRect(w * 0.07, y + 11, w * 0.86, 4);
+    ctx.fillRect(sx, y + 12, sw, 5);
     ctx.globalAlpha = 1;
     // the divisions, and a struck mark in each
     ctx.fillStyle = '#2a2318';
-    for (let c = 1; c < 6; c += 1) ctx.fillRect(w * 0.07 + (w * 0.86 * c) / 6, y, 1.2, 15);
-    ctx.globalAlpha = 0.75;
+    for (let c = 1; c < 6; c += 1) ctx.fillRect(sx + (sw * c) / 6, y, 1.3, 17);
+    ctx.globalAlpha = 0.78;
     for (let c = 0; c < 6; c += 1) {
-      const cx = w * 0.07 + (w * 0.86 * (c + 0.5)) / 6;
-      ctx.fillRect(cx - 7, y + 4, 6 + rnd() * 7, 4);
+      const cx = sx + (sw * (c + 0.5)) / 6;
+      ctx.fillRect(cx - 8, y + 5, 7 + rnd() * 8, 4);
     }
     ctx.globalAlpha = 1;
   }
 
-  // the corner fixings holding the plate into its case
-  for (const [fx, fy] of [[14, 14], [w - 14, 14], [14, h - 14], [w - 14, h - 14]]) {
+  // ── the mimic ──────────────────────────────────────────────────────────────
+  // The lower part of the panel carries an engraved schematic of what the board
+  // switches: nodes, and the links between them. It is the one place in this
+  // scene where the site's own subject is drawn rather than implied, and it is
+  // engraved rather than printed because everything else on a cast panel of
+  // this date is.
+  const my = h * 0.78;
+  const mh = h * 0.16;
+  const mx = w * 0.1;
+  const mw = w * 0.8;
+  ctx.globalAlpha = 0.5;
+  ctx.strokeStyle = '#0d0b08';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(mx, my, mw, mh);
+  ctx.globalAlpha = 0.2;
+  ctx.strokeStyle = '#7d7156';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(mx + 1.5, my + 1.5, mw - 3, mh - 3);
+  ctx.globalAlpha = 1;
+
+  const nodes = [
+    [0.12, 0.28], [0.36, 0.72], [0.5, 0.18], [0.68, 0.64], [0.88, 0.34],
+  ].map(([nx, ny]) => [mx + nx * mw, my + ny * mh]);
+  // An engraved line is a dark groove with a lit lower lip. Two strokes, one
+  // pixel apart — the same trick every struck mark on this panel uses, and the
+  // reason the schematic reads as cut into the metal rather than drawn on it.
+  for (const [a, b] of [[0, 1], [1, 2], [2, 3], [3, 4], [1, 3], [0, 2]]) {
+    ctx.globalAlpha = 0.7;
+    ctx.strokeStyle = '#0d0b08';
+    ctx.lineWidth = 1.7;
+    ctx.beginPath();
+    ctx.moveTo(nodes[a][0], nodes[a][1]);
+    ctx.lineTo(nodes[b][0], nodes[b][1]);
+    ctx.stroke();
+    ctx.globalAlpha = 0.42;
+    ctx.strokeStyle = '#9b9070';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(nodes[a][0], nodes[a][1] + 1.5);
+    ctx.lineTo(nodes[b][0], nodes[b][1] + 1.5);
+    ctx.stroke();
+  }
+  for (const [nx, ny] of nodes) {
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle = '#0d0b08';
+    ctx.beginPath(); ctx.arc(nx, ny, 4.2, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 0.8;
+    ctx.fillStyle = BRASS;
+    ctx.beginPath(); ctx.arc(nx, ny, 2.9, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // ── the lamp sockets ───────────────────────────────────────────────────────
+  // Six bezelled holes in a row, and nothing lit painted into them. The lamps
+  // themselves are geometry with a live emissive (see `usePilotLamps`), so what
+  // belongs here is only the hole each one sits in — a dark socket with a brass
+  // ring and the scorch a hot bulb leaves on the enamel around it. Paint a glow
+  // in as well and every lamp on the board would be permanently half-on.
+  for (let c = 0; c < 6; c += 1) {
+    const cx = w * (0.115 + (c * 0.77) / 5);
+    const cy = h * 0.7;
+    const scorch = ctx.createRadialGradient(cx, cy, 0, cx, cy, 21);
+    scorch.addColorStop(0, 'rgba(10,8,5,0.5)');
+    scorch.addColorStop(1, 'rgba(10,8,5,0)');
+    ctx.fillStyle = scorch;
+    ctx.fillRect(cx - 21, cy - 21, 42, 42);
+    ctx.globalAlpha = 0.55;
+    ctx.strokeStyle = BRASS;
+    ctx.lineWidth = 2.4;
+    ctx.beginPath(); ctx.arc(cx, cy, 10, 0, Math.PI * 2); ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#0a0806';
+    ctx.beginPath(); ctx.arc(cx, cy, 8, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // ── the corner fixings ─────────────────────────────────────────────────────
+  for (const [fx, fy] of [[19, 19], [w - 19, 19], [19, h - 19], [w - 19, h - 19]]) {
     ctx.fillStyle = '#100e0a';
-    ctx.beginPath(); ctx.arc(fx, fy, 5.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(fx, fy, 6, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#5d5342';
-    ctx.beginPath(); ctx.arc(fx, fy, 4.4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(fx, fy, 4.6, 0, Math.PI * 2); ctx.fill();
     // the screwdriver slot, so it is a screw rather than a stud
     ctx.strokeStyle = '#171309';
     ctx.lineWidth = 1.4;
@@ -472,7 +612,18 @@ export const patchBayPlate = () => bake('patchbay:plate', 320, 384, (ctx, w, h) 
     ctx.moveTo(fx - 3, fy - 1.2); ctx.lineTo(fx + 3, fy + 1.2);
     ctx.stroke();
   }
+
+  // ── the grime ──────────────────────────────────────────────────────────────
+  // Last, over everything, heaviest at the bottom: a panel someone has had
+  // their hands on for forty years. Without it the strips and the mimic read as
+  // freshly made, which is the one thing this room is not.
+  const soot = ctx.createLinearGradient(0, h, 0, h * 0.45);
+  soot.addColorStop(0, 'rgba(9,7,5,0.26)');
+  soot.addColorStop(1, 'rgba(9,7,5,0)');
+  ctx.fillStyle = soot;
+  ctx.fillRect(0, 0, w, h);
 });
+
 
 // ── the workbench ────────────────────────────────────────────────────────────
 // The bench top is the one horizontal surface in this room the eye can measure

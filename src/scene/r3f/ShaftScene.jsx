@@ -384,7 +384,12 @@ const Landing = memo(function Landing({ vw, vh, top, floor, furnished, shown, do
           own note. */}
       <group visible={furnished}>
         <Pendant vw={vw} vh={vh} top={top} />
-        <LandingProps idx={floor} vw={vw} vh={vh} top={top} />
+        {/* `live` gates anything on a landing that animates of its own accord
+            — the patch bay's lamps — on the doors actually being open. Both
+            canvases are `frameloop="demand"`, so a prop that asks for frames
+            behind a shut door is a prop keeping the whole scene awake for
+            nobody. */}
+        <LandingProps idx={floor} vw={vw} vh={vh} top={top} live={doorOpen} />
         <LandingScreen
           floor={floor} side={SCREEN_SIDE[floor]} left={left} w={w}
           floorY={floorY} ceilingY={ceilingY} back={back}
