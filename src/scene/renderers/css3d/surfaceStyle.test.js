@@ -26,8 +26,8 @@ describe('surfaceStyle', () => {
     // runner, so the asset path is the one part that is checked by shape rather
     // than by value. Everything else is pinned.
     expect(style.backgroundImage).toBe(
-      'linear-gradient(rgba(36, 26, 17, 0.7), rgba(36, 26, 17, 0.7)), '
-      + 'linear-gradient(180deg, rgb(68, 54, 38), rgb(36, 26, 17)), '
+      'linear-gradient(rgba(42, 28, 16, 0.7), rgba(42, 28, 16, 0.7)), '
+      + 'linear-gradient(180deg, rgb(85, 57, 32), rgb(42, 28, 16)), '
       + `url(${SURFACES.iron.tile && style.backgroundImage.match(/url\((.*)\)$/)[1]})`,
     );
     expect(style.backgroundImage).toMatch(/url\(.*rust-brass.*\)$/);
@@ -53,7 +53,7 @@ describe('surfaceStyle', () => {
     expect(lit.backgroundImage).not.toBe(dark.backgroundImage);
     expect(lit.filter).toBeUndefined();
     expect(dark.filter).toBeUndefined();
-    expect(lit.backgroundImage).toContain('rgb(102, 81, 57)'); // 0x44,0x36,0x26 × 1.5
+    expect(lit.backgroundImage).toContain('rgb(128, 86, 48)'); // 0x55,0x39,0x20 × 1.5
   });
 
   it('drops to a plain gradient when a surface carries no texture', () => {

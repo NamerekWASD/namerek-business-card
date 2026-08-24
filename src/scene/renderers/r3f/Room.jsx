@@ -1,5 +1,8 @@
-import { useLayoutEffect, useRef } from 'react';
+import { useLayoutEffect, useMemo, useRef } from 'react';
+import { useThree } from '@react-three/fiber';
+import { Color } from 'three';
 import { LAYER_OF } from './lighting.js';
+import { roomEnvMap } from './roomEnv.js';
 import { roomLight, useLightTuning } from './tuning.js';
 
 /**
@@ -36,6 +39,14 @@ import { roomLight, useLightTuning } from './tuning.js';
  * floors are furnished and unfurnished, and a prop that arrives untagged is a
  * prop lit by the wrong building.
  *
+ * **What it reflects.** A metal has almost no diffuse term: nearly everything
+ * it shows is the room around it, and with no `envMap` there is no room around
+ * it to show — so every metallic entry in `SURFACES` was rendering as a dark
+ * flat patch and paying for the privilege. `roomEnv.js` paints a small
+ * environment per room, which partitions exactly the way the tone curve and the
+ * wrap already do: a fitting in the shaft reflects the shaft's own lamp, and one
+ * on the landing reflects the pendant.
+ *
  * `visible` is forwarded to the group it wraps, because a room is also the
  * natural unit of "nobody can see in here": one flag, and the renderer skips
  * the whole subtree at `projectObject` — the camera pass and all six faces of
@@ -47,7 +58,20 @@ import { roomLight, useLightTuning } from './tuning.js';
  */
 function Room({ room, visible = true, children }) {
   const group = useRef(null);
-  const { ambient } = roomLight(useLightTuning(), room);
+  const gl = useThree((s) => s.gl);
+  const { ambient, bounce, env, envColor } = roomLight(useLightTuning(), room);
+  // Rebuilt only when the knob moves; the traverse below runs on every commit
+  // and allocating a Color per material per commit is the kind of garbage that
+  // only shows up as a stutter months later.
+  const bounceColour = useMemo(() => new Color(bounce ?? '#ffffff'), [bounce]);
+  // Rendered into the same target every time, so the texture keeps its identity
+  // across a colour change — see `roomEnv.js`. A change of identity here would
+  // relink every shader in the room, because `envMap` is in three's program
+  // cache key.
+  const envMap = useMemo(
+    () => (gl && envColor ? roomEnvMap(gl, room, envColor) : null),
+    [gl, room, envColor],
+  );
 
   useLayoutEffect(() => {
     const layer = LAYER_OF[room];
@@ -80,6 +104,17 @@ function Room({ room, visible = true, children }) {
         // at its first compile — after this effect, because the canvas draws on
         // the frame *following* the commit that mounted the mesh.
         material.userData.room = room;
+        // Assigned once per material, guarded by identity for the same reason
+        // `emissiveMap` below is. The *intensity* is a plain uniform three
+        // uploads on every draw, so that one is free to write on every commit
+        // and free to drag on the bench.
+        if (envMap && material.isMeshStandardMaterial) {
+          if (material.envMap !== envMap) {
+            material.envMap = envMap;
+            material.needsUpdate = true;
+          }
+          material.envMapIntensity = env ?? 1;
+        }
         // A lamp's glass, a pilot light, a lit marquee: surfaces that are their
         // own source. Their emissive says something, and the ambience is not
         // entitled to overwrite it.
@@ -113,7 +148,22 @@ function Room({ room, visible = true, children }) {
         // already a product of it — recomputing from the previous emissive would
         // compound, and the scene would brighten a little on every render.
         material.userData.albedo ??= material.color.clone();
-        material.emissive.copy(material.userData.albedo).multiplyScalar(ambient);
+        // **And the bounce has a colour of its own.** `albedo × scalar` is the
+        // one thing a shadow in this scene could not have: every unlit face came
+        // out as its own albedo, so a shadow was never anything but a darker
+        // copy of the surface, and the picture had exactly one hue in it at
+        // every level of brightness. Measured against the reference that was the
+        // whole complaint — matching luminance, matching local contrast, blue
+        // channel running a third of red where the reference holds it near a
+        // fifth. A tint on the way back out is what a room made of ochre plaster
+        // actually does to the light it returns, and it is the only term here
+        // with anywhere to put that.
+        //
+        // White leaves this exactly as it was, so the knob has a defensible
+        // no-op and the two rooms can disagree about it.
+        material.emissive.copy(material.userData.albedo)
+          .multiplyScalar(ambient)
+          .multiply(bounceColour);
       }
     });
   });

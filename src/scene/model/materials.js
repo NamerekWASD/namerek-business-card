@@ -50,14 +50,32 @@ export const TILES = {
 // so roughness stays high and metalness low — a fully metallic surface with no
 // environment map to reflect renders black, which is the classic way a ported
 // scene ends up looking like a hole rather than a wall.
+//
+// ── these are pigments, not greys ────────────────────────────────────────────
+// Every hex below used to be a near-neutral with a warm bias — the walls sat at
+// saturation 0.25, the cage and the doors at 0.22 to 0.30 — and the scene's
+// warmth came almost entirely from the lamp. That is a real thing a room can be,
+// and it is not this room: a grey wall under a warm lamp renders as a *washed*
+// warm, which is exactly what measuring the frame against the reference showed.
+// Matching luminance, matching local contrast, and a blue channel running a
+// third of red where the reference holds it near a fifth.
+//
+// So the catalogue was re-pigmented: same luminance for every surface to the
+// decimal, chroma pushed to where an ochre-plastered corridor and a blackened
+// steel cage actually sit. Two things follow that are easy to undo by accident.
+// The walls carry a deliberate lift (about 1.2x) which `shaftExposure` and
+// `landingExposure` were dropped to pay for — same final brightness, less of it
+// spent on the tone curve's shoulder, which is where saturation goes to die.
+// And `steel` is the one cool entry in the file, on purpose: it is what gives
+// the eye something to read the rest of the scene as warm *against*.
 /** @type {Record<string, Surface>} */
 export const SURFACES = {
   // the corridor either side of us — furthest from the lamp, so the flattest
-  shaftWall: { from: '#2b2521', to: '#14110e', tile: 'board', scale: 340, tex: 0.22, rough: 0.92, metal: 0.05 },
+  shaftWall: { from: '#3b2c1d', to: '#1b140d', tile: 'board', scale: 340, tex: 0.22, rough: 0.92, metal: 0.05 },
   // the blind wall at the far end, between the landings
-  backWall: { from: '#2e2822', to: '#171310', tile: 'pour', scale: 420, tex: 0.18, rough: 0.94, metal: 0.05 },
+  backWall: { from: '#3f301e', to: '#1e170f', tile: 'pour', scale: 420, tex: 0.18, rough: 0.94, metal: 0.05 },
   // inside the landing: another room, so its own colour and its own light
-  landing: { from: '#463a2c', to: '#221a12', tile: 'plaster', scale: 480, tex: 0.16, rough: 0.9, metal: 0.04 },
+  landing: { from: '#5d4523', to: '#2a1f10', tile: 'plaster', scale: 480, tex: 0.16, rough: 0.9, metal: 0.04 },
   // Its own surface, and not only so it can carry a different tile. The floor
   // is the one plane in this room the pendant strikes square-on, so it is the
   // one that has to be *brighter* than the wall rather than darker — see
@@ -72,11 +90,11 @@ export const SURFACES = {
   // drawn. What survives foreshortening is *large* incident: chips, patches,
   // the dark of a repair. So the floor is a damaged slab at a coarse scale, not
   // a fine finish at a fine one.
-  landingFloor: { from: '#413a30', to: '#1f1a15', tile: 'worn', scale: 560, tex: 0.26, rough: 0.94, metal: 0.03 },
+  landingFloor: { from: '#5b4329', to: '#291f13', tile: 'worn', scale: 560, tex: 0.26, rough: 0.94, metal: 0.03 },
   // the cage we are standing in — nearest, so it may carry the most grain
-  cageRoof: { from: '#242019', to: '#12100d', tile: 'steel', scale: 190, tex: 0.3, rough: 0.78, metal: 0.3 },
-  cageFloor: { from: '#3c342a', to: '#201b15', tile: 'steel', scale: 210, tex: 0.34, rough: 0.74, metal: 0.34 },
-  cageSteel: { from: '#3b352d', to: '#1e1a15', tile: 'steel', scale: 130, tex: 0.36, rough: 0.7, metal: 0.38 },
+  cageRoof: { from: '#2d2215', to: '#16110b', tile: 'steel', scale: 190, tex: 0.3, rough: 0.78, metal: 0.3 },
+  cageFloor: { from: '#493823', to: '#261d12', tile: 'steel', scale: 210, tex: 0.34, rough: 0.74, metal: 0.34 },
+  cageSteel: { from: '#4a3924', to: '#251c12', tile: 'steel', scale: 130, tex: 0.36, rough: 0.7, metal: 0.38 },
   // Blackened steel, not the rust it used to carry — it read as a warm brown
   // box next to the frame's grey the moment the two actually meet (see the
   // leaf's own reveal at the frame's outer tier), and the frame stays grey.
@@ -84,11 +102,11 @@ export const SURFACES = {
   // `doorFrame` below all run R>G>B, never B>G) — a cooler, bluer grey here
   // was the one hex in the file fighting the cineon grade instead of riding
   // it, which is what read as a flat, textureless slab under real exposure.
-  doorLeaf: { from: '#332e28', to: '#151210', tile: 'steel', scale: 240, tex: 0.3, rough: 0.68, metal: 0.3 },
-  doorFrame: { from: '#4a4137', to: '#231e19', tile: 'steel', scale: 160, tex: 0.32, rough: 0.72, metal: 0.34 },
+  doorLeaf: { from: '#403121', to: '#19140d', tile: 'steel', scale: 240, tex: 0.3, rough: 0.68, metal: 0.3 },
+  doorFrame: { from: '#5c462b', to: '#2b2014', tile: 'steel', scale: 160, tex: 0.32, rough: 0.72, metal: 0.34 },
   // the small fittings — clips, shoes, rivetted plates, architrave members
-  iron: { from: '#443626', to: '#241a11', tile: 'rust', scale: 70, tex: 0.3, rough: 0.84, metal: 0.5 },
-  steel: { from: '#3f454a', to: '#1e2225', tile: 'steel', scale: 46, tex: 0.34, rough: 0.62, metal: 0.45 },
+  iron: { from: '#553920', to: '#2a1c10', tile: 'rust', scale: 70, tex: 0.3, rough: 0.84, metal: 0.5 },
+  steel: { from: '#404952', to: '#1f2428', tile: 'steel', scale: 46, tex: 0.34, rough: 0.62, metal: 0.45 },
   // The arcade cabinet's own case and control-panel metal. Same tiles as
   // `iron`/`steel` for family continuity, but those two are tuned for a
   // barely-there wash on small fittings glimpsed in passing — baked at their
@@ -97,12 +115,12 @@ export const SURFACES = {
   // looked at close and square-on, so it gets lighter tones (more survives
   // the multiply) and a much higher `tex` (less of the wash flattens it back
   // out) instead.
-  cabinetCase: { from: '#8a6b3e', to: '#4a3520', tile: 'rust', scale: 140, tex: 0.78, rough: 0.6, metal: 0.28 },
-  cabinetFlank: { from: '#3e3a36', to: '#1c1a18', tile: 'steel', scale: 80, tex: 0.88, rough: 0.72, metal: 0.42 },
-  cabinetRust: { from: '#865828', to: '#382010', tile: 'rust', scale: 100, tex: 0.92, rough: 0.62, metal: 0.25 },
-  cabinetPanel: { from: '#4c4640', to: '#22201e', tile: 'steel', scale: 70, tex: 0.88, rough: 0.42, metal: 0.65 },
-  cabinetFrame: { from: '#322d28', to: '#161412', tile: 'steel', scale: 50, tex: 0.82, rough: 0.48, metal: 0.55 },
-  cabinetBronze: { from: '#9e8048', to: '#4a3a1c', tile: 'bronze', scale: 60, tex: 0.85, rough: 0.38, metal: 0.78 },
+  cabinetCase: { from: '#8f6a39', to: '#49361d', tile: 'rust', scale: 140, tex: 0.78, rough: 0.6, metal: 0.28 },
+  cabinetFlank: { from: '#45392b', to: '#1f1a13', tile: 'steel', scale: 80, tex: 0.88, rough: 0.72, metal: 0.42 },
+  cabinetRust: { from: '#88572e', to: '#342112', tile: 'rust', scale: 100, tex: 0.92, rough: 0.62, metal: 0.25 },
+  cabinetPanel: { from: '#524535', to: '#252018', tile: 'steel', scale: 70, tex: 0.88, rough: 0.42, metal: 0.65 },
+  cabinetFrame: { from: '#382c1f', to: '#19140e', tile: 'steel', scale: 50, tex: 0.82, rough: 0.48, metal: 0.55 },
+  cabinetBronze: { from: '#a1803d', to: '#493a1c', tile: 'bronze', scale: 60, tex: 0.85, rough: 0.38, metal: 0.78 },
   paper: { from: '#a6a7a9', to: '#d8d8d8', tile: 'paper', scale: 46, tex: 0.34, rough: 0.97, metal: 0 },
 };
 

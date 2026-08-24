@@ -79,10 +79,48 @@ export const LIGHT_KNOBS = [
     key: 'shaftExposure', group: 'shaft', label: 'exposure', kind: 'number',
     min: 0.1, max: 2.5, step: 0.01,
   },
+  // Saturation put back after the curve, which is the one place it can be. Every
+  // curve on offer buys its highlight roll-off with chroma, and measured against
+  // the reference this scene's whole deficit was that trade and nothing else:
+  // the two match on luminance and on local contrast and part company on
+  // saturation, only in the bands the shoulder reaches. See `roomTone.js`.
+  {
+    key: 'shaftChroma', group: 'shaft', label: 'chroma', kind: 'number',
+    min: 0, max: 2, step: 0.01,
+    note: 'saturation restored after the tone curve; 1 is the curve as three ships it',
+  },
   {
     key: 'shaftAmbient', group: 'shaft', label: 'ambient', kind: 'number',
     min: 0, max: 0.5, step: 0.005,
     note: `what the well bounces back; the CSS model says ${LIGHT_AMBIENT} for the whole scene`,
+  },
+  // What colour that bounce is, as against how much of it there is. It
+  // multiplies the surface's own albedo, so white is exactly the behaviour this
+  // had before it existed and anything else filters the room's own light on the
+  // way back out — which is the only thing in the scene that can give a shadow a
+  // hue of its own, the albedo being all a scalar ambience has to go on.
+  {
+    key: 'shaftBounce', group: 'shaft', label: 'bounce colour', kind: 'color',
+    note: 'the colour of what comes back out of the corners; white is a plain scalar',
+  },
+  // ── what it reflects ───────────────────────────────────────────────────────
+  // A metal shows almost nothing of its own colour; what it shows is the room
+  // around it, and until there was an environment map there was no room around
+  // it to show. `roomEnv.js` paints one — a dark ceiling, a lit band, a darker
+  // floor and one hot spot where the fitting hangs — and these two say how
+  // bright that painted room is and what colour its light is.
+  //
+  // Intensity is a plain material uniform, so it drags at no cost. The colour
+  // re-renders the convolved cube, which is deliberately *not* a new texture —
+  // see `roomEnv.js` on why a fresh one would relink every shader in the room.
+  {
+    key: 'shaftEnv', group: 'shaft', label: 'reflections', kind: 'number',
+    min: 0, max: 4, step: 0.01,
+    note: 'envMapIntensity — how much of the painted room a metal gives back',
+  },
+  {
+    key: 'shaftEnvColor', group: 'shaft', label: 'reflection colour', kind: 'color',
+    note: 'the light in the painted room; usually the lamp own colour',
   },
   // How far past ninety degrees a face still catches this lamp. It matters most
   // here of anywhere: the fittings stand 26px proud of a wall, so they sit
@@ -147,9 +185,37 @@ export const LIGHT_KNOBS = [
     min: 0.1, max: 2.5, step: 0.01,
   },
   {
+    key: 'landingChroma', group: 'landing', label: 'chroma', kind: 'number',
+    min: 0, max: 2, step: 0.01,
+    note: 'saturation restored after the tone curve; 1 is the curve as three ships it',
+  },
+  {
     key: 'landingAmbient', group: 'landing', label: 'ambient', kind: 'number',
     min: 0, max: 0.5, step: 0.005,
     note: 'what the corridor bounces back — independent of the shaft',
+  },
+  {
+    key: 'landingBounce', group: 'landing', label: 'bounce colour', kind: 'color',
+    note: 'the colour of what comes back out of the corners; white is a plain scalar',
+  },
+  // ── what it reflects ───────────────────────────────────────────────────────
+  // A metal shows almost nothing of its own colour; what it shows is the room
+  // around it, and until there was an environment map there was no room around
+  // it to show. `roomEnv.js` paints one — a dark ceiling, a lit band, a darker
+  // floor and one hot spot where the fitting hangs — and these two say how
+  // bright that painted room is and what colour its light is.
+  //
+  // Intensity is a plain material uniform, so it drags at no cost. The colour
+  // re-renders the convolved cube, which is deliberately *not* a new texture —
+  // see `roomEnv.js` on why a fresh one would relink every shader in the room.
+  {
+    key: 'landingEnv', group: 'landing', label: 'reflections', kind: 'number',
+    min: 0, max: 4, step: 0.01,
+    note: 'envMapIntensity — how much of the painted room a metal gives back',
+  },
+  {
+    key: 'landingEnvColor', group: 'landing', label: 'reflection colour', kind: 'color',
+    note: 'the light in the painted room; usually the lamp own colour',
   },
   // Lower than the shaft's, and that is the point of splitting them. This lamp
   // hangs in open air in the middle of its room and strikes things at real
@@ -214,6 +280,21 @@ export const LIGHT_KNOBS = [
     key: 'grainScale', group: 'surfaces', label: 'tile size', kind: 'number',
     min: 0.2, max: 3, step: 0.05,
     note: 'x the catalogue scale — bigger tiles, fewer repeats',
+  },
+  // The same tile again, into `roughnessMap` this time, which is what turns a
+  // reflection into wear rather than a uniform sheen. Signed, because both
+  // readings are real and this scene has both kinds of surface: positive makes
+  // the tile's dark incident *shinier* — oil, handling, a rubbed edge — and
+  // negative makes it duller, which is what a pit in concrete is. Zero is no
+  // roughness map at all, and no second bake.
+  //
+  // Scene-wide with the grain, and normalised the same way: the bake reports its
+  // own mean and the material's roughness is divided by it, so this adds
+  // variation without moving the average.
+  {
+    key: 'roughGrain', group: 'surfaces', label: 'roughness grain', kind: 'number',
+    min: -1, max: 1, step: 0.05,
+    note: '+ the tile dark spots read as polish, - as pitting, 0 is off',
   },
   // ── what the shadows cost ───────────────────────────────────────────────
   // The only knobs here that are not a brightness. They are on the bench for the
@@ -307,15 +388,23 @@ export const readLight = () => current;
 export const roomLight = (tuning, room) => (room === 'landing'
   ? {
     ambient: tuning.landingAmbient,
+    bounce: tuning.landingBounce,
     wrap: tuning.landingWrap,
     toneCurve: tuning.landingToneCurve,
     exposure: tuning.landingExposure,
+    chroma: tuning.landingChroma,
+    env: tuning.landingEnv,
+    envColor: tuning.landingEnvColor,
   }
   : {
     ambient: tuning.shaftAmbient,
+    bounce: tuning.shaftBounce,
     wrap: tuning.shaftWrap,
     toneCurve: tuning.shaftToneCurve,
     exposure: tuning.shaftExposure,
+    chroma: tuning.shaftChroma,
+    env: tuning.shaftEnv,
+    envColor: tuning.shaftEnvColor,
   });
 
 /** @param {string} key @param {any} value */

@@ -1,4 +1,4 @@
-import useSurfaceMaterial from './useSurfaceMaterial.js';
+import useSurfaceMaterial, { materialKey } from './useSurfaceMaterial.js';
 import { worldY } from './camera.js';
 
 const RAD = Math.PI / 180;
@@ -35,7 +35,7 @@ export function Panel({
     <group position={[left, worldY(top), z]} rotation={rotationOf(yaw, pitch)}>
       <mesh position={[dx, -h / 2, 0]} castShadow receiveShadow>
         <planeGeometry args={[w, h]} />
-        <meshStandardMaterial key={material.map ? 'grained' : 'flat'} {...material} />
+        <meshStandardMaterial key={materialKey(material)} {...material} />
       </mesh>
     </group>
   );
@@ -68,7 +68,7 @@ export function Box({ surface, left, top, w, h, d, z = 0, yaw = 0, shade = 1, cl
             anything still hides them, exactly as the CSS leaves are clipped by
             the frame they sit in. */}
         <meshStandardMaterial
-          key={material.map ? 'grained' : 'flat'}
+          key={materialKey(material)}
           {...material}
           clippingPlanes={clip ?? null}
         />

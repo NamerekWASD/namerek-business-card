@@ -78,7 +78,12 @@ describe('the two rooms', () => {
     // the shared ones are named for what they do, not for their room, so they
     // are compared by label rather than by key
     const labels = (group) => LIGHT_KNOBS.filter((k) => k.group === group).map((k) => k.label);
-    for (const label of ['tone curve', 'exposure', 'ambient', 'wrap']) {
+    for (const label of [
+      'tone curve', 'exposure', 'chroma', 'ambient', 'bounce colour', 'wrap',
+      // a room reflects its own lamp; one room having an environment and the
+      // other not is the asymmetry that reads as "the landing looks plastic"
+      'reflections', 'reflection colour',
+    ]) {
       expect(labels('shaft'), label).toContain(label);
       expect(labels('landing'), label).toContain(label);
     }

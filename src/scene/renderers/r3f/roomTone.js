@@ -64,8 +64,8 @@ export const TONE_CURVE_IDS = {
  * is a value that costs every program in the scene to change.
  */
 export const toneUniforms = {
-  shaft: { curve: { value: TONE_CURVE_IDS.neutral }, exposure: { value: 1 } },
-  landing: { curve: { value: TONE_CURVE_IDS.neutral }, exposure: { value: 1 } },
+  shaft: { curve: { value: TONE_CURVE_IDS.neutral }, exposure: { value: 1 }, chroma: { value: 1 } },
+  landing: { curve: { value: TONE_CURVE_IDS.neutral }, exposure: { value: 1 }, chroma: { value: 1 } },
 };
 
 // three's own declaration, which we leave in place and then shadow. Leaving it
@@ -77,16 +77,38 @@ const EXPOSURE_DECL = 'uniform float toneMappingExposure;';
 const ROOM_UNIFORMS = `${EXPOSURE_DECL}
 uniform float roomExposure;
 uniform int roomToneCurve;
+uniform float roomChroma;
 // every curve below is three's, unmodified — this is the one line that makes
 // them read a per-room exposure instead of the renderer's global one
 #define toneMappingExposure roomExposure`;
 
+// ── the chroma stage ────────────────────────────────────────────────────────
+// Every curve above trades saturation for headroom on its shoulder — ACES and
+// AgX do it hardest and most deliberately, since a "path to white" is what
+// keeps a blown highlight from turning into a coloured hole. Measured against
+// the reference render, that is where this scene loses: the two pictures match
+// on luminance histogram and on local contrast, and diverge only on saturation,
+// entirely in the bands the shoulder touches — 0.70 against 0.49 in the lit
+// band, 0.48 against 0.22 in the highlights.
+//
+// So the chroma is put back after the curve rather than the curve being
+// abandoned. A curve that rolls highlights and a picture that stays coloured
+// are not in fact opposed; they were only welded together by three's tone
+// mapping being one step.
+//
+// In linear space, before the sRGB encode, because that is where the curve took
+// it away. The clamp is not decoration: past 1.0 the mix drives channels
+// negative, and a negative channel reaching `pow()` in the encode comes out NaN
+// — one black pixel per fragment that tips over, scattered, and impossible to
+// read as a saturation bug.
+//
 // Appended after the chunk, so every function it names is already defined.
 // `none` returns the colour untouched, exposure included, because that is what
 // `NoToneMapping` means in three and a knob labelled "none" should not quietly
-// keep applying half of something.
+// keep applying half of something — the chroma stage still runs, since it is a
+// grade rather than part of the curve.
 const DISPATCHER = `
-vec3 roomToneMapping( vec3 color ) {
+vec3 roomToneCurveOf( vec3 color ) {
 	if ( roomToneCurve == 1 ) return LinearToneMapping( color );
 	if ( roomToneCurve == 2 ) return ReinhardToneMapping( color );
 	if ( roomToneCurve == 3 ) return CineonToneMapping( color );
@@ -94,6 +116,12 @@ vec3 roomToneMapping( vec3 color ) {
 	if ( roomToneCurve == 5 ) return AgXToneMapping( color );
 	if ( roomToneCurve == 6 ) return NeutralToneMapping( color );
 	return color;
+}
+
+vec3 roomToneMapping( vec3 color ) {
+	vec3 mapped = roomToneCurveOf( color );
+	float grey = dot( mapped, vec3( 0.2126, 0.7152, 0.0722 ) );
+	return max( vec3( 0.0 ), mix( vec3( grey ), mapped, roomChroma ) );
 }
 `;
 
@@ -142,6 +170,7 @@ export function bindTone(shader, room) {
   const grade = toneUniforms[room] ?? toneUniforms.shaft;
   shader.uniforms.roomToneCurve = grade.curve;
   shader.uniforms.roomExposure = grade.exposure;
+  shader.uniforms.roomChroma = grade.chroma;
 }
 
 /** The material types this scene actually draws with, for the tests to hold. */

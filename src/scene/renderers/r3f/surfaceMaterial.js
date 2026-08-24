@@ -43,7 +43,7 @@
 // makes grain a knob a person can drag without re-dialling the lighting after
 // every nudge.
 
-import { CanvasTexture, Color, RepeatWrapping, SRGBColorSpace } from 'three';
+import { CanvasTexture, Color, NoColorSpace, RepeatWrapping, SRGBColorSpace } from 'three';
 import { SURFACES, TILES, scaleChannels } from '../../model/materials.js';
 import { readLight } from './tuning.js';
 
@@ -166,12 +166,102 @@ export function bakeSurface(s) {
   return job;
 }
 
+
+// ── the roughness half ──────────────────────────────────────────────────────
+// An environment map on its own gives a metal a uniform sheen: the same
+// reflection everywhere, which reads as clean plastic rather than as worn iron.
+// What makes it read as *wear* is roughness that varies across the surface, and
+// the tile already in hand is a perfectly good field to vary it by.
+//
+// `roughnessMap` multiplies, and a multiplier can only ever make a surface
+// shinier. So the mean is measured and handed back as a gain the material's own
+// roughness is lifted by — the same normalisation the grain bake does for
+// colour, and for the same reason: the slider should add variation without also
+// moving the average, or every nudge costs a re-dial of everything else.
+//
+// The knob is signed. Positive reads the tile's dark incident as polish — oil, a
+// handled edge, a rubbed corner — and negative reads it as pitting. Both are
+// real and this scene has both, so it is a judgement rather than a fact and it
+// belongs on the bench.
+
+/** @type {Map<string, Promise<CanvasTexture | null>>} */
+const roughs = new Map();
+
+/**
+ * The tile as a roughness field. `null` where there is nothing to make one
+ * from, and where the knob is at zero — which is also what turns the second
+ * texture off entirely.
+ * @param {Surface} s
+ * @returns {Promise<CanvasTexture | null>}
+ */
+export function bakeRoughness(s) {
+  const k = Math.round((readLight().roughGrain ?? 0) * 40) / 40;
+  const key = `${s.tile}|${k}`;
+  const hit = roughs.get(key);
+  if (hit) return hit;
+
+  const url = TILES[s.tile];
+  const job = !url || k === 0 || typeof document === 'undefined'
+    ? Promise.resolve(null)
+    : tileImage(url).then((img) => (img ? drawRoughness(img, k) : null));
+  roughs.set(key, job);
+  return job;
+}
+
+/**
+ * @param {HTMLImageElement} img @param {number} k signed, -1..1
+ * @returns {CanvasTexture | null}
+ */
+function drawRoughness(img, k) {
+  const canvas = document.createElement('canvas');
+  canvas.width = BAKE_SIZE;
+  canvas.height = BAKE_SIZE;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return null;
+
+  ctx.drawImage(img, 0, 0, BAKE_SIZE, BAKE_SIZE);
+  const frame = ctx.getImageData(0, 0, BAKE_SIZE, BAKE_SIZE);
+  const px = frame.data;
+
+  const amount = Math.abs(k);
+  let sum = 0;
+  for (let i = 0; i < px.length; i += 4) {
+    // the tile's own luminance, as stored — this texture is sampled linearly,
+    // so no transfer function belongs anywhere in here
+    const g = (0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2]) / 255;
+    // k > 0: dark spots go shiny. k < 0: bright spots do, which leaves the dark
+    // ones as the rough side once the mean is put back.
+    const v = 1 - amount * (k > 0 ? 1 - g : g);
+    const byte = v < 0 ? 0 : Math.round(v * 255);
+    px[i] = byte;
+    px[i + 1] = byte;
+    px[i + 2] = byte;
+    px[i + 3] = 255;
+    sum += byte / 255;
+  }
+  ctx.putImageData(frame, 0, 0);
+
+  const mean = sum / (px.length / 4);
+  const tex = new CanvasTexture(canvas);
+  tex.wrapS = RepeatWrapping;
+  tex.wrapT = RepeatWrapping;
+  // Not sRGB, and this is the one place it matters: three uploads an sRGB
+  // texture in a hardware-decoding format, so tagging this one the way the
+  // colour map is tagged would silently darken every roughness it reports.
+  tex.colorSpace = NoColorSpace;
+  tex.anisotropy = 16;
+  tex.userData.gain = Math.min(2, mean > 0.05 ? 1 / mean : 1);
+  return tex;
+}
+
 /**
  * Starts every shared surface bake at once. The intro uses this as its loading
  * barrier so the first door movement cannot coincide with an image decode and
  * material update for a wall or the cage.
  */
-export const preloadSurfaceTextures = () => Promise.all(Object.values(SURFACES).map(bakeSurface));
+export const preloadSurfaceTextures = () => Promise.all(
+  Object.values(SURFACES).flatMap((s) => [bakeSurface(s), bakeRoughness(s)]),
+);
 
 /** sRGB byte to linear, three's own transfer function. */
 const toLinear = (v) => {
@@ -234,17 +324,24 @@ function draw(img, strength) {
  * place that knows to do it. `useSurfaceMaterial` is the usual way in; the
  * third argument is for the handful of meshes that already hold their texture.
  *
+ * The same applies to a roughness field: it multiplies, so the catalogue's own
+ * roughness has to be lifted by that bake's gain or every surface carrying one
+ * comes out shinier than it is meant to be.
+ *
  * @param {Surface} s @param {Shade} [shade]
  * @param {import('three').Texture | null} [map]
+ * @param {import('three').Texture | null} [roughMap]
  */
-export const surfaceProps = (s, shade = 1, map = null) => {
+export const surfaceProps = (s, shade = 1, map = null, roughMap = null) => {
   const color = surfaceColor(s, shade);
   if (map) color.multiplyScalar(map.userData?.gain ?? 1);
+  const rough = (s.rough ?? 0.85) * (roughMap ? roughMap.userData?.gain ?? 1 : 1);
   return {
     color,
-    roughness: s.rough ?? 0.85,
+    roughness: Math.min(1, rough),
     metalness: s.metal ?? 0.1,
     ...(map ? { map } : {}),
+    ...(roughMap ? { roughnessMap: roughMap } : {}),
   };
 };
 
