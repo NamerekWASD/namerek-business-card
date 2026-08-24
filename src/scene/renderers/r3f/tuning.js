@@ -174,9 +174,35 @@ export const LIGHT_KNOBS = [
     key: 'landingGlass', group: 'landing', label: 'bulb', kind: 'number',
     min: 0, max: 8, step: 0.05,
   },
+
+  // ── what the shadows cost ───────────────────────────────────────────────
+  // The only knobs here that are not a brightness. They are on the bench for the
+  // same reason the brightnesses are — the right value is the one that still
+  // looks right, and that is a thing to find by eye rather than by argument —
+  // except that what they trade against is video memory rather than taste.
+  //
+  // A point light's shadow is a *cube*: six faces of `size²`, as RGBA8 and again
+  // as depth, so one light at 2048 holds 201 MB and the rig's eight (four per
+  // canvas) held 1.6 GB of an 8 GB card. Every step down the slider quarters
+  // that — 1024 is 50 MB a light, 512 is 12.6 — and it quarters the rasterising
+  // too, which is what `frameloop: 'demand'` pays on every change in the frame.
+  {
+    key: 'shadowMapSize', group: 'shadows', label: 'map size', kind: 'int',
+    min: 256, max: 2048, step: 256,
+    note: 'per light: 2048 = 201 MB, 1024 = 50 MB, 512 = 12.6 MB — six cube faces, twice',
+  },
+  // Free, and independent of the above: three's point-light PCF path always
+  // samples the same five-tap disk and only scales it by this. A small map with
+  // a generous radius reads as a soft shadow rather than as a low-resolution
+  // one, which is what makes the slider above cheaper than it looks.
+  {
+    key: 'shadowRadius', group: 'shadows', label: 'softness', kind: 'number',
+    min: 0, max: 20, step: 0.5,
+    note: 'blur radius, flat cost — it hides the seams a smaller map leaves',
+  },
 ];
 
-export const LIGHT_GROUPS = ['shaft', 'landing'];
+export const LIGHT_GROUPS = ['shaft', 'landing', 'shadows'];
 
 /**
  * What the scene draws when nobody has touched anything — the committed setup,
@@ -276,6 +302,7 @@ export const knobDiff = () => Object.fromEntries(
 export const GROUP_TITLES = {
   shaft: 'SHAFT — the bulkhead lamp on the wall',
   landing: 'LANDING — the pendant in the corridor',
+  shadows: 'SHADOWS — what they cost, not how bright they are',
 };
 
 /**

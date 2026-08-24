@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { lampsAt } from '../../model/lighting.js';
 import {
-  cageCentre, lampFalloff, lampRangePx, landingLight, light, lightRig, maxLights, pendantAt, shaftLights,
+  cageCentre, lampFalloff, lampRangePx, landingLight, light, lightRig, maxLights, pendantAt,
+  seatRoom, shaftLights,
 } from './lighting.js';
 
 const vw = 2048;
@@ -147,6 +148,20 @@ describe('the source budget', () => {
     // and the limit is not being met by simply having no lights
     expect(sawKey).toBe(true);
     expect(sawLanding).toBe(true);
+  });
+
+  // `SceneLights` decides which seats cast a shadow from the index alone, before
+  // it has a rig to look at — see `seatRoom`. If the rig ever stopped putting
+  // the pendant last, the landing would silently lose its shadow and the shaft
+  // would gain one it draws into an empty layer, in a canvas that has no landing
+  // in it. Nothing on screen would say so.
+  it('seats every source in the room the index says it is in', () => {
+    for (const closure of [0, 0.5, 1]) {
+      const rig = lightRig({
+        vw, vh, lamps: lampsAt(vw, vh, 1.5, floorPitch), floorPitch, deckTop: 30, closure,
+      });
+      expect(rig.map((l) => l.kind)).toEqual(rig.map((_, i) => seatRoom(i)));
+    }
   });
 
   // The bug this exists for: the rig was handed the floor pitch under a name it

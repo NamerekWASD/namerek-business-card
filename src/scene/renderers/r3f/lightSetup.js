@@ -54,25 +54,29 @@
 export const LIGHT_SETUP = {
   // SHAFT — the bulkhead lamp on the wall
   shaftToneCurve: 'cineon',
-  shaftExposure: 1.6,
-  shaftAmbient: 0.415,
+  shaftExposure: 2,
+  shaftAmbient: 0.335,
   shaftWrap: 0,
   shaftLights: 3,
-  lampPower: 2.6,
-  lampReach: 730,
-  keyGain: 3.141592653589793,
+  lampPower: 3.6,
+  lampReach: 420,
+  keyGain: 3.34,
   shaftColor: '#ffcf9a',
-  glassEmissive: 2.2,
-  glowSize: 4.4,
-  glowOpacity: 0.55,
+  glassEmissive: 0.9,
+  glowSize: 4,
+  glowOpacity: 0.46,
 
   // LANDING — the pendant in the corridor
-  landingToneCurve: 'agx',
-  landingExposure: 1.59,
-  landingAmbient: 0.44,
+  landingToneCurve: 'aces',
+  landingExposure: 1.72,
+  landingAmbient: 0.465,
   landingWrap: 0,
-  landingIntensity: 7.6,
-  landingDecay: 2.55,
+  landingIntensity: 6.1,
+  landingDecay: 2.09,
   landingColor: '#ffcf9a',
-  landingGlass: 2.6,
+  landingGlass: 3.85,
+
+  // SHADOWS — what they cost, not how bright they are
+  shadowMapSize: 1024,
+  shadowRadius: 14,
 };

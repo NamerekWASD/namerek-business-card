@@ -58,9 +58,14 @@ describe('the knob catalogue', () => {
 // tune the room that is missing it.
 describe('the two rooms', () => {
   const ROOMS = ['shaft', 'landing'];
+  // The one group that is deliberately neither room's, and the reason it is
+  // allowed: a shadow map's resolution is a video-memory budget for the whole
+  // scene, not a brightness, so there is no version of it that belongs to one
+  // room. Nothing else may join it — see the last test in this block.
+  const COST = 'shadows';
 
   it('puts every knob in exactly one room', () => {
-    for (const knob of LIGHT_KNOBS) {
+    for (const knob of LIGHT_KNOBS.filter((k) => k.group !== COST)) {
       expect(ROOMS, knob.key).toContain(knob.group);
     }
   });
@@ -75,9 +80,9 @@ describe('the two rooms', () => {
     }
   });
 
-  it('leaves nothing global for one room to drag the other by', () => {
+  it('leaves no brightness global for one room to drag the other by', () => {
     const shared = LIGHT_KNOBS.filter((k) => !ROOMS.includes(k.group));
-    expect(shared.map((k) => k.key)).toEqual([]);
+    expect(shared.map((k) => k.group)).toEqual(shared.map(() => COST));
   });
 });
 

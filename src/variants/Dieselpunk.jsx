@@ -90,7 +90,15 @@ export default function Dieselpunk() {
   const blurAllowed = useBlurBudget(moving);
   // A machine that has already given the motion blur up has told us what it can
   // afford; asking it for four times the pixels as well is not a kindness.
-  const dprCeiling = blurAllowed ? 2 : 1.5;
+  //
+  // The ceiling is 1.5 rather than 2, and that is a memory decision. Both
+  // canvases are `antialias: true`, so a pixel of framebuffer is four samples of
+  // colour and four of depth plus the resolve — 36 bytes, not 4 — and at dpr 2 a
+  // 2048-wide window costs 546 MB of video memory for the pair before a single
+  // texture or shadow map is allocated. Measured: 137 MB at 1, 546 at 2. Half a
+  // step of sharpening is not worth 400 MB on a card the shadow rig is already
+  // sharing.
+  const dprCeiling = blurAllowed ? 1.5 : 1.25;
   const blurAmount = blurAllowed ? Math.round(Math.min(16, speed * 5.5) / 2) * 2 : 0;
   // The lamps, for this position of the shaft. Everything that gets lit is
   // handed this same list, so the cage, the fixtures and the haze cannot

@@ -423,6 +423,10 @@ function NearScene({ vw, vh, pos, floorPx, deck, intro, ticker, ride, dim = 1, o
       <SceneLights
         vw={vw} vh={vh} floorPx={floorPx} ticker={ticker}
         deck={deck} ride={ride} intro={intro} dim={dim}
+        // everything below is `<Room room="shaft">`, so the pendant's seat here
+        // lights nothing and needs no shadow of its own — the landing itself is
+        // in the other canvas, with the other copy of this rig
+        rooms={['shaft']}
       />
       {/* the doors and the cage face the shaft, so they are lit by it */}
       <Room room="shaft">

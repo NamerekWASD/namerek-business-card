@@ -139,7 +139,9 @@ function SceneProbe({ name }) {
  *   dprCeiling?: number, onLost?: () => void, children: React.ReactNode,
  * }} props
  */
-function SceneCanvas({ vw, vh, zIndex, name, dprCeiling = 2, moving = false, onLost, children }) {
+function SceneCanvas({
+  vw, vh, zIndex, name, dprCeiling = 2, moving = false, antialias = true, onLost, children,
+}) {
   // A WebGL context can be taken away at any moment — a driver reset, the tab
   // backgrounded for long enough, too many contexts open across tabs. The
   // browser fires an event and then simply stops drawing, so a scene that does
@@ -182,7 +184,14 @@ function SceneCanvas({ vw, vh, zIndex, name, dprCeiling = 2, moving = false, onL
         // dark corridor, and the quality budget can pull this down further on a
         // machine that has already shown it cannot afford the motion blur.
         dpr={[1, dprCeiling]}
-        gl={{ antialias: true, alpha: true }}
+        // MSAA is the single most expensive thing about a framebuffer: four
+        // samples of colour and four of depth plus the resolve is 36 bytes a
+        // pixel where a plain buffer is 8, which on this pair of canvases is
+        // ~200 MB rather than ~45. It stays on — measured with it off, the
+        // bulkhead lamp's rim and the hoist cable step visibly, and they are
+        // near the front of the frame. It is a prop rather than a constant so
+        // that a canvas which holds nothing round can decline it.
+        gl={{ antialias, alpha: true }}
         // `manual` hands the camera to `CameraRig` outright; `rotation` is here
         // as well as in the rig because R3F decides whether to aim the camera at
         // the origin at *creation*, before any effect has run.

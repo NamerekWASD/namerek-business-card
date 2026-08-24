@@ -3,8 +3,10 @@ import { openingTop } from '../model/geometry.js';
 import { lampsAt } from '../model/lighting.js';
 import { openFloor } from '../../lift/ride.js';
 import { worldY } from '../renderers/r3f/camera.js';
-import { LAYER_LANDING, LAYER_SHAFT, lightRig, maxLights } from '../renderers/r3f/lighting.js';
-import { useLightTuning } from '../renderers/r3f/tuning.js';
+import {
+  LAYER_LANDING, LAYER_SHAFT, lightRig, maxLights, seatRoom,
+} from '../renderers/r3f/lighting.js';
+import { readLight, useLightTuning } from '../renderers/r3f/tuning.js';
 
 // Every physical source in the scene, and nothing else. This component decides
 // nothing: `lightRig` returns the whole rig as data and this writes it onto a
@@ -40,7 +42,15 @@ import { useLightTuning } from '../renderers/r3f/tuning.js';
 // The props that are *not* per-frame — the intro's supply, the boot warm-up, the
 // bench — stay props, and are read through a ref so the per-frame write always
 // sees the latest without re-subscribing.
-function SceneLights({ vw, vh, floorPx, ticker, deck, ride, intro = 0, warm = false, dim = 1 }) {
+// Which rooms this canvas has geometry for. Both, unless a canvas says
+// otherwise — `NearScene` holds only the shaft's, and a seat lighting a room
+// that is not there still owns a full cube map and still rasterises its six
+// faces on every change. See `casts` below.
+const BOTH_ROOMS = ['shaft', 'landing'];
+
+function SceneLights({
+  vw, vh, floorPx, ticker, deck, ride, intro = 0, warm = false, dim = 1, rooms = BOTH_ROOMS,
+}) {
   const lights = useRef([]);
   // Subscribed, not read: a bench slider has to reach this component, and the
   // per-frame write below reads the tuning through `lightRig` at call time.
@@ -97,20 +107,32 @@ function SceneLights({ vw, vh, floorPx, ticker, deck, ride, intro = 0, warm = fa
       // this one's shadow map, right through the wall `Room` otherwise makes
       // opaque to light.
       light.shadow.camera.layers.set(layer);
-      light.shadow.mapSize.set(2048, 2048);
+      // Off the bench, and asked again every pass rather than set once: three
+      // reads `mapSize` only when it has no map to reuse, so a slider that
+      // moves has to hand the old cube back or nothing happens. At 2048 one
+      // light held 201 MB — six faces as colour and again as depth — and the
+      // rig's eight held 1.6 GB of an 8 GB card.
+      const size = readLight().shadowMapSize;
+      if (light.shadow.mapSize.x !== size) {
+        light.shadow.mapSize.set(size, size);
+        light.shadow.map?.dispose();
+        light.shadow.map = null;
+      }
       light.shadow.camera.near = 10;
       // Covers the shaft's own depth plus the landing behind it, with room to
       // spare — a point light shadow that comes up short just short of the wall
       // it should be darkening is worse than one that never shipped.
       light.shadow.camera.far = 1800;
-      light.shadow.bias = -0.0015;
+      light.shadow.bias = 0.0015;
       // A fitting in this scene is not a pinhole, so its shadow should not read
       // like one either — a hard edge is what a spotlight throws, not a shaded
       // bulb. This is a blur-radius knob rather than a resolution one (three's
       // point-light PCF path samples a five-tap disk scaled by this value, cost
       // is flat regardless of how wide it is set), so it can be generous without
-      // costing anything back.
-      light.shadow.radius = 14;
+      // costing anything back — and it is what a smaller `shadowMapSize` is
+      // meant to be spent on, since a blurred edge is what tells a soft shadow
+      // apart from a low-resolution one.
+      light.shadow.radius = readLight().shadowRadius;
 
       // A dark light still has a shadow map, and three would still redraw its
       // six cube faces every frame for a contribution of exactly nothing. The
@@ -166,18 +188,19 @@ function SceneLights({ vw, vh, floorPx, ticker, deck, ride, intro = 0, warm = fa
   // allocated from the driver and six more handed back — per floor, per canvas,
   // in the middle of a ride. It is the reason a four-floor trip hitched where a
   // one-floor trip did not: the cost was linear in the distance travelled.
+  const casts = (index) => rooms.includes(seatRoom(index));
+
   return Array.from({ length: maxLights() }).map((_, index) => (
     <pointLight
       // eslint-disable-next-line react/no-array-index-key
       key={index}
       ref={(node) => { lights.current[index] = node; }}
-      // Every fitting casts now, not just the nearest one. A point light's
-      // shadow is a cubemap — six passes rather than one — so this was capped to
-      // the two lights that mattered most; asked for the richer scene over the
-      // cost, since the cabinet and the wall props are lit by whichever shaft
-      // lamp actually rakes across them, not necessarily the one nearest the
-      // cage.
-      castShadow
+      // Every fitting casts, not just the nearest one — asked for the richer
+      // scene over the cost, since the cabinet and the wall props are lit by
+      // whichever shaft lamp actually rakes across them. The exception is a
+      // seat whose room this canvas does not hold: its cube would be six passes
+      // over an empty layer, drawn into a map nothing samples.
+      castShadow={casts(index)}
     />
   ));
 }

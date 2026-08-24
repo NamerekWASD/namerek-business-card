@@ -138,7 +138,7 @@ export function shaftLights(lamps, at, range = Infinity) {
  * @param {number} vw @param {number} vh @param {number} openingTopY
  * @returns {Point3}
  */
-export const pendantAt = (vw, vh, openingTopY) => [vw / 2, pendantAnchorY(vh, openingTopY), -SHAFT_DEPTH - 34];
+export const pendantAt = (vw, vh, openingTopY) => [vw / 2, pendantAnchorY(vh, openingTopY), -SHAFT_DEPTH - 294];
 
 /**
  * The landing's own fitting: a spot in the depth of the active floor, aimed back
@@ -222,6 +222,20 @@ export function lightRig({ vw, vh, lamps, floorPitch, deckTop, closure }) {
  * that cannot fail; asked for the live number it is a test again.
  */
 export const maxLights = () => readLight().shaftLights + 1;
+
+/**
+ * Which room a seat in the rig belongs to, without building a rig to ask.
+ *
+ * `SceneLights` needs this before it has a rig: `castShadow` is a static prop
+ * — `numPointLightShadows` is in three's program cache key, so a seat that
+ * starts and stops casting recompiles the room — and a canvas that holds only
+ * one room's geometry has no use for the other's shadow. `lightRig` builds the
+ * fittings first and pushes the pendant last, which is what makes the answer a
+ * function of the index alone; `lighting.test.js` holds the two together.
+ *
+ * @param {number} index @returns {'shaft' | 'landing'}
+ */
+export const seatRoom = (index) => (index === maxLights() - 1 ? 'landing' : 'shaft');
 
 // The ambience used to live here, as `ambientOf`, and to be applied by whoever
 // remembered to. It is `Room`'s now — one traverse, every mesh in the room, and
