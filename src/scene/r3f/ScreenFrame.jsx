@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ExtrudeGeometry, Shape } from 'three';
 import { SURFACES } from '../model/materials.js';
 import { useFittingMaterial } from '../renderers/r3f/useSurfaceMaterial.js';
 import { buttonFace, counterPlate, frameBand } from '../renderers/r3f/propArt.js';
 import { invalidateScene } from '../renderers/r3f/frames.js';
+import useButtonPulse, { GLOW } from '../renderers/r3f/buttonPulse.js';
+import { GITHUB_URL, PROJECT_PAGES } from '../../decks/content.js';
 
 // ── the wall screen's frame ──────────────────────────────────────────────────
 // What was here before was a slab: one box the size of the panel with the glass
@@ -259,14 +261,17 @@ function Vent({ y, w, band, material, rib, z }) {
  * for a change to one float. This scene has been bitten once already by
  * positioning something from a prop; see `useRideMotion`.
  *
- * ── and it does nothing else, deliberately ──────────────────────────────────
- * Mykolai's call. There is nothing to page through yet — `content.js` still
- * says the projects are in preparation — so a working PREV/NEXT would be three
- * buttons paging an empty gallery. What they have is the part that has to be
- * right first, which is the feel: they go down under the finger, the legend
- * comes up, and they spring back.
+ * ── who owns the legend ─────────────────────────────────────────────────────
+ * Two things write `emissiveIntensity` on the same material: the invitation
+ * (`buttonPulse`, a slow swell that says this can be pressed at all) and the
+ * answer (a pointer over it, a finger on it). The answer wins while the pointer
+ * is here, which is what `hot` is for — this component raises the flag and the
+ * row's pulse leaves that button alone until it drops again.
  */
-function PressButton({ x, y, w, h, label, glyph, cap: capMaterial, bezel, z, band }) {
+function PressButton({
+  x, y, w, h, label, glyph, cap: capMaterial, bezel, z, band,
+  index, legends, hot, onPress,
+}) {
   const cap = useRef(null);
   const legend = useRef(null);
   const face = buttonFace(label, glyph);
@@ -289,6 +294,15 @@ function PressButton({ x, y, w, h, label, glyph, cap: capMaterial, bezel, z, ban
     invalidateScene();
   };
 
+  // Handing this button's own legend up to the row's pulse. A callback ref
+  // rather than an effect: the material exists the moment the mesh is attached,
+  // and an effect would leave the row driving a hole for a frame.
+  const holdLegend = (material) => {
+    legend.current = material;
+    if (legends) legends.current[index] = material;
+  };
+  const mark = (on) => { if (hot) hot.current[index] = on; };
+
   return (
     <group position={[x, y, 0]}>
       {/* the surround it sits in — a button with no shoulder is a sticker */}
@@ -302,10 +316,10 @@ function PressButton({ x, y, w, h, label, glyph, cap: capMaterial, bezel, z, ban
       <group
         ref={cap}
         position={[0, 0, z.band]}
-        onPointerOver={(e) => { e.stopPropagation(); cursor('pointer'); set(z.band, 0.5); }}
-        onPointerOut={() => { cursor(''); set(z.band, 0.22); }}
-        onPointerDown={(e) => { e.stopPropagation(); set(z.band - travel, 0.75); }}
-        onPointerUp={(e) => { e.stopPropagation(); set(z.band, 0.5); }}
+        onPointerOver={(e) => { e.stopPropagation(); mark(true); cursor('pointer'); set(z.band, GLOW.hover); }}
+        onPointerOut={() => { mark(false); cursor(''); set(z.band, GLOW.idle); }}
+        onPointerDown={(e) => { e.stopPropagation(); mark(true); set(z.band - travel, GLOW.press); }}
+        onPointerUp={(e) => { e.stopPropagation(); set(z.band, GLOW.hover); onPress?.(); }}
       >
         <Plate
           w={w}
@@ -318,11 +332,11 @@ function PressButton({ x, y, w, h, label, glyph, cap: capMaterial, bezel, z, ban
           <mesh position={[0, 0, band * 0.18]}>
             <planeGeometry args={[w * 0.97, h * 0.9]} />
             <meshStandardMaterial
-              ref={legend}
+              ref={holdLegend}
               map={face}
               emissiveMap={face}
               emissive="#ffb45e"
-              emissiveIntensity={0.22}
+              emissiveIntensity={GLOW.idle}
               color="#ffffff"
               roughness={0.55}
               metalness={0.25}
@@ -334,6 +348,26 @@ function PressButton({ x, y, w, h, label, glyph, cap: capMaterial, bezel, z, ban
     </group>
   );
 }
+
+/**
+ * The console's three controls, in the order they stand on the bottom run.
+ *
+ * `at` is which third of the run each one takes. `pulse` is its invitation —
+ * the swell that says it can be pressed — and the three periods are chosen not
+ * to be multiples of one another so the row never falls into a beat; see
+ * `buttonPulse.js`. Whether a control actually gets its invitation is decided
+ * per render from what it would do: PREV lights while there is a page behind
+ * you, NEXT while there is one ahead, GITHUB always, because it always goes
+ * somewhere.
+ */
+const CONTROLS = [
+  { label: 'PREV', glyph: 'left', at: -1, pulse: { period: 2300, phase: 0 } },
+  { label: 'GITHUB', glyph: null, at: 0, pulse: { period: 1700, phase: 0.38 } },
+  { label: 'NEXT', glyph: 'right', at: 1, pulse: { period: 2900, phase: 0.62 } },
+];
+
+/** Two digits, the way a mechanical counter shows them. */
+const pad = (n) => String(n).padStart(2, '0');
 
 /**
  * A baked strip, tiled along the member it is on rather than stretched to fit
@@ -362,12 +396,41 @@ function useBandMaterial(texture, len, roughness = 0.5, metalness = 0.4) {
  * share the band, the corners and the recess, and the only honest way to keep
  * those in step is for there to be one of each.
  *
- * @param {{ w: number, h: number, variant?: 'plain' | 'console' }} props
+ * `live` is whether this landing's doors are actually open. It gates the one
+ * thing on the frame that animates of its own accord — the buttons' invitation
+ * — for the reason every other prop on a landing is gated: both canvases are
+ * `frameloop="demand"`, and a panel pulsing behind a shut door is a panel
+ * keeping the whole scene awake for nobody.
+ *
+ * @param {{ w: number, h: number, variant?: 'plain' | 'console', live?: boolean }} props
  */
-function ScreenFrame({ w, h, variant = 'plain' }) {
+function ScreenFrame({ w, h, variant = 'plain', live = false }) {
   const console_ = variant === 'console';
   const m = frameMetrics(w, h, console_);
   const Z = depths(m.band);
+
+  // ── the console's own state ───────────────────────────────────────────────
+  // Which page the counter is showing. This is the one thing on the frame that
+  // is genuinely React state rather than a value written to a mesh: it changes
+  // on a click, not on a frame, and what it changes is which of six baked
+  // counter plates is on the panel.
+  const [page, setPage] = useState(0);
+  // The legends the pulse drives, and which of them the pointer currently owns.
+  // Refs, not state — see `buttonPulse`.
+  const legends = useRef([]);
+  const hot = useRef([]);
+  const enabled = [page > 0, true, page < PROJECT_PAGES - 1];
+  const press = [
+    () => setPage((p) => Math.max(0, p - 1)),
+    () => { if (GITHUB_URL) window.open(GITHUB_URL, '_blank', 'noopener'); },
+    () => setPage((p) => Math.min(PROJECT_PAGES - 1, p + 1)),
+  ];
+  useButtonPulse(
+    legends,
+    hot,
+    console_ ? CONTROLS.map((c, i) => (enabled[i] ? c.pulse : null)) : [],
+    console_ && live,
+  );
 
   const band = frameBand();
   const runH = useBandMaterial(band, w);
@@ -488,36 +551,45 @@ function ScreenFrame({ w, h, variant = 'plain' }) {
       {/* ── what goes in the middle of each run ────────────────────────────── */}
       {console_
         ? (
-          <Counter y={topY} m={m} iron={iron} z={Z} />
+          <Counter y={topY} m={m} iron={iron} z={Z} page={page} />
         )
         : [topY, botY].map((vy) => (
           <Vent key={vy} y={vy} w={m.vent} band={m.band} material={iron} rib={rib} z={Z} />
         ))}
 
-      {console_ && [['PREV', 'left', -1], ['GITHUB', null, 0], ['NEXT', 'right', 1]].map(
-        ([label, glyph, s]) => (
-          <PressButton
-            key={label}
-            x={s * w * 0.26}
-            y={botY}
-            w={w * 0.2}
-            h={m.foot * 0.44}
-            label={label}
-            glyph={glyph}
-            cap={capM ?? fallback}
-            bezel={rib}
-            z={Z}
-            band={m.band}
-          />
-        ),
-      )}
+      {console_ && CONTROLS.map((c, i) => (
+        <PressButton
+          key={c.label}
+          x={c.at * w * 0.26}
+          y={botY}
+          w={w * 0.2}
+          h={m.foot * 0.44}
+          label={c.label}
+          glyph={c.glyph}
+          cap={capM ?? fallback}
+          bezel={rib}
+          z={Z}
+          band={m.band}
+          index={i}
+          legends={legends}
+          hot={hot}
+          onPress={press[i]}
+        />
+      ))}
     </group>
   );
 }
 
-/** Projekte's counter, standing in the top run where a vent would be. */
-function Counter({ y, m, iron, z }) {
-  const plate = counterPlate('01 / 06');
+/**
+ * Projekte's counter, standing in the top run where a vent would be.
+ *
+ * The text used to be the fixed string "01 / 06". It is the live page now, and
+ * that is what makes the buttons under it honest: a lit NEXT that changes
+ * nothing when it is pressed is a worse lie than an unlit one. Six plates,
+ * baked once each and cached by their own text.
+ */
+function Counter({ y, m, iron, z, page = 0 }) {
+  const plate = counterPlate(`${pad(page + 1)} / ${pad(PROJECT_PAGES)}`);
   return (
     <group position={[0, y, 0]}>
       <mesh position={[0, 0, z.vent + m.band * 0.1]} castShadow receiveShadow>

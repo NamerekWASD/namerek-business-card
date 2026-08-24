@@ -165,7 +165,10 @@ function LandingScreen({ floor, side, left, w, floorY, ceilingY, back, doorOpen,
   // would drift apart.
   return (
     <group position={[cx, worldY(cy), back]}>
-      <ScreenFrame w={frameW} h={frameH} variant={variant} />
+      {/* `live` gates the buttons' invitation on the doors actually being
+          open, the same way the patch bay's lamps are gated — see
+          `buttonPulse.js` for why a demand-driven scene cares. */}
+      <ScreenFrame w={frameW} h={frameH} variant={variant} live={doorOpen} />
       <mesh position={[0, m.glassY, m.glassZ]}>
         <planeGeometry args={[m.glassW, m.glassH]} />
         <meshStandardMaterial
