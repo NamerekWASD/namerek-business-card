@@ -19,11 +19,16 @@ import { CAGE_GATE } from '../../model/materials.js';
 const cache = new Map();
 
 /**
+ * Exported for `propArt.js`, which paints the landing's furniture. Same cache,
+ * same wrapping and colour-space contract — a second `bake` living next door
+ * would be a second set of textures under a second set of rules, and the two
+ * would drift.
+ *
  * @param {string} key @param {number} w @param {number} h
  * @param {(ctx: CanvasRenderingContext2D, w: number, h: number) => void} paint
  * @returns {CanvasTexture | null}
  */
-function bake(key, w, h, paint) {
+export function bake(key, w, h, paint) {
   if (cache.has(key)) return cache.get(key);
   if (typeof document === 'undefined') return null;
   const canvas = document.createElement('canvas');

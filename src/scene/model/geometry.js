@@ -97,7 +97,7 @@ export const PENDANT_HEAD_RISE = SHADE_YOKE_SEAT * PENDANT_SCALE;
 export const PENDANT_LINK_R = 7;         // across the eye
 export const PENDANT_LINK_T = 2;         // its wall
 export const PENDANT_LINK_STRETCH = 1.45; // ring drawn out into an oval
-export const PENDANT_LINKS = 10;
+export const PENDANT_LINKS = 7;
 export const PENDANT_LINK_PITCH =
   2 * (PENDANT_LINK_R + PENDANT_LINK_T) * PENDANT_LINK_STRETCH * 0.6 * PENDANT_SCALE;
 export const PENDANT_DROP = PENDANT_LINKS * PENDANT_LINK_PITCH;
@@ -125,6 +125,31 @@ export const pendantAnchorY = (vh, openingTopY) =>
 /** @param {number} vh @param {number} openingTopY */
 export const landingFloorY = (vh, openingTopY) =>
   openingTopY + vh * DOORWAY_H_FRAC * LANDING_FLOOR_FRAC;
+
+// ── the scene's metre ────────────────────────────────────────────────────────
+// Everything in this model is in scene pixels, which are a screen unit and say
+// nothing about how big a thing is *in the building*. That is fine for the
+// building itself — a wall is as big as the viewport says — and it is exactly
+// wrong for furniture, because furniture is the only thing in the frame whose
+// size the viewer already knows. A bench and a crate are how a room states its
+// scale, and both were built from pixel figures picked by eye: the workbench
+// came out 94px tall, which against this room is a third of a metre. That is
+// the whole of why the props read as toys.
+//
+// So there is one metre, derived from the one dimension the room actually
+// fixes: floor to ceiling. An interwar goods landing runs a shade over three
+// metres, and stating that here means a prop is modelled in metres and lands at
+// the right size on every viewport, instead of being right on one screen and
+// wrong on the next.
+export const LANDING_HEIGHT_M = 3.05;
+
+/**
+ * One metre, in scene pixels. Everything that stands in the landing is built
+ * from this rather than from a number that looked about right.
+ * @param {number} vh @returns {number}
+ */
+export const pxPerM = (vh) =>
+  (vh * (DOORWAY_H_FRAC * LANDING_FLOOR_FRAC + LANDING_CEILING_RISE_FRAC)) / LANDING_HEIGHT_M;
 
 // ── the cage ─────────────────────────────────────────────────────────────────
 // An open goods-lift cage riding inside the shaft, so it is narrower than the

@@ -12,10 +12,12 @@ import { invalidateScene } from '../renderers/r3f/frames.js';
 // a taste call judged frame-to-frame like the lighting rig — so Mykolai can
 // nudge them by hand here whenever the landing's proportions change.
 export const SCREEN_TUNING = {
+  outerMarginX: -118,
+  innerMarginX: 196,
   marginX: 46, // gap from the doorway's own edges — outer wall side and centre gutter alike
-  marginTop: 70, // gap under the cornice
-  marginBottom: 70, // gap above the skirting
-  frameInset: 18, // how far the glass sits inside its own frame lip
+  marginTop: 110, // gap under the cornice
+  marginBottom: 110, // gap above the skirting
+  frameInset: 28, // how far the glass sits inside its own frame lip
   frameDepth: 10, // how proud the frame stands off the wall
   glassDepth: 4, // how proud the glass stands off the frame
   markSize: 0.72, // the logo's size as a fraction of the glass height
@@ -142,20 +144,21 @@ function LandingScreen({ floor, side, left, w, floorY, ceilingY, back, doorOpen,
   const t = SCREEN_TUNING;
   const half = w / 2;
   const slotLeft = side === 'left' ? left : left + half;
-  const cx = slotLeft + half / 2;
+  const frameLeft = slotLeft + (side === 'left' ? t.outerMarginX : t.innerMarginX);
+  const frameW = half - t.outerMarginX - t.innerMarginX;
+  const cx = frameLeft + frameW / 2;
   const cy = (floorY + ceilingY) / 2;
-  const frameW = half - t.marginX * 2;
   const frameH = (floorY - ceilingY) - t.marginTop - t.marginBottom;
   const glassW = frameW - t.frameInset * 2;
   const glassH = frameH - t.frameInset * 2;
   const frameCenterZ = back + t.frameDepth / 2;
   const glassZ = back + t.frameDepth + t.glassDepth;
 
-  const glow = screenGlow();
+  const glow = screenGlow(40);
 
   return (
     <group>
-      <mesh position={[cx, worldY(cy), frameCenterZ]} castShadow receiveShadow>
+      <mesh position={[cx, worldY(cy) , frameCenterZ]} castShadow receiveShadow>
         <boxGeometry args={[frameW, frameH, t.frameDepth]} />
         <meshStandardMaterial {...surfaceProps(SURFACES.cabinetFrame, 1)} />
       </mesh>

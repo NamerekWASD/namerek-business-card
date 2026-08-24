@@ -17,7 +17,7 @@ import NearScene from '../scene/r3f/NearScene.jsx';
 import { DEBUG_PANEL, useBlurBudget } from '../scene/effects/quality.js';
 import Lighting from '../scene/effects/Lighting.jsx';
 import MotionBlurDef from '../scene/effects/MotionBlurDef.jsx';
-import { DECKS, SCREEN_SIDE } from '../lift/decks.js';
+import { CONTENT_RISE, DECKS, SCREEN_SIDE } from '../lift/decks.js';
 import { WALL_PARALLAX, BG_PARALLAX, DECK_GAP, doorClosure } from '../lift/ride.js';
 import { DOOR_TOTAL_MS, introClosure, introDim, introShake } from '../lift/intro.js';
 import useLift from '../lift/useLift.js';
@@ -241,6 +241,12 @@ export default function Dieselpunk() {
                 style={{
                   position: 'absolute', left: 0, right: 0, top: -i * contentFloorPitch, height: aperture.height,
                   display: 'flex', flexDirection: 'column', justifyContent: 'center',
+                  // …and then lifted off that centre by whatever this floor's
+                  // own furniture needs — see `CONTENT_RISE`. A transform
+                  // rather than a changed `justifyContent`, so a rise of 0 is
+                  // exactly the layout this had before there was anything
+                  // standing on the landing to collide with.
+                  transform: `translateY(${-(CONTENT_RISE[i] ?? 0) * aperture.height}px)`,
                   padding: '1.4rem 5.8rem',
                   boxSizing: 'border-box',
                 }}

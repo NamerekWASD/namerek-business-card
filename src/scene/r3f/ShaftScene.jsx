@@ -335,8 +335,18 @@ const Landing = memo(function Landing({ vw, vh, top, floor, furnished, shown, do
           roof. A fitting hanging in real depth needs a real floor under it, or
           it sinks into whatever is merely painted there. No jambs — with side
           walls too this was a room the size of a doorway, and a lift that opens
-          into a cupboard has nowhere to go. */}
-      <Panel surface={SURFACES.landing} hinge="top" pitch={-90} shade={0.85} left={roomLeft} top={floorY} w={roomW} h={LANDING_SETBACK} z={-SHAFT_DEPTH} />
+          into a cupboard has nowhere to go.
+          **They are hinged at opposite ends, and that is not a detail.** A
+          `pitch` of -90 tips a plane's face *downward*, which is what a ceiling
+          wants and is exactly wrong for a floor: built that way the landing's
+          floor faced the earth, so back-face culling removed it from the camera
+          and the pendant's light landed on the side of it nobody can see. The
+          room had no floor at all — which is why anything stood on it read as
+          hovering and why the only thing visible down there was a painted
+          shadow blob. The cage's own deck (`CageDeck`, `pitch={isRoof ? -90 :
+          90}`) already states the rule: a surface you look down onto is hinged
+          at its far edge and runs *toward* the camera. */}
+      <Panel surface={SURFACES.landing} hinge="top" pitch={90} shade={0.85} left={roomLeft} top={floorY} w={roomW} h={LANDING_SETBACK} z={back} />
       <Panel surface={SURFACES.landing} hinge="top" pitch={-90} shade={0.3} left={roomLeft} top={ceilingY} w={roomW} h={LANDING_SETBACK} z={-SHAFT_DEPTH} />
       {/* the skirting and the cornice: a proud strip along the floor and
           ceiling lines, not a shaded stripe painted flat on the wall behind
