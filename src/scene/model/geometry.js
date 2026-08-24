@@ -61,7 +61,7 @@ export const openingTop = (vh, floorPitch, floor) =>
 // behind the face instead, the cabinet caught nothing but a graze from the
 // side, however bright the fixture. Setting the landing back further than the
 // light's own reach is what puts the light back in front of the machine.
-export const LANDING_SETBACK = 478;
+export const LANDING_SETBACK = 678;
 
 // How tall the arcade cabinet hangs, in scene pixels.
 //
@@ -75,36 +75,52 @@ export const CABINET_H = Math.round(
   (324 * (CAM_PERSPECTIVE + SHAFT_DEPTH + LANDING_SETBACK)) / CAM_PERSPECTIVE,
 );
 
-// ── the landing's pendant ────────────────────────────────────────────────────
-// The fixture's own vertical reach, in scene pixels: how far below the
-// doorway's head its mounting point sits, and how far the chain climbs back up
-// from there to the ceiling it is actually bolted to. Kept here, rather than
-// inside the component that draws the chain links, because the landing's
-// ceiling is built from the same reach — see `landingCeilingY`. Two renderers
-// of the same number is exactly how the chain ended up longer than the room
-// was tall: nothing before this ever checked the two against each other.
-export const PENDANT_ANCHOR_FRAC = 0.16; // of vh, mounting point below the doorway head
-export const PENDANT_HEAD_RISE = 51;     // yoke, above the mounting point
-export const PENDANT_DROP_FRAC = 0.13;   // of vh, chain length from the ceiling to the yoke
+// ── the landing's pendant ──────────────────────────────────────────────────────
+// A hanging lamp has one fixed end and one loose one, and the fixed one is the
+// ceiling: the chain decides how far below it the shade ends up, never the
+// other way round. So the ceiling line is stated on its own terms and the
+// fixture is hung off it — take links out of the chain and the lamp rises,
+// which is the only thing that reading `PENDANT_LINKS` could sanely mean.
+//
+// `PENDANT_HEAD_RISE` follows `PENDANT_SCALE` rather than standing beside it:
+// where the chain lands is a fact about the casting the chain lands on, so
+// shrinking the shade without shrinking the reach is precisely how the body
+// came off the chain and hung in mid-air.
+export const PENDANT_SCALE = 0.8;        // the shade assembly's own size
+const SHADE_YOKE_SEAT = 51;              // yoke above the lamp's centre, at full size
+export const PENDANT_HEAD_RISE = SHADE_YOKE_SEAT * PENDANT_SCALE;
 
-/** @param {number} vh @param {number} openingTopY */
-export const pendantAnchorY = (vh, openingTopY) => openingTopY + vh * PENDANT_ANCHOR_FRAC;
-
-/** Where the topmost chain link actually ends up. @param {number} vh @param {number} openingTopY */
-export const pendantChainTopY = (vh, openingTopY) =>
-  pendantAnchorY(vh, openingTopY) - PENDANT_HEAD_RISE - vh * PENDANT_DROP_FRAC;
+// The chain, one link at a time. Consecutive links have to overlap by well
+// over their own wall thickness — a pitch of one whole link leaves them merely
+// stacked — which is what the 0.6 is for. `PENDANT_LINKS` is the knob: fewer
+// links, shorter chain, higher lamp.
+export const PENDANT_LINK_R = 7;         // across the eye
+export const PENDANT_LINK_T = 2;         // its wall
+export const PENDANT_LINK_STRETCH = 1.45; // ring drawn out into an oval
+export const PENDANT_LINKS = 10;
+export const PENDANT_LINK_PITCH =
+  2 * (PENDANT_LINK_R + PENDANT_LINK_T) * PENDANT_LINK_STRETCH * 0.6 * PENDANT_SCALE;
+export const PENDANT_DROP = PENDANT_LINKS * PENDANT_LINK_PITCH;
 
 // The landing's ceiling line, and the floor's — short of the doorway's own
 // head and sill, or the skirting and cornice have nothing to stand proud of.
-// The ceiling is pinned to the pendant's own reach rather than to a fraction
-// of the doorway, with a hand's width of clearance, so the chain can never
-// again climb past the surface it is meant to hang from.
-export const LANDING_CEILING_CLEARANCE = 20;
-export const LANDING_FLOOR_FRAC = 0.87; // of the doorway's own height
+// The clearance is the ceiling mount's own room: the chain stops short of the
+// plaster and a canopy and stem bridge the rest.
+export const LANDING_CEILING_RISE_FRAC = 0.075; // of vh, above the doorway head
+export const LANDING_CEILING_CLEARANCE = 30;
+export const LANDING_FLOOR_FRAC = 1; // of the doorway's own height
 
 /** @param {number} vh @param {number} openingTopY */
 export const landingCeilingY = (vh, openingTopY) =>
-  pendantChainTopY(vh, openingTopY) - LANDING_CEILING_CLEARANCE;
+  openingTopY - vh * LANDING_CEILING_RISE_FRAC;
+
+/** Where the topmost chain link actually ends up. @param {number} vh @param {number} openingTopY */
+export const pendantChainTopY = (vh, openingTopY) =>
+  landingCeilingY(vh, openingTopY) + LANDING_CEILING_CLEARANCE;
+
+/** The lamp's own centre — the point the light comes from. @param {number} vh @param {number} openingTopY */
+export const pendantAnchorY = (vh, openingTopY) =>
+  pendantChainTopY(vh, openingTopY) + PENDANT_DROP + PENDANT_HEAD_RISE;
 
 /** @param {number} vh @param {number} openingTopY */
 export const landingFloorY = (vh, openingTopY) =>

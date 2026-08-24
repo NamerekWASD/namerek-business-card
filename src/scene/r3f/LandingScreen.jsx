@@ -165,7 +165,7 @@ function LandingScreen({ floor, side, left, w, floorY, ceilingY, back, doorOpen,
           userData={{ selfLit: true }}
           color="#120f0c"
           emissive="#ffe6c4"
-          emissiveIntensity={1.1}
+          emissiveIntensity={0.5}
           emissiveMap={glow}
           roughness={0.32}
         />

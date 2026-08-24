@@ -501,8 +501,8 @@ export const screenGlow = (flutes = 26) => bake(`screen:${flutes}`, 256, 256, (c
   const pool = ctx.createRadialGradient(w / 2, h * 0.46, 0, w / 2, h * 0.5, w * 0.66);
   pool.addColorStop(0, '#fff4e2');
   pool.addColorStop(0.38, '#c08c4c');
-  pool.addColorStop(0.78, '#3a2712');
-  pool.addColorStop(1, '#0d0906');
+  pool.addColorStop(0.78, '#52330f');
+  pool.addColorStop(1, '#24160c');
   ctx.fillStyle = pool;
   ctx.fillRect(0, 0, w, h);
 

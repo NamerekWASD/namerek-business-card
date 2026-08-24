@@ -3,7 +3,8 @@ import { CatmullRomCurve3, DoubleSide, Vector3 } from 'three';
 import { CAM_ORIGIN_Y, SHAFT_DEPTH } from '../model/camera.js';
 import {
   BACK_OVERSCAN, COUNTERWEIGHT_INSET_X, COUNTERWEIGHT_Z, DOORWAY_H_FRAC, DOORWAY_W_FRAC,
-  LANDING_SETBACK, PENDANT_DROP_FRAC, PENDANT_HEAD_RISE, counterweightY, landingCeilingY,
+  LANDING_SETBACK, PENDANT_HEAD_RISE, PENDANT_LINKS, PENDANT_LINK_PITCH, PENDANT_LINK_R,
+  PENDANT_LINK_STRETCH, PENDANT_LINK_T, PENDANT_SCALE, counterweightY, landingCeilingY,
   landingFloorY, openingTop,
 } from '../model/geometry.js';
 import { SURFACES } from '../model/materials.js';
@@ -101,21 +102,26 @@ function Pendant({ vw, vh, top }) {
   // Everything here is measured downward from the point the light comes from,
   // and negated by `worldY` on the way out: this file thinks in screen pixels
   // with y down, three.js does not.
-  const R = 62;                    // across the dome
-  const headY = -36;               // the finned casting the shade hangs off
+  //
+  // The shade below is drawn at full size inside a single group that scales it,
+  // so resizing the lamp is one number rather than forty — and that number is
+  // `PENDANT_SCALE` in geometry.js, which the chain's own reach is derived from.
+  // Scaling the two apart is what let the body come off the chain and hang in
+  // mid-air; there is no longer a way to do it from here.
+  const S = PENDANT_SCALE;
+  const R = 62;      // across the dome
+  const headY = -36; // the finned casting the shade hangs off
   const headTop = -PENDANT_HEAD_RISE;
-  const drop = vh * PENDANT_DROP_FRAC; // chain from the ceiling down to the yoke
 
-  // A chain link is an oval, and consecutive links have to overlap by well over
-  // their own wall thickness. A pitch of one whole link leaves them merely
-  // stacked, and alternating them about X rather than about the hanging axis
-  // lays every one of them flat — between the two, the chain read as a column
-  // of floating washers.
-  const linkR = 7;
-  const linkT = 2;
-  const linkY = 1.45;              // stretched from a ring into a link
-  const pitch = 2 * (linkR + linkT) * linkY * 0.6;
-  const links = Math.max(2, Math.round(drop / pitch));
+  // The chain climbs from the yoke up to the ceiling mount. Its length is a
+  // link count rather than a fraction of the viewport — see `PENDANT_LINKS`:
+  // fewer links, shorter chain, and the whole fixture rides higher, because the
+  // ceiling is the end that is nailed down.
+  const linkR = PENDANT_LINK_R * S;
+  const linkT = PENDANT_LINK_T * S;
+  const linkY = PENDANT_LINK_STRETCH; // stretched from a ring into a link
+  const pitch = PENDANT_LINK_PITCH;
+  const links = PENDANT_LINKS;
 
   // The guard. It is a barrel, not a cylinder: wider where it meets the shade
   // and drawn in under the bulb, so each upright leans by its own taper.
@@ -127,9 +133,48 @@ function Pendant({ vw, vh, top }) {
   const lean = Math.atan2(rTop - rBot, cageBot - cageTop);
   const barLen = Math.hypot(cageBot - cageTop, rTop - rBot);
 
+  // The ceiling mount. The chain stops `LANDING_CEILING_CLEARANCE` short of
+  // the ceiling line, so it gets hardware to hang from instead of fading into
+  // the plaster: a shallow canopy screwed to the ceiling, a threaded stem and
+  // a clevis collar, with the stem running down into the eye of the top link.
+  // The canopy's top face is sunk 2px past the ceiling plane, so nothing here
+  // is coplanar with the panel behind it.
+  const ceilingLocal = landingCeilingY(vh, top) - y; // px above the anchor, negative
+  const mountTopLocal = ceilingLocal - 2;
+  const canopyH = 9;
+  const mountBottomLocal = mountTopLocal + canopyH;
+  // the chain's true top end rather than its nominal one: a link's own eye
+  // reaches past the centre the last one is placed on
+  const chainTopLocal = headTop - (links - 1) * pitch - (linkR + linkT) * linkY;
+  const stemLen = Math.max(6 * S, chainTopLocal - mountBottomLocal + 6 * S);
+  // the clevis sits off square to the room: dead-on it flattens into a stripe
+  const MOUNT_YAW = (70 * Math.PI) / 180;
+
   return (
     <group position={[x, worldY(y), z]}>
-      {/* the chain, and the yoke it lands on */}
+      {/* the ceiling mount, above the chain so links read as hung from it */}
+      <mesh position={[0, worldY(mountTopLocal + canopyH / 2), 0]} castShadow receiveShadow>
+        <cylinderGeometry args={[36 * S, 28 * S, canopyH, 16]} />
+        <meshStandardMaterial {...cast} />
+      </mesh>
+      <mesh position={[0, worldY(mountBottomLocal + stemLen / 2), 0]} castShadow receiveShadow>
+        <cylinderGeometry args={[4 * S, 4 * S, stemLen, 10]} />
+        <meshStandardMaterial {...steel} />
+      </mesh>
+      <mesh
+        position={[0, worldY(mountBottomLocal + 4 * S), 0]}
+        rotation={[0, MOUNT_YAW, 0]}
+        castShadow
+        receiveShadow
+      >
+        <boxGeometry args={[32 * S, 10 * S, 5 * S]} />
+        <meshStandardMaterial {...cast} />
+      </mesh>
+
+      {/* the chain, and the yoke it lands on. A link is an oval, and
+          consecutive ones have to overlap by well over their own wall
+          thickness; alternating them about X rather than about the hanging axis
+          is what stops the run reading as a column of floating washers. */}
       {Array.from({ length: links }).map((_, i) => (
         <mesh
           key={i}
@@ -141,93 +186,98 @@ function Pendant({ vw, vh, top }) {
           <meshStandardMaterial {...cast} />
         </mesh>
       ))}
-      <mesh position={[0, worldY(headTop + 5), 0]} castShadow receiveShadow>
-        <boxGeometry args={[17, 13, 5]} />
+      <mesh position={[0, worldY(headTop + 5 * S), 0]} castShadow receiveShadow>
+        <boxGeometry args={[17 * S, 13 * S, 5 * S]} />
         <meshStandardMaterial {...cast} />
       </mesh>
 
-      {/* The cast head. A casting of this period is finned because it had to
-          shed the heat of the lamp under it, and the fins are the reason it
-          reads as engineered rather than merely old. They stand off the barrel
-          on their own radius — rotating a box about the axis it is already
-          centred on moves it nowhere, which is how eight of them came to be
-          hidden inside one another. */}
-      <mesh position={[0, worldY(headY), 0]} castShadow receiveShadow>
-        <cylinderGeometry args={[17, 23, 30, 14]} />
-        <meshStandardMaterial {...cast} />
-      </mesh>
-      {Array.from({ length: 8 }).map((_, i) => {
-        const a = (i / 8) * Math.PI * 2;
-        return (
-          <mesh
-            key={i}
-            position={[Math.sin(a) * 20, worldY(headY), Math.cos(a) * 20]}
-            rotation={[0, a, 0]}
-            castShadow
-            receiveShadow
-          >
-            <boxGeometry args={[3, 26, 15]} />
-            <meshStandardMaterial {...cast} />
-          </mesh>
-        );
-      })}
-      <mesh position={[0, worldY(headY + 17), 0]} castShadow receiveShadow>
-        <cylinderGeometry args={[27, 27, 4, 18]} />
-        <meshStandardMaterial {...cast} />
-      </mesh>
+      {/* The shade, drawn at its own full size — this group is the only place
+          its scale is applied, and `headTop` above comes off the same number,
+          so the casting's crown always meets the yoke sitting on it. */}
+      <group scale={S}>
+        {/* The cast head. A casting of this period is finned because it had to
+            shed the heat of the lamp under it, and the fins are the reason it
+            reads as engineered rather than merely old. They stand off the
+            barrel on their own radius — rotating a box about the axis it is
+            already centred on moves it nowhere, which is how eight of them came
+            to be hidden inside one another. */}
+        <mesh position={[0, worldY(headY), 0]} castShadow receiveShadow>
+          <cylinderGeometry args={[17, 23, 30, 14]} />
+          <meshStandardMaterial {...cast} />
+        </mesh>
+        {Array.from({ length: 8 }).map((_, i) => {
+          const a = (i / 8) * Math.PI * 2;
+          return (
+            <mesh
+              key={i}
+              position={[Math.sin(a) * 20, worldY(headY), Math.cos(a) * 20]}
+              rotation={[0, a, 0]}
+              castShadow
+              receiveShadow
+            >
+              <boxGeometry args={[3, 26, 15]} />
+              <meshStandardMaterial {...cast} />
+            </mesh>
+          );
+        })}
+        <mesh position={[0, worldY(headY + 17), 0]} castShadow receiveShadow>
+          <cylinderGeometry args={[27, 27, 4, 18]} />
+          <meshStandardMaterial {...cast} />
+        </mesh>
 
-      {/* the dome, and its lip — a shade with no rim reads as a paper cone.
-          The rim sits at the guard's own top ring rather than above it: the
-          shade has to reach down far enough to nest the guard inside it, or
-          the two read as separate fixtures with the wall showing through the
-          gap between them. */}
-      <mesh position={[0, worldY(2), 0]} castShadow receiveShadow>
-        <sphereGeometry args={[R, 24, 10, 0, Math.PI * 2, 0, Math.PI / 2]} />
-        <meshStandardMaterial {...cast} side={DoubleSide} />
-      </mesh>
-      <mesh position={[0, worldY(4), 0]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
-        <torusGeometry args={[R * 0.99, 3, 6, 28]} />
-        <meshStandardMaterial {...steel} />
-      </mesh>
-
-      {/* the glass */}
-      <mesh position={[0, worldY(20), 0]} scale={[1, 1.2, 1]}>
-        <sphereGeometry args={[16, 16, 12]} />
-        <meshStandardMaterial
-          userData={{ selfLit: true }}
-          color="#3a2408"
-          emissive="#ffdca6"
-          emissiveIntensity={tuning.landingGlass}
-          roughness={0.35}
-        />
-      </mesh>
-
-      {/* and the guard over it — the fitting's whole signature, dark uprights
-          against a bright bulb */}
-      {Array.from({ length: bars }).map((_, i) => (
-        <group key={i} rotation={[0, (i / bars) * Math.PI * 2, 0]}>
-          <mesh
-            position={[0, worldY((cageTop + cageBot) / 2), (rTop + rBot) / 2]}
-            rotation={[lean, 0, 0]}
-            castShadow
-            receiveShadow
-          >
-            <boxGeometry args={[2.6, barLen, 2.6]} />
-            <meshStandardMaterial {...steel} />
-          </mesh>
-        </group>
-      ))}
-      {[[cageTop, rTop], [cageBot, rBot]].map(([v, r]) => (
-        <mesh key={v} position={[0, worldY(v), 0]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
-          <torusGeometry args={[r, 2.4, 6, 20]} />
+        {/* the dome, and its lip — a shade with no rim reads as a paper cone.
+            The rim sits at the guard's own top ring rather than above it: the
+            shade has to reach down far enough to nest the guard inside it, or
+            the two read as separate fixtures with the wall showing through the
+            gap between them. */}
+        <mesh position={[0, worldY(2), 0]} castShadow receiveShadow>
+          <sphereGeometry args={[R, 24, 10, 0, Math.PI * 2, 0, Math.PI / 2]} />
+          <meshStandardMaterial {...cast} side={DoubleSide} />
+        </mesh>
+        <mesh position={[0, worldY(4), 0]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
+          <torusGeometry args={[R * 0.99, 3, 6, 28]} />
           <meshStandardMaterial {...steel} />
         </mesh>
-      ))}
-      {/* the finial closing the cage under the bulb */}
-      <mesh position={[0, worldY(cageBot + 6), 0]} castShadow receiveShadow>
-        <sphereGeometry args={[6, 10, 8]} />
-        <meshStandardMaterial {...steel} />
-      </mesh>
+
+        {/* the glass */}
+        <mesh position={[0, worldY(20), 0]} scale={[1, 1.2, 1]}>
+          <sphereGeometry args={[16, 16, 12]} />
+          <meshStandardMaterial
+            userData={{ selfLit: true }}
+            color="#3a2408"
+            emissive="#ffdca6"
+            emissiveIntensity={tuning.landingGlass}
+            roughness={0.35}
+          />
+        </mesh>
+
+        {/* and the guard over it — the fitting's whole signature, dark uprights
+            against a bright bulb */}
+        {Array.from({ length: bars }).map((_, i) => (
+          <group key={i} rotation={[0, (i / bars) * Math.PI * 2, 0]}>
+            <mesh
+              position={[0, worldY((cageTop + cageBot) / 2), (rTop + rBot) / 2]}
+              rotation={[lean, 0, 0]}
+              castShadow
+              receiveShadow
+            >
+              <boxGeometry args={[2.6, barLen, 2.6]} />
+              <meshStandardMaterial {...steel} />
+            </mesh>
+          </group>
+        ))}
+        {[[cageTop, rTop], [cageBot, rBot]].map(([v, r]) => (
+          <mesh key={v} position={[0, worldY(v), 0]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
+            <torusGeometry args={[r, 2.4, 6, 20]} />
+            <meshStandardMaterial {...steel} />
+          </mesh>
+        ))}
+        {/* the finial closing the cage under the bulb */}
+        <mesh position={[0, worldY(cageBot + 6), 0]} castShadow receiveShadow>
+          <sphereGeometry args={[6, 10, 8]} />
+          <meshStandardMaterial {...steel} />
+        </mesh>
+      </group>
     </group>
   );
 }

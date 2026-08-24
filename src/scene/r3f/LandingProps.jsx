@@ -29,15 +29,15 @@ function standing(vh, top) {
 // hand-plugged board is never quite a grid — real ones drift a pixel or two off
 // pitch, which is most of what tells you someone actually uses this one.
 const JACKS = [
-  [22, 26], [50, 24], [79, 27], [108, 25],
-  [22, 62], [50, 64], [79, 61], [108, 63],
+  [22, 26], [50, 25], [79, 27], [108, 25],
+  [22, 62], [50, 63], [79, 61], [108, 63],
 ];
 
 // …and the two that are bridged. A board of jacks with two of them patched is,
 // underneath the brass, a switched network — the one object in this corridor
 // that gets to be about the site's own subject without saying so. Without the
 // cords it is just a grid of holes, which is why they are not decoration.
-const CORDS = [[0, 6], [3, 5]];
+const CORDS = [[0, 3], [2, 5], [1, 7]];
 
 /** EG — a patch bay: a board of jacks, two of them bridged by a cord. */
 function PatchBay({ x, y, z }) {
@@ -61,7 +61,7 @@ function PatchBay({ x, y, z }) {
       {/* the cords first, so they read as plugged into the jacks rather than
           laid across the top of them */}
       {cords.map((curve, i) => (
-        <mesh key={i}>
+        <mesh key={i} castShadow receiveShadow>
           <tubeGeometry args={[curve, 24, 2.4, 6, false]} />
           <meshStandardMaterial color="#2e2115" roughness={0.75} metalness={0.1} />
         </mesh>
@@ -165,7 +165,7 @@ function LandingProps({ idx, vw, vh, top }) {
       {/* stood 40 off the wall rather than flush against it — a board bolted
           straight to the plaster has nowhere for its own shadow to land; the
           brackets a real patch bay hangs on give it exactly this much air */}
-      {idx === 0 && <PatchBay x={x} y={floor - 220} z={back + 40} />}
+      {idx === 0 && <PatchBay x={x + 500} y={floor - 190} z={back + 20} />}
       {idx === 1 && (
         <>
           <ContactShadow x={x + 86} y={floor} z={back + 60} w={450} opacity={0.6} />

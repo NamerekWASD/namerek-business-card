@@ -30,7 +30,7 @@ export const LAMPS = {
   // symmetric lamps light the cage from both sides at once, which is the one
   // arrangement guaranteed to produce no modelling at all.
   side: 0.464,
-  rise: 0.14, // how far above the landing it is bolted, in floors
+  rise: 0.1, // how far above the landing it is bolted, in floors
   proud: 26, // how far the glass stands off the wall it is bolted to
   size: 92, // across the guard ring
   power: 2.6, // brightness at the glass itself

@@ -46,7 +46,7 @@ export const SURFACES = {
   doorLeaf: { from: '#332e28', to: '#151210', tile: 'steel', scale: 240, tex: 0.3, rough: 0.68, metal: 0.3 },
   doorFrame: { from: '#4a4137', to: '#231e19', tile: 'steel', scale: 160, tex: 0.32, rough: 0.72, metal: 0.34 },
   // the small fittings — clips, shoes, rivetted plates, architrave members
-  iron: { from: '#443626', to: '#241a11', tile: 'rust', scale: 70, tex: 0.3, rough: 0.84, metal: 0.16 },
+  iron: { from: '#443626', to: '#241a11', tile: 'rust', scale: 70, tex: 0.3, rough: 0.84, metal: 0.5 },
   steel: { from: '#3f454a', to: '#1e2225', tile: 'steel', scale: 46, tex: 0.34, rough: 0.62, metal: 0.45 },
   // The arcade cabinet's own case and control-panel metal. Same tiles as
   // `iron`/`steel` for family continuity, but those two are tuned for a
