@@ -11,6 +11,7 @@ import { SURFACES } from '../model/materials.js';
 import { LAMPS } from '../model/lighting.js';
 import { Panel } from '../renderers/r3f/Surface.jsx';
 import { surfaceProps } from '../renderers/r3f/surfaceMaterial.js';
+import { useFittingMaterial } from '../renderers/r3f/useSurfaceMaterial.js';
 import { worldY } from '../renderers/r3f/camera.js';
 import SceneLights from './SceneLights.jsx';
 import CanvasBoot from '../../boot/CanvasBoot.jsx';
@@ -267,13 +268,26 @@ function Pendant({ vw, vh, top }) {
           </group>
         ))}
         {[[cageTop, rTop], [cageBot, rBot]].map(([v, r]) => (
-          <mesh key={v} position={[0, worldY(v), 0]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
+          <mesh key={v} position={[0, worldY(v), 0]} rotation={[Math.PI / 2, 0, 0]} receiveShadow>
             <torusGeometry args={[r, 2.4, 6, 20]} />
             <meshStandardMaterial {...steel} />
           </mesh>
         ))}
-        {/* the finial closing the cage under the bulb */}
-        <mesh position={[0, worldY(cageBot + 6), 0]} castShadow receiveShadow>
+        {/* The finial closing the cage under the bulb.
+            ── and neither it nor the rings above cast ──────────────────────
+            They sit directly under the point the light comes from, and a point
+            source has no size: a 5px ball 40px below it subtends the whole
+            nadir, and at `shadowRadius` 14 the result was a dark ellipse the
+            width of the light pool, dead centre on the floor. It read as a hole
+            in the concrete and it was the first thing the eye found once the
+            floor was bright enough to see at all.
+            A real bulb is a volume and its guard is a wire basket, so this
+            shadow does not exist in the thing being modelled — it is an
+            artefact of putting the source at the fitting's centre. The
+            uprights still cast, and should: a caged lamp throwing bars across
+            a wall is the fitting's whole signature. It is only what stands
+            *below* the filament that is a lie. */}
+        <mesh position={[0, worldY(cageBot + 6), 0]} receiveShadow>
           <sphereGeometry args={[6, 10, 8]} />
           <meshStandardMaterial {...steel} />
         </mesh>
@@ -324,6 +338,12 @@ const Landing = memo(function Landing({ vw, vh, top, floor, furnished, shown, do
   // that hangs from it.
   const floorY = landingFloorY(vh, top);
   const ceilingY = landingCeilingY(vh, top);
+  // The floor's own albedo, and the ceiling's, are knobs rather than constants
+  // — see `floorShade` in `tuning.js` for why the floor of all surfaces earned
+  // one. The skirting and the cornice are grained now as well: they are the two
+  // longest horizontal lines in the room and they were flat colour.
+  const { floorShade } = useLightTuning();
+  const trim = useFittingMaterial(SURFACES.landing, 1.35, [roomW, 12]);
   return (
     // Its own room, so the shaft's fittings cannot light it through the masonry
     // between them. See  — this is the wall, as far as light is concerned.
@@ -346,18 +366,18 @@ const Landing = memo(function Landing({ vw, vh, top, floor, furnished, shown, do
           shadow blob. The cage's own deck (`CageDeck`, `pitch={isRoof ? -90 :
           90}`) already states the rule: a surface you look down onto is hinged
           at its far edge and runs *toward* the camera. */}
-      <Panel surface={SURFACES.landing} hinge="top" pitch={90} shade={0.85} left={roomLeft} top={floorY} w={roomW} h={LANDING_SETBACK} z={back} />
+      <Panel surface={SURFACES.landingFloor} hinge="top" pitch={90} shade={floorShade} left={roomLeft} top={floorY} w={roomW} h={LANDING_SETBACK} z={back} />
       <Panel surface={SURFACES.landing} hinge="top" pitch={-90} shade={0.3} left={roomLeft} top={ceilingY} w={roomW} h={LANDING_SETBACK} z={-SHAFT_DEPTH} />
       {/* the skirting and the cornice: a proud strip along the floor and
           ceiling lines, not a shaded stripe painted flat on the wall behind
           them */}
       <mesh position={[roomLeft + roomW / 2, worldY(floorY), back + 5]} castShadow receiveShadow>
         <boxGeometry args={[roomW, 12, 10]} />
-        <meshStandardMaterial {...surfaceProps(SURFACES.landing, 1.5)} />
+        <meshStandardMaterial {...trim} />
       </mesh>
       <mesh position={[roomLeft + roomW / 2, worldY(ceilingY), back + 5]} castShadow receiveShadow>
         <boxGeometry args={[roomW, 12, 10]} />
-        <meshStandardMaterial {...surfaceProps(SURFACES.landing, 1.3)} />
+        <meshStandardMaterial {...trim} />
       </mesh>
       {/* The fittings. Behind a shut door there is nothing to see, so they are
           not drawn — but they stay built, for the reason in this component's

@@ -84,6 +84,30 @@ function Room({ room, visible = true, children }) {
         // own source. Their emissive says something, and the ambience is not
         // entitled to overwrite it.
         if (material.userData.selfLit || !material.emissive) continue;
+        // **The bounce carries the picture rather than flooding it.** This is
+        // the half of the texture problem that does not live in the bake.
+        //
+        // On most faces in this scene the ambience is the *brighter* of the two
+        // terms — measured, about 3:1 on a prop standing on the floor — and a
+        // flat emissive cannot show a pattern. So a surface could carry a
+        // perfectly good `map` and still render as one solid rectangle, which
+        // is precisely what "I cannot see any of the textures" meant. Handing
+        // the same texture through as `emissiveMap` makes the room's bounce
+        // modulate with the grain instead of pouring one colour over it.
+        //
+        // Safe to do wholesale now, and it was not before: the bake used to
+        // multiply the surface's colour into the tile, so the map was a picture
+        // of the wall and using it twice would have squared it. It is a neutral
+        // grain normalised to a mean of one, so this changes contrast and not
+        // level. See `surfaceMaterial.js`.
+        //
+        // Assigned once. `emissiveMap` is in three's program cache key, so
+        // setting it on every commit would relink every shader in the room on
+        // every commit; the identity check is what keeps that to the first pass.
+        if (material.map && material.emissiveMap !== material.map) {
+          material.emissiveMap = material.map;
+          material.needsUpdate = true;
+        }
         // The albedo is kept because this runs again on every commit, and by the
         // second pass `material.color` is still the albedo but `emissive` is
         // already a product of it — recomputing from the previous emissive would

@@ -8,6 +8,7 @@ import {
 import { SURFACES } from '../model/materials.js';
 import { Box, Panel } from '../renderers/r3f/Surface.jsx';
 import { surfaceProps } from '../renderers/r3f/surfaceMaterial.js';
+import { useFittingMaterial } from '../renderers/r3f/useSurfaceMaterial.js';
 import { worldY } from '../renderers/r3f/camera.js';
 import { doorLeafFace, gateLattice, hazardStripe } from '../renderers/r3f/patterns.js';
 import useRideMotion from '../renderers/r3f/useRideMotion.js';
@@ -89,6 +90,10 @@ function Tier({ vw, vh, top, tier }) {
 function DoorLeaf({ side, left, top, w, h, z, clip }) {
   const face = doorLeafFace(side);
   const plate = surfaceProps(SURFACES.doorLeaf, 1);
+  // The astragal is one of the four vertical members that frame every opening
+  // in this scene, and it was flat colour like the rest of them. Grained, at
+  // the frame's own tile size.
+  const astragal = useFittingMaterial(SURFACES.doorFrame, 1.1, [w * ASTRAGAL_W, h]);
   const stileW = w * ASTRAGAL_W;
   // 0 meets its partner on its own right, 1 on its own left
   const stileX = side ? stileW / 2 : w - stileW / 2;
@@ -134,7 +139,7 @@ function DoorLeaf({ side, left, top, w, h, z, clip }) {
             contribution flat across its width and has to be pitched by hand
             against `doorFrame`'s own. */}
         <meshStandardMaterial
-          {...surfaceProps(SURFACES.doorFrame, 1.1)}
+          {...astragal}
           emissive={FRAME_TONE}
           emissiveIntensity={LEAF_GLOW_I * 0.34}
           clippingPlanes={clip ?? null}
@@ -290,7 +295,11 @@ function PatternPlane({ texture, repeat, w, h, position, rotation, ...material }
   return (
     <mesh position={position} rotation={rotation}>
       <planeGeometry args={[w, h]} />
-      <meshStandardMaterial map={map} {...material} />
+      {/* the map last, and deliberately so: callers spread a surface's whole
+          material in here for its albedo and roughness, and since fittings
+          carry a grain map of their own now, `map` first meant the surface's
+          grain quietly replacing the pattern this component exists to draw */}
+      <meshStandardMaterial {...material} map={map} />
     </mesh>
   );
 }
@@ -306,7 +315,8 @@ function CageDeck({ vw, y, isRoof }) {
   const width = vw - inset * 2;
   const ribs = [0.16, 0.38, 0.6, 0.82];
   const hazard = hazardStripe();
-  const iron = surfaceProps(SURFACES.iron, isRoof ? 0.92 : 1.2);
+  const iron = useFittingMaterial(SURFACES.iron, isRoof ? 0.92 : 1.2, [width, 9]);
+  const threshold = useFittingMaterial(SURFACES.iron, 0.58, [width, 12]);
 
   return (
     <>
@@ -323,7 +333,7 @@ function CageDeck({ vw, y, isRoof }) {
       {!isRoof && (
         <mesh position={[vw / 2, worldY(y) + 5, CAGE_NEAR - 3]} castShadow receiveShadow>
           <boxGeometry args={[width, 12, 16]} />
-          <meshStandardMaterial {...surfaceProps(SURFACES.iron, 0.58)} />
+          <meshStandardMaterial {...threshold} />
         </mesh>
       )}
       {/* cross members: evenly spaced in depth, so on screen they bunch up
@@ -366,11 +376,17 @@ function Cage({ vw, vh }) {
   const inset = cageInset(vw);
   const railY = floorY - 300;
   const lattice = gateLattice();
-  const iron = surfaceProps(SURFACES.cageSteel, 1);
+  // The uprights and the hand rails — "вертикальные и горизонтальные стойки
+  // лифта", the two members the eye spends the whole ride looking past. Both
+  // were untextured, which on a bar facing the camera dead-on is fatal: a
+  // vertical member has no convergence available to it, so grain is the only
+  // thing it has left to be read by.
+  const iron = useFittingMaterial(SURFACES.cageSteel, 1, [15, postH]);
   // The lattice is a texture, not a light source. Giving it the same dark
   // steel albedo as the posts leaves its brightness to the shaft lamps and the
   // room's ambient bounce, exactly like the rest of the cage.
   const gateSteel = surfaceProps(SURFACES.cageSteel, 0.9);
+  const rail = useFittingMaterial(SURFACES.iron, 1.1, [CAGE_DEPTH, 13]);
 
   return (
     <>
@@ -389,7 +405,7 @@ function Cage({ vw, vh }) {
       {[inset, vw - inset].map((x) => (
         <mesh key={x} position={[x, worldY(railY), (CAGE_NEAR + CAGE_FAR) / 2]} castShadow receiveShadow>
           <boxGeometry args={[18, 13, CAGE_DEPTH]} />
-          <meshStandardMaterial {...surfaceProps(SURFACES.iron, 1.1)} />
+          <meshStandardMaterial {...rail} />
         </mesh>
       ))}
 

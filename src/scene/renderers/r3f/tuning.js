@@ -174,7 +174,47 @@ export const LIGHT_KNOBS = [
     key: 'landingGlass', group: 'landing', label: 'bulb', kind: 'number',
     min: 0, max: 8, step: 0.05,
   },
+  // The one albedo on the bench, and it earns the place. A floor lit by a lamp
+  // hanging above it faces that lamp square-on and should be the *brightest*
+  // plane in the room; this one shipped at 0.85 against the wall's 1.0 and
+  // measured luminance 36 against the wall's 48. A surface darker than
+  // everything around it has no room left to go darker — which is why nothing
+  // in this corridor appeared to be standing on anything, and why the fix for
+  // "the contact shadows don't read" starts here rather than at the lamp.
+  {
+    key: 'floorShade', group: 'landing', label: 'floor albedo', kind: 'number',
+    min: 0.4, max: 2, step: 0.01,
+    note: 'the landing floor against its wall at 1.0 — it faces the pendant, so it should win',
+  },
 
+  // ── the grain ──────────────────────────────────────────────────────────────
+  // How hard the tiles in `assets/textures` are actually drawn, and how big
+  // they are. On the bench for the plainest possible reason: for months none of
+  // them were visible anywhere in the scene, and the cause was arithmetic
+  // rather than a loading fault — see the note at the top of
+  // `surfaceMaterial.js`. With the bake fixed, what is left is a judgement
+  // about how much grain a corridor should have, and that is not a thing to
+  // pick by editing a constant and reloading.
+  //
+  // Each is a *multiplier* on the catalogue's own `tex`, not a replacement for
+  // it: a wall stays subtler than a cage rail whatever the slider says, because
+  // the relative figures are a fact about the surfaces and only the overall
+  // level is a taste call.
+  {
+    key: 'grainWall', group: 'surfaces', label: 'wall grain', kind: 'number',
+    min: 0, max: 5, step: 0.05,
+    note: 'x the catalogue tex for the shaft walls, back wall and landing',
+  },
+  {
+    key: 'grainMetal', group: 'surfaces', label: 'metal grain', kind: 'number',
+    min: 0, max: 5, step: 0.05,
+    note: 'x the catalogue tex for the cage, the door frames and every fitting',
+  },
+  {
+    key: 'grainScale', group: 'surfaces', label: 'tile size', kind: 'number',
+    min: 0.2, max: 3, step: 0.05,
+    note: 'x the catalogue scale — bigger tiles, fewer repeats',
+  },
   // ── what the shadows cost ───────────────────────────────────────────────
   // The only knobs here that are not a brightness. They are on the bench for the
   // same reason the brightnesses are — the right value is the one that still
@@ -202,7 +242,7 @@ export const LIGHT_KNOBS = [
   },
 ];
 
-export const LIGHT_GROUPS = ['shaft', 'landing', 'shadows'];
+export const LIGHT_GROUPS = ['shaft', 'landing', 'surfaces', 'shadows'];
 
 /**
  * What the scene draws when nobody has touched anything — the committed setup,
@@ -302,6 +342,7 @@ export const knobDiff = () => Object.fromEntries(
 export const GROUP_TITLES = {
   shaft: 'SHAFT — the bulkhead lamp on the wall',
   landing: 'LANDING — the pendant in the corridor',
+  surfaces: 'SURFACES — how hard the tiles are drawn, in both rooms at once',
   shadows: 'SHADOWS — what they cost, not how bright they are',
 };
 

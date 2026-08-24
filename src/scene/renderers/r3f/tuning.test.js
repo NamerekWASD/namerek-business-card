@@ -58,14 +58,18 @@ describe('the knob catalogue', () => {
 // tune the room that is missing it.
 describe('the two rooms', () => {
   const ROOMS = ['shaft', 'landing'];
-  // The one group that is deliberately neither room's, and the reason it is
-  // allowed: a shadow map's resolution is a video-memory budget for the whole
-  // scene, not a brightness, so there is no version of it that belongs to one
-  // room. Nothing else may join it — see the last test in this block.
-  const COST = 'shadows';
+  // The two groups that are deliberately neither room's, and the reason each is
+  // allowed. A shadow map's resolution is a video-memory budget for the whole
+  // scene, not a brightness. The grain is a property of the tiles in
+  // `SURFACES`, which both rooms draw from, and it is *normalised* — every
+  // baked tile carries a gain that keeps its mean albedo where the catalogue
+  // put it (see `surfaceMaterial.js`), so turning it up adds contrast and not
+  // light. Neither can drag one room's brightness by way of the other's, which
+  // is the property this block exists to hold. Nothing else may join them.
+  const SCENEWIDE = ['shadows', 'surfaces'];
 
   it('puts every knob in exactly one room', () => {
-    for (const knob of LIGHT_KNOBS.filter((k) => k.group !== COST)) {
+    for (const knob of LIGHT_KNOBS.filter((k) => !SCENEWIDE.includes(k.group))) {
       expect(ROOMS, knob.key).toContain(knob.group);
     }
   });
@@ -82,7 +86,7 @@ describe('the two rooms', () => {
 
   it('leaves no brightness global for one room to drag the other by', () => {
     const shared = LIGHT_KNOBS.filter((k) => !ROOMS.includes(k.group));
-    expect(shared.map((k) => k.group)).toEqual(shared.map(() => COST));
+    for (const knob of shared) expect(SCENEWIDE, knob.key).toContain(knob.group);
   });
 });
 

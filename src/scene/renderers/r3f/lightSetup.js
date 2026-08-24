@@ -69,12 +69,18 @@ export const LIGHT_SETUP = {
   // LANDING — the pendant in the corridor
   landingToneCurve: 'aces',
   landingExposure: 1.72,
-  landingAmbient: 0.465,
+  landingAmbient: 0.34,
   landingWrap: 0,
-  landingIntensity: 6.1,
+  landingIntensity: 8.2,
   landingDecay: 2.09,
   landingColor: '#ffcf9a',
   landingGlass: 3.85,
+  floorShade: 1.2,
+
+  // SURFACES — how hard the tiles are drawn, in both rooms at once
+  grainWall: 3,
+  grainMetal: 1.8,
+  grainScale: 1,
 
   // SHADOWS — what they cost, not how bright they are
   shadowMapSize: 1024,

@@ -14,10 +14,36 @@ import rustBrass from '../../assets/textures/rust-brass.jpg';
 import bronzeWorn from '../../assets/textures/bronze-worn.jpg';
 import brushedSteel from '../../assets/textures/brushed-steel.jpg';
 import whiteStucco from '../../assets/textures/white_stucco.png';
+// ── the building's own materials ─────────────────────────────────────────────
+// The four tiles above are metals, and until the grain was made visible at all
+// (see `renderers/r3f/surfaceMaterial.js`) every large plane in this scene was
+// wearing one of them: the shaft, the landing and the back wall were all rusty
+// brass. That was invisible and therefore harmless; made visible it is simply
+// wrong, because none of those surfaces is metal. A lift shaft is cast
+// concrete, a landing is plastered and painted, and the floor of one is
+// trowelled and walked on. Three different materials, three tiles.
+//
+// PolyHaven, CC0, downsampled to 512 — the bake composites into a 256px canvas,
+// so a 1K source would be sixteen times the bytes for the same result.
+import concreteBoard from '../../assets/textures/concrete-board.jpg';
+import concretePour from '../../assets/textures/concrete-pour.jpg';
+import plasterCrazed from '../../assets/textures/plaster-crazed.jpg';
+import concreteWorn from '../../assets/textures/concrete-worn.jpg';
 
 /** @import { Surface, Shade } from './types.js' */
 
-export const TILES = { rust: rustBrass, bronze: bronzeWorn, steel: brushedSteel, paper: whiteStucco, none: null };
+export const TILES = {
+  rust: rustBrass,
+  bronze: bronzeWorn,
+  steel: brushedSteel,
+  paper: whiteStucco,
+  // the building itself
+  board: concreteBoard,   // bare cast concrete, horizontal formwork marks — the shaft
+  pour: concretePour,     // layered pours, streaked — the blind wall at the end of it
+  plaster: plasterCrazed, // painted plaster crazed into a fine craquelure — a landing
+  worn: concreteWorn,     // chipped, patched, walked-on slab — a landing floor
+  none: null,
+};
 
 // `rough`/`metal` are read only by a physically-lit backend. Nothing here is
 // polished: this is a shaft of painted iron and worn steel in a damp building,
@@ -27,11 +53,26 @@ export const TILES = { rust: rustBrass, bronze: bronzeWorn, steel: brushedSteel,
 /** @type {Record<string, Surface>} */
 export const SURFACES = {
   // the corridor either side of us — furthest from the lamp, so the flattest
-  shaftWall: { from: '#2b2521', to: '#14110e', tile: 'rust', scale: 320, tex: 0.22, rough: 0.92, metal: 0.05 },
+  shaftWall: { from: '#2b2521', to: '#14110e', tile: 'board', scale: 340, tex: 0.22, rough: 0.92, metal: 0.05 },
   // the blind wall at the far end, between the landings
-  backWall: { from: '#2e2822', to: '#171310', tile: 'rust', scale: 360, tex: 0.16, rough: 0.94, metal: 0.05 },
+  backWall: { from: '#2e2822', to: '#171310', tile: 'pour', scale: 420, tex: 0.18, rough: 0.94, metal: 0.05 },
   // inside the landing: another room, so its own colour and its own light
-  landing: { from: '#463a2c', to: '#221a12', tile: 'rust', scale: 300, tex: 0.14, rough: 0.9, metal: 0.04 },
+  landing: { from: '#463a2c', to: '#221a12', tile: 'plaster', scale: 480, tex: 0.16, rough: 0.9, metal: 0.04 },
+  // Its own surface, and not only so it can carry a different tile. The floor
+  // is the one plane in this room the pendant strikes square-on, so it is the
+  // one that has to be *brighter* than the wall rather than darker — see
+  // `floorShade` on the bench.
+  //
+  // Its `scale` is the largest in the catalogue, and that is about the angle
+  // rather than about the material. This plane is seen almost edge-on: its
+  // whole 678-pixel depth lands in a couple of hundred rows of screen, so the
+  // tile is compressed to nothing vertically and the mip chain hands back its
+  // mean. A fine grain — the first cut used brushed concrete, whose trowel arcs
+  // are soft and low-contrast — arrives as a flat wash however hard it is
+  // drawn. What survives foreshortening is *large* incident: chips, patches,
+  // the dark of a repair. So the floor is a damaged slab at a coarse scale, not
+  // a fine finish at a fine one.
+  landingFloor: { from: '#413a30', to: '#1f1a15', tile: 'worn', scale: 560, tex: 0.26, rough: 0.94, metal: 0.03 },
   // the cage we are standing in — nearest, so it may carry the most grain
   cageRoof: { from: '#242019', to: '#12100d', tile: 'steel', scale: 190, tex: 0.3, rough: 0.78, metal: 0.3 },
   cageFloor: { from: '#3c342a', to: '#201b15', tile: 'steel', scale: 210, tex: 0.34, rough: 0.74, metal: 0.34 },
