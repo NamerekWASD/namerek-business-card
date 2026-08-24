@@ -4,13 +4,13 @@ import ScreenValue from '../ui/ScreenValue.jsx';
 import DeckHeading from '../ui/DeckHeading.jsx';
 import { PROJECT_STATS } from './content.js';
 
-function ProjekteDeck({ lag }) {
+function ProjekteDeck() {
   return (
     <>
       <DeckHeading>Projekte</DeckHeading>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '1rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '0.9rem' }}>
         {PROJECT_STATS.map((s, i) => (
-          <RivettedPanel key={s.label} i={i} lag={lag} style={{ padding: '1rem 0.9rem' }}>
+          <RivettedPanel key={s.label} i={i} style={{ padding: '0.9rem 0.8rem' }}>
             <ScreenValue value={s.value} />
             <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--muted)', textAlign: 'center', marginTop: 8 }}>
               {s.label}
@@ -18,7 +18,7 @@ function ProjekteDeck({ lag }) {
           </RivettedPanel>
         ))}
       </div>
-      <RivettedPanel i={4} lag={lag} style={{ padding: '1.2rem', marginTop: '1rem' }}>
+      <RivettedPanel i={4} style={{ padding: '1.1rem', marginTop: '0.9rem' }}>
         <EnamelPlate colour="red" size={10} style={{ letterSpacing: 1.5, textTransform: 'uppercase', padding: '4px 9px' }}>
           Referenzen
         </EnamelPlate>

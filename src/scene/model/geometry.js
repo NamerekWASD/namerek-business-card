@@ -63,6 +63,19 @@ export const openingTop = (vh, floorPitch, floor) =>
 // light's own reach is what puts the light back in front of the machine.
 export const LANDING_SETBACK = 678;
 
+// What the perspective divide does to anything standing on a landing's back
+// wall — `BACK_WALL_SCALE`'s counterpart, one room further back.
+//
+// It exists because the deck content is a flat DOM layer *standing on that
+// wall*, and it used to travel at the doorway's rate instead. Those are two
+// different rates — 0.80 of a floor pitch against 0.58 — so through every ride
+// the headings and the plates slid against the wall they are printed on, and on
+// the brakes' overshoot at the end of a trip the two settled out of step, which
+// is what read as the text shaking loose from the scene. Same wall, same
+// number: see `contentFloorPitch` in `Dieselpunk.jsx`.
+export const LANDING_WALL_SCALE =
+  CAM_PERSPECTIVE / (CAM_PERSPECTIVE + SHAFT_DEPTH + LANDING_SETBACK);
+
 // How tall the arcade cabinet hangs, in scene pixels.
 //
 // Derived rather than dialled: the CSS cabinet is 324px tall drawn on the

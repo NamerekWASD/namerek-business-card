@@ -1,6 +1,8 @@
-function KontaktDeck({ lag }) {
+import { deckLag } from '../ui/deckLag.js';
+
+function KontaktDeck() {
   return (
-    <div style={{ textAlign: 'center', transform: `translateY(${(lag * 0.9).toFixed(2)}px)` }}>
+    <div style={{ textAlign: 'center', transform: deckLag(0.9) }}>
       <h2 style={{ fontFamily: 'var(--display)', fontWeight: 400, fontSize: 24, letterSpacing: 1.5, textTransform: 'uppercase', color: 'var(--ink)', margin: 0 }}>Lust auf ein Gespr&auml;ch?</h2>
       <div style={{ display: 'flex', justifyContent: 'center', gap: '0.8rem', marginTop: '1.6rem', flexWrap: 'wrap' }}>
         <a

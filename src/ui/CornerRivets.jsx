@@ -1,12 +1,22 @@
-function CornerRivets() {
-  const pos = [{ top: 6, left: 6 }, { top: 6, right: 6 }, { bottom: 6, left: 6 }, { bottom: 6, right: 6 }];
+// The four bolts holding a plate to the wall.
+//
+// Domed, not dotted. A flat disc of one colour is a bullet point; what makes a
+// bolt read is that its head is a little sphere lit from the same side as
+// everything else in the room — a highlight up and left, brass falling away to
+// dark down and right, and a shadow underneath it on the plate. Three
+// declarations, and it is the difference between a rivet and a decoration.
+function CornerRivets({ inset = 8, size = 7 }) {
+  const pos = [
+    { top: inset, left: inset }, { top: inset, right: inset },
+    { bottom: inset, left: inset }, { bottom: inset, right: inset },
+  ];
   return pos.map((p, i) => (
     <span
       key={i}
       style={{
-        position: 'absolute', width: 6, height: 6, borderRadius: '50%',
-        background: 'var(--rivet)',
-        boxShadow: 'inset 0 1px 1px rgba(0,0,0,0.7), 0 1px 0 rgba(255,255,255,0.06)',
+        position: 'absolute', width: size, height: size, borderRadius: '50%',
+        background: 'radial-gradient(circle at 32% 28%, #b28c46 0%, #7b5c28 48%, #35270f 100%)',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.8), inset 0 -1px 1px rgba(0,0,0,0.45)',
         ...p,
       }}
     />

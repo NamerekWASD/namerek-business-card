@@ -6,7 +6,9 @@ import { LAYERS } from '../scene/layers.js';
 import { ironFace } from '../scene/renderers/css3d/surfaceStyle.js';
 import { CAM_PERSPECTIVE, CAM_ORIGIN_Y, BACK_WALL_SCALE } from '../scene/model/camera.js';
 import { lampsAt } from '../scene/model/lighting.js';
-import { DOORWAY_W_FRAC, DOORWAY_H_FRAC, CAGE_FAR, cageInset } from '../scene/model/geometry.js';
+import {
+  CAGE_FAR, DOORWAY_H_FRAC, DOORWAY_W_FRAC, LANDING_WALL_SCALE, cageInset,
+} from '../scene/model/geometry.js';
 import Shaft from '../scene/shaft/Shaft.jsx';
 import Doorways from '../scene/shaft/Doorways.jsx';
 import CageFront from '../scene/cage/CageFront.jsx';
@@ -65,9 +67,19 @@ export default function Dieselpunk() {
   // `floorPxWall` and `contentStep`, which said nothing about how they relate.
   const floorPitch = vh + vh * DECK_GAP;
   const wallFloorPitch = floorPitch * WALL_PARALLAX;
-  // the content travels at the doorway's on-screen rate, so a deck stays welded
-  // to the door that frames it
-  const contentFloorPitch = floorPitch * BACK_WALL_SCALE;
+  // **The content travels at the landing wall's rate, because that is what it
+  // is standing on.** It used to travel at the *doorway's* — welded to the
+  // leaves that frame it rather than to the plaster behind it — and those are
+  // two different planes at two different depths, so the text slid against the
+  // wall throughout every trip and the brakes' overshoot left the two settling
+  // out of step at the end of one. That is what Mykolai saw as the headings and
+  // the plates shaking loose from the scene as a ride finished, and moving them
+  // back to the wall is the whole of the fix. See `LANDING_WALL_SCALE`.
+  //
+  // Only the *travel* moves with it. The decks are still laid out and clipped in
+  // the aperture's own screen pixels, so nothing changes size: this is the same
+  // text at the same scale, riding the right plane.
+  const contentFloorPitch = floorPitch * LANDING_WALL_SCALE;
   // the intro and a ride drive the same leaves, so whichever wants them more
   // shut wins — that also makes the very first frame a shut door rather than a
   // scene that has to be covered up by something else
@@ -118,8 +130,16 @@ export default function Dieselpunk() {
   // the decks get a touch of the same vertical smear — razor-sharp text flying
   // past at speed is the giveaway that nothing is really moving
   const contentSmear = blurAllowed ? Math.round(Math.min(3.2, speed * 1.1)) : 0;
-  // loose objects trail the cabin's motion and settle a beat after it stops
-  const inertiaPx = Math.max(-17, Math.min(17, -velocity * 4.6));
+  // Loose objects trail the cabin's motion and settle a beat after it stops.
+  //
+  // **Off the ticker, not off a prop.** This is the second half of the shake
+  // Mykolai reported. `velocity` here is React's mirror of the ride, throttled,
+  // so a `lag` handed down as a prop moved the plates on React's clock while the
+  // column they sit in moved on the ticker's — two clocks, and the plates
+  // visibly juddering against their own deck as the brakes bit. It is written to
+  // the wrapper as one custom property now and read by every plate from there;
+  // see `RivettedPanel`.
+  const lagPx = (v) => Math.max(-17, Math.min(17, -v * 4.6));
 
   // the decks are one screen each and the shaft owns the vertical axis, so the
   // document itself must never scroll
@@ -138,12 +158,25 @@ export default function Dieselpunk() {
   // mount, resize, and the settled position between rides.
   const backdropRef = useRef(null);
   const contentWrapRef = useRef(null);
-  const writeMotion = (fp) => {
+  const writeMotion = (fp, v) => {
     if (backdropRef.current) backdropRef.current.style.transform = `translateY(${(fp * floorPitch * BG_PARALLAX).toFixed(1)}px)`;
-    if (contentWrapRef.current) contentWrapRef.current.style.transform = `translateY(${(fp * contentFloorPitch).toFixed(1)}px)`;
+    const wrap = contentWrapRef.current;
+    if (!wrap) return;
+    wrap.style.transform = `translateY(${(fp * contentFloorPitch).toFixed(1)}px)`;
+    wrap.style.setProperty('--deck-lag', `${lagPx(v).toFixed(2)}px`);
   };
-  useLayoutEffect(() => writeMotion(floorPos), [floorPos, floorPitch, contentFloorPitch]);
-  useRideFrame(({ floorPos: fp }) => writeMotion(fp));
+  // Mount, resize, and everything the ticker itself does not run for. **The
+  // position comes off the ticker even here**, and falls back to the props only
+  // where there is no ticker at all (the test runner): `floorPos` is React's
+  // throttled mirror of the ride, so a settled write taken from it disagrees
+  // with the per-frame writes by up to a throttle step — measured at 1.6px of
+  // the column against the wall behind it while a scrub was parked. `SceneLights`
+  // states the same rule for the light rig; this is the DOM tier's copy of it.
+  useLayoutEffect(() => {
+    const snapshot = ticker?.getSnapshot();
+    writeMotion(snapshot ? snapshot.floorPos : floorPos, snapshot ? snapshot.velocity : velocity);
+  });
+  useRideFrame(({ floorPos: fp, velocity: v }) => writeMotion(fp, v));
 
   return (
     <RideTickerProvider value={ticker}>
@@ -177,7 +210,7 @@ export default function Dieselpunk() {
           one build rather than across two branches, and CSS stays the default
           until the comparison says otherwise. */}
       {r3f ? (
-        <SceneCanvas vw={vw} vh={vh} zIndex={LAYERS.shaft} name="shaft" dprCeiling={dprCeiling} moving={moving} onLost={markContextLost}>
+        <SceneCanvas vw={vw} vh={vh} zIndex={LAYERS.shaft} name="shaft" dprCeiling={dprCeiling} moving={moving} interactive onLost={markContextLost}>
           <ShaftScene
             vw={vw} vh={vh} pos={floorPos} floorPx={floorPitch}
             ticker={ticker} ride={ride} deck={deckIndex}
@@ -221,6 +254,13 @@ export default function Dieselpunk() {
           left: aperture.left, top: aperture.top, width: aperture.width, height: aperture.height,
           overflow: 'hidden', zIndex: LAYERS.content,
           filter: contentSmear > 0.2 ? 'url(#deckBlur)' : 'none',
+          // The column is 48% of the aperture; these wrappers are all of it.
+          // Left interactive they sit over the other half — the half the wall
+          // screen stands on — and swallow every pointer event on their way
+          // down to the shaft canvas, which is how Projekte's buttons could be
+          // built, lit and animated and still never respond to a finger. The
+          // column itself takes it back below.
+          pointerEvents: 'none',
         }}
       >
         <div ref={contentWrapRef} style={{ position: 'absolute', inset: 0 }}>
@@ -251,8 +291,13 @@ export default function Dieselpunk() {
                   boxSizing: 'border-box',
                 }}
               >
-                <div style={{ width: '48%', marginLeft: contentSide === 'right' ? 'auto' : 0 }}>
-                  <Body lag={inertiaPx} pos={floorPos} />
+                <div style={{
+                  width: '48%',
+                  marginLeft: contentSide === 'right' ? 'auto' : 0,
+                  pointerEvents: 'auto',
+                }}
+                >
+                  <Body pos={floorPos} />
                 </div>
               </div>
             );

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   BACK_WALL_SCALE, CAM_ORIGIN_Y, CAM_PERSPECTIVE, SHAFT_DEPTH, fovFor, projectToScreen,
 } from './camera.js';
+import { LANDING_SETBACK, LANDING_WALL_SCALE } from './geometry.js';
 
 const VW = 1600;
 const VH = 900;
@@ -40,6 +41,19 @@ describe('projectToScreen', () => {
     // supposed to be sitting inside.
     const q = projectToScreen([0, 0, -SHAFT_DEPTH], VW, VH);
     expect(q.s).toBeCloseTo(BACK_WALL_SCALE);
+  });
+
+  it('agrees with LANDING_WALL_SCALE about the landing behind it', () => {
+    // The deck column travels at this rate, and the landing it is printed over
+    // travels at whatever the camera actually does to that depth. They are the
+    // same plane, so they must be the same number — the whole of the shake
+    // Mykolai reported was these two being 0.80 and 0.58.
+    const q = projectToScreen([0, 0, -SHAFT_DEPTH - LANDING_SETBACK], VW, VH);
+    expect(q.s).toBeCloseTo(LANDING_WALL_SCALE);
+  });
+
+  it('puts the landing further off than the doorway, which is why it matters', () => {
+    expect(LANDING_WALL_SCALE).toBeLessThan(BACK_WALL_SCALE);
   });
 });
 
