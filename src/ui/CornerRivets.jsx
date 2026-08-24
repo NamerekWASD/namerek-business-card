@@ -5,7 +5,15 @@
 // everything else in the room — a highlight up and left, brass falling away to
 // dark down and right, and a shadow underneath it on the plate. Three
 // declarations, and it is the difference between a rivet and a decoration.
-function CornerRivets({ inset = 8, size = 7 }) {
+//
+// The two numbers are exported because a second file needs them: the corrosion
+// weeping out of these heads is painted onto the plate's own canvas by
+// `panelWear`, and a bolt whose rust is somewhere else is worse than a bolt
+// with no rust at all.
+export const RIVET_INSET = 8;
+export const RIVET_SIZE = 7;
+
+function CornerRivets({ inset = RIVET_INSET, size = RIVET_SIZE }) {
   const pos = [
     { top: inset, left: inset }, { top: inset, right: inset },
     { bottom: inset, left: inset }, { bottom: inset, right: inset },

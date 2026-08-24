@@ -130,16 +130,20 @@ export default function Dieselpunk() {
   // the decks get a touch of the same vertical smear — razor-sharp text flying
   // past at speed is the giveaway that nothing is really moving
   const contentSmear = blurAllowed ? Math.round(Math.min(3.2, speed * 1.1)) : 0;
-  // Loose objects trail the cabin's motion and settle a beat after it stops.
+  // ── nothing on a deck has its own motion, and that is deliberate ──────────
+  // There used to be an inertia here: the plates and the headings trailed the
+  // cabin under acceleration and settled a beat after it stopped, written to
+  // this wrapper as a `--deck-lag` custom property. It is gone, and it is not
+  // coming back. **The text is printed on the landing wall**, so the only
+  // motion it may have is the wall's — anything else is a heading sliding
+  // across the plaster it is stencilled on, which is exactly what Mykolai saw
+  // at the end of every trip and read, correctly, as the text coming loose from
+  // the scene. Chasing it as a *timing* bug got the lag onto the ticker's clock
+  // and made it smooth; it was never a timing bug. A sign bolted to a wall does
+  // not have mass of its own.
   //
-  // **Off the ticker, not off a prop.** This is the second half of the shake
-  // Mykolai reported. `velocity` here is React's mirror of the ride, throttled,
-  // so a `lag` handed down as a prop moved the plates on React's clock while the
-  // column they sit in moved on the ticker's — two clocks, and the plates
-  // visibly juddering against their own deck as the brakes bit. It is written to
-  // the wrapper as one custom property now and read by every plate from there;
-  // see `RivettedPanel`.
-  const lagPx = (v) => Math.max(-17, Math.min(17, -v * 4.6));
+  // The smear below is not that. A filter blurs the text where it already is;
+  // it does not put it anywhere the wall is not.
 
   // the decks are one screen each and the shaft owns the vertical axis, so the
   // document itself must never scroll
@@ -158,12 +162,11 @@ export default function Dieselpunk() {
   // mount, resize, and the settled position between rides.
   const backdropRef = useRef(null);
   const contentWrapRef = useRef(null);
-  const writeMotion = (fp, v) => {
+  const writeMotion = (fp) => {
     if (backdropRef.current) backdropRef.current.style.transform = `translateY(${(fp * floorPitch * BG_PARALLAX).toFixed(1)}px)`;
     const wrap = contentWrapRef.current;
     if (!wrap) return;
     wrap.style.transform = `translateY(${(fp * contentFloorPitch).toFixed(1)}px)`;
-    wrap.style.setProperty('--deck-lag', `${lagPx(v).toFixed(2)}px`);
   };
   // Mount, resize, and everything the ticker itself does not run for. **The
   // position comes off the ticker even here**, and falls back to the props only
@@ -174,9 +177,9 @@ export default function Dieselpunk() {
   // states the same rule for the light rig; this is the DOM tier's copy of it.
   useLayoutEffect(() => {
     const snapshot = ticker?.getSnapshot();
-    writeMotion(snapshot ? snapshot.floorPos : floorPos, snapshot ? snapshot.velocity : velocity);
+    writeMotion(snapshot ? snapshot.floorPos : floorPos);
   });
-  useRideFrame(({ floorPos: fp, velocity: v }) => writeMotion(fp, v));
+  useRideFrame(({ floorPos: fp }) => writeMotion(fp));
 
   return (
     <RideTickerProvider value={ticker}>

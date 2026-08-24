@@ -1,6 +1,7 @@
 import RivettedPanel from '../ui/RivettedPanel.jsx';
 import EnamelPlate from '../ui/EnamelPlate.jsx';
 import DeckHeading from '../ui/DeckHeading.jsx';
+import { WEAR_SEED } from '../ui/panelWear.js';
 import { SKILL_GROUPS } from './content.js';
 
 // Four plates in two ranks, which is the reference's own arrangement and not an
@@ -20,7 +21,7 @@ function LeistungenDeck() {
       <DeckHeading>Leistungen</DeckHeading>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '0.9rem' }}>
         {SKILL_GROUPS.map((g, i) => (
-          <RivettedPanel key={g.label} i={i} style={{ padding: '0.9rem 0.85rem' }}>
+          <RivettedPanel key={g.label} seed={WEAR_SEED.leistungen + i} style={{ padding: '0.9rem 0.85rem' }}>
             {/* the category is a fixed marking on a fixed panel, so it is a
                 plate — the same rule the corridor props follow */}
             <EnamelPlate colour="green" size={10} style={{ letterSpacing: 1.5, textTransform: 'uppercase', padding: '4px 9px' }}>

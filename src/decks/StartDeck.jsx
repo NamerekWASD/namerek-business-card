@@ -1,4 +1,3 @@
-import { deckLag } from '../ui/deckLag.js';
 import ArcadeCabinet from '../ui/ArcadeCabinet.jsx';
 import { useIsR3F } from '../scene/renderers/active.js';
 
@@ -13,7 +12,6 @@ function StartDeck() {
           fontSize: 'clamp(2rem, 5.4vw, 3.2rem)', lineHeight: 1.02, margin: '1.2rem 0 0',
           letterSpacing: '-0.01em', textTransform: 'uppercase',
           textShadow: '0 2px 0 rgba(0,0,0,0.5)',
-          transform: deckLag(0.8),
         }}
       >
         Mykolai
@@ -24,12 +22,11 @@ function StartDeck() {
         style={{
           fontFamily: 'var(--mono)', fontSize: 13, letterSpacing: 1, textTransform: 'uppercase',
           color: 'var(--glow)', margin: '1rem 0 0', textShadow: '0 0 10px rgba(255,180,84,0.5)',
-          transform: deckLag(1.1),
         }}
       >
         .NET / C# &mdash; Backend &amp; Fullstack
       </p>
-      <p style={{ fontSize: 15, lineHeight: 1.7, color: 'var(--muted)', maxWidth: 340, margin: '1rem 0 0', transform: deckLag(1.35) }}>
+      <p style={{ fontSize: 15, lineHeight: 1.7, color: 'var(--muted)', maxWidth: 340, margin: '1rem 0 0' }}>
         Baue Systeme, die tragen &mdash; von der Datenbank bis zur Oberfl&auml;che.
         Offen f&uuml;r neue Aufgaben im Ruhrgebiet / NRW.
       </p>
@@ -40,7 +37,7 @@ function StartDeck() {
           that moved *out* of the DOM on purpose: everything else that left was
           structure, this is the object the mark lives on. */}
       {!r3f && (
-        <div style={{ flex: '1 1 340px', display: 'flex', justifyContent: 'center', transform: deckLag(0.7) }}>
+        <div style={{ flex: '1 1 340px', display: 'flex', justifyContent: 'center' }}>
           <ArcadeCabinet pitch={-2} />
         </div>
       )}
