@@ -1,25 +1,26 @@
 import { useEffect, useRef, useState } from 'react';
-import { SURFACES } from '../model/materials.js';
-import { surfaceProps } from '../renderers/r3f/surfaceMaterial.js';
 import { worldY } from '../renderers/r3f/camera.js';
 import { screenGlow } from '../renderers/r3f/patterns.js';
 import { FRAMES, SPAN, clearMark, markStrip, markSurface, paintMark } from '../renderers/r3f/screenMark.js';
 import { invalidateScene } from '../renderers/r3f/frames.js';
+import ScreenFrame, { frameMetrics } from './ScreenFrame.jsx';
 
 // The wall screen every landing shares: a fluted glass panel recessed into a
 // frame on the back wall, the same ribbing the arcade cabinet's own screen
 // uses. Plain exported numbers rather than a live panel — this is layout, not
 // a taste call judged frame-to-frame like the lighting rig — so Mykolai can
 // nudge them by hand here whenever the landing's proportions change.
+//
+// The frame's own dimensions are not here: how wide a band is, how far each of
+// its tiers stands off the wall and where the glass sits inside it are all
+// fractions of the panel, and they live with the geometry that reads them —
+// `ScreenFrame.jsx`. What is left here is where on the wall the panel goes.
 export const SCREEN_TUNING = {
   outerMarginX: -118,
   innerMarginX: 196,
   marginX: 46, // gap from the doorway's own edges — outer wall side and centre gutter alike
   marginTop: 110, // gap under the cornice
   marginBottom: 110, // gap above the skirting
-  frameInset: 28, // how far the glass sits inside its own frame lip
-  frameDepth: 10, // how proud the frame stands off the wall
-  glassDepth: 4, // how proud the glass stands off the frame
   markSize: 0.72, // the logo's size as a fraction of the glass height
 };
 
@@ -121,7 +122,7 @@ function LogoMark({ x, y, z, size, open, shut }) {
   // looking. This is the rule `Landing` states for the room around it; the mark
   // was the one thing in here still breaking it.
   return (
-    <mesh position={[x, worldY(y), z]}>
+    <mesh position={[x, y, z]}>
       <planeGeometry args={[size, size]} />
       <meshBasicMaterial map={surface.texture} transparent depthWrite={false} toneMapped={false} />
     </mesh>
@@ -149,21 +150,24 @@ function LandingScreen({ floor, side, left, w, floorY, ceilingY, back, doorOpen,
   const cx = frameLeft + frameW / 2;
   const cy = (floorY + ceilingY) / 2;
   const frameH = (floorY - ceilingY) - t.marginTop - t.marginBottom;
-  const glassW = frameW - t.frameInset * 2;
-  const glassH = frameH - t.frameInset * 2;
-  const frameCenterZ = back + t.frameDepth / 2;
-  const glassZ = back + t.frameDepth + t.glassDepth;
+
+  // Projekte is the floor that gets a control panel rather than a vent — it is
+  // the only deck with anything to page through — so it is the one variant
+  // named by floor. `DECKS` indexes it 2; see `lift/decks.js`.
+  const variant = floor === 2 ? 'console' : 'plain';
+  const m = frameMetrics(frameW, frameH, variant === 'console');
 
   const glow = screenGlow(40);
 
+  // One group at the wall, and everything inside it in the frame's own space:
+  // +z out of the plaster, +y up. The frame's tiers are all offsets from the
+  // wall, and re-adding `back` to each of them at the call site is how they
+  // would drift apart.
   return (
-    <group>
-      <mesh position={[cx, worldY(cy) , frameCenterZ]} castShadow receiveShadow>
-        <boxGeometry args={[frameW, frameH, t.frameDepth]} />
-        <meshStandardMaterial {...surfaceProps(SURFACES.cabinetFrame, 1)} />
-      </mesh>
-      <mesh position={[cx, worldY(cy), glassZ]}>
-        <planeGeometry args={[glassW, glassH]} />
+    <group position={[cx, worldY(cy), back]}>
+      <ScreenFrame w={frameW} h={frameH} variant={variant} />
+      <mesh position={[0, m.glassY, m.glassZ]}>
+        <planeGeometry args={[m.glassW, m.glassH]} />
         <meshStandardMaterial
           userData={{ selfLit: true }}
           color="#120f0c"
@@ -175,7 +179,7 @@ function LandingScreen({ floor, side, left, w, floorY, ceilingY, back, doorOpen,
       </mesh>
       {floor === 0 && (
         <LogoMark
-          x={cx} y={cy} z={glassZ + 0.5} size={glassH * t.markSize}
+          x={0} y={m.glassY} z={m.glassZ + 0.5} size={m.glassH * t.markSize}
           open={doorOpen} shut={doorShut}
         />
       )}

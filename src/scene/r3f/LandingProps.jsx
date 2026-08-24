@@ -1,5 +1,7 @@
 import { useMemo, useRef } from 'react';
-import { CatmullRomCurve3, QuadraticBezierCurve3, Vector3 } from 'three';
+import {
+  AdditiveBlending, CatmullRomCurve3, DoubleSide, QuadraticBezierCurve3, Vector3,
+} from 'three';
 import { CAM_PERSPECTIVE, SHAFT_DEPTH } from '../model/camera.js';
 import {
   DOORWAY_W_FRAC, LANDING_SETBACK, landingCeilingY, landingFloorY, pxPerM,
@@ -9,8 +11,9 @@ import { surfaceProps } from '../renderers/r3f/surfaceMaterial.js';
 import { worldY } from '../renderers/r3f/camera.js';
 import { useLightTuning } from '../renderers/r3f/tuning.js';
 import {
-  benchTop, cratePanel, patchBayPlate, postBoxCard, postBoxSkin,
+  benchBand, benchTop, chestPanel, cratePanel, drawerFace, patchBayPlate, postBoxCard, postBoxSkin,
 } from '../renderers/r3f/propArt.js';
+import { lampGlow } from '../renderers/r3f/patterns.js';
 import usePilotLamps, { LAMP_DARK } from '../renderers/r3f/pilotLamps.js';
 import { SCREEN_SIDE } from '../../lift/decks.js';
 
@@ -528,90 +531,277 @@ function WallCable({ M, from, runY, toX, radius, z }) {
 // Everything else about the bench exists to hold that plane at 0.92 m and give
 // it an underside to be dark.
 //
-// The wall tool-board that used to hang above it is gone. At the height a board
-// wants it climbed straight into the page's own text column, and a bench that
-// has to be read through a paragraph is a bench nobody looks at.
+// ── built to Mykolai's reference ─────────────────────────────────────────────
+// `.temp/workbench and data blocks reference.png`. His brief was explicit about
+// what could be dropped and what could not: the very fine detail may be
+// simplified or lost, **the palette and the concept — the lamp standing on the
+// bench, the chest under it — stay**. So those two are modelled properly and
+// the rest is triaged.
+//
+// What the reference is, structurally, is not a timber bench with iron legs. It
+// is a riveted frame with a slab dropped into it, and four things carry that:
+//
+// *The members.* An apron under the slab and a bottom rail at shelf height,
+// both a rolled plate with a brass strip along each arris and a row of domed
+// bolts down the middle. That bolt row is what the eye actually reads the bench
+// by from across a corridor — see `benchBand`.
+//
+// *The corners.* A bracket plate wrapping every junction of member and post,
+// standing proud and brighter than either. They are the bench's punctuation.
+//
+// *The feet.* Turned, stepped, and round — the one curve in an object that is
+// otherwise all right angles, and the detail that dates it.
+//
+// *The bays.* A brace across the open one, a drawer bank filling the other. An
+// empty underneath is a table; a bench has its volume used.
+//
+// ── and it is lit by a lamp that is not a light ──────────────────────────────
+// The desk lamp is the reference's subject and it cannot be a `pointLight`.
+// Nothing on a landing may add or remove a source: this whole subtree hangs off
+// `visible={furnished}`, three drops hidden lights out of the scene's light
+// list, and the list's length is in its shader program cache key — so a light
+// down here would relink every program in the room on the frames a door parts.
+// That is the door hitch, bought back at full price.
+//
+// So it is built the way the shaft's own fittings are (see `Lamp`): an emissive
+// glass in the shade, a sprite halo round it, and — the part that sells it — a
+// pool of glow laid flat on the slab where the light would land. Three cheap
+// objects that agree with each other about where the source is.
+
+const LAMP_TILT = 0.62;                 // the shade's axis, off vertical
+const BENCH_BRASS = { color: '#6f5222', roughness: 0.4, metalness: 0.78 };
+const BENCH_BRASS_HI = { color: '#8a6a2c', roughness: 0.32, metalness: 0.8 };
+// A large smooth turned surface is nearly all reflection, so the vessel on the
+// shelf came out at the brass the *arrises* are painted at and read as cream
+// plastic — the brightest thing on the floor, standing in the darkest place on
+// it. Roughed right up and taken down a stop: this is brass in shadow.
+const SHELF_BRASS = { color: '#3a2a11', roughness: 0.7, metalness: 0.62 };
+
+/**
+ * A member laid between two points of the bench's own upright plane.
+ *
+ * Two rotations, because the two primitives this feeds disagree about which way
+ * they are long: a `cylinderGeometry` runs up its own Y, a `boxGeometry` runs
+ * along its X. One `rotation` field for both is a strap lying at ninety degrees
+ * to the brace it was meant to be.
+ */
+const strut = (ax, ay, bx, by) => {
+  const angle = Math.atan2(by - ay, bx - ax);
+  return {
+    position: /** @type {[number, number, number]} */ ([(ax + bx) / 2, (ay + by) / 2, 0]),
+    /** for a `boxGeometry`, long on X */
+    lying: /** @type {[number, number, number]} */ ([0, 0, angle]),
+    /** for a `cylinderGeometry`, long on Y */
+    standing: /** @type {[number, number, number]} */ ([0, 0, angle - Math.PI / 2]),
+    length: Math.hypot(bx - ax, by - ay),
+  };
+};
 
 function Workbench({ M, x, floorY, z, ambient, yaw }) {
   const len = 2.05 * M;
   const depth = 0.72 * M;
-  const topT = 0.075 * M;              // the slab sits at 0.92 m — the working
-  const legT = 0.09 * M;               // height, and the whole point of the piece
-  const legH = 0.92 * M - topT;
+  const topT = 0.075 * M;
+  const benchH = 0.92 * M;              // the working height, and the whole point
+  const legT = 0.105 * M;
+  const footH = 0.06 * M;
+
+  const endX = len / 2 - legT * 0.62;
+  const legZ = depth / 2 - legT * 0.85;
+  const legTop = benchH - topT;
+  const legH = legTop - footH;
+
+  const apronH = 0.14 * M;
+  const apronY = legTop - apronH / 2;
+  const railH = 0.1 * M;
+  const railY = 0.24 * M;
+  const shelfY = railY + railH / 2;
+  const frontZ = depth / 2 - 0.03 * M;
+  const memberW = len - legT * 1.1;
 
   const top = benchTop();
   const topArt = artwork(top, ambient);
-  const iron = surfaceProps(SURFACES.iron, 0.85);
-  const ironDark = surfaceProps(SURFACES.iron, 0.55);
-  const steel = surfaceProps(SURFACES.steel, 1.05);
+  // Two seeds, so the apron and the rail standing one above the other do not
+  // carry the same pitting in the same places.
+  const apronArt = artwork(benchBand(15, 1), ambient);
+  const railArt = artwork(benchBand(17, 2), ambient);
+  const drawerArt = artwork(drawerFace(), ambient);
+  // Between a flank and an underside: the chest stands in the one place in this
+  // room nothing reaches, and at `FACE.side` it read as brighter than the bench
+  // it is under.
+  const chestArt = artwork(chestPanel(), ambient, 0.5);
+  const glow = lampGlow();
 
-  const endX = len / 2 - legT * 1.2;
-  const legZ = depth / 2 - legT * 0.9;
+  const iron = surfaceProps(SURFACES.iron, 0.85);
+  const ironDark = surfaceProps(SURFACES.iron, 0.5);
+  // What the small hardware on the slab is made of. **Not the catalogue's
+  // steel**, which is the one cool entry in it (#404952) and is authored for
+  // fittings the shaft's own lamps rake across at close range. Up here, under a
+  // pendant four hundred pixels off at a graze and against a bench top that is
+  // all warm ochre, it has nowhere to go but black — a rack of tools rendered as
+  // a row of holes cut in the bench. Warm iron, lifted, so a small object on the
+  // slab reads as an object.
+  const hardware = surfaceProps(SURFACES.iron, 1.35);
+  // Warm, not the catalogue's steel. Every grey in this scene is warm on
+  // purpose (see the note on `doorLeaf` in `materials.js`) and a cool bracket on
+  // a brass-lit bench is the one hex fighting the grade.
+  const bracket = surfaceProps(SURFACES.iron, 1.55);
+
+  const band = (art, fallbackShade) => (art
+    ? <meshStandardMaterial {...art} roughness={0.8} metalness={0.42} />
+    : <meshStandardMaterial {...surfaceProps(SURFACES.iron, fallbackShade)} />);
+
+  // the drawer bank fills the right-hand bay, the brace crosses the left one
+  const bankW = 0.64 * M;
+  const bankD = depth - legT * 1.3;
+  // Stops under the apron rather than at the slab: run up to `legTop` the apron
+  // crosses in front of the top drawer, and a drawer with a plate over its face
+  // is not a drawer.
+  const bankH = apronY - apronH / 2 - shelfY - 0.012 * M;
+  const bankX = endX - legT * 0.7 - bankW / 2;
+  const brace = strut(-endX + legT * 0.5, shelfY, -endX + 0.68 * M, apronY - apronH * 0.4);
+
+  // The lamp, in its own upright plane: base, two arms and a shade.
+  //
+  // Kept under a third of a metre, and that is a composition constraint rather
+  // than a modelling one. This deck's own text column is lifted off centre by
+  // `CONTENT_RISE` to clear the bench, which leaves about 0.4 m of scene between
+  // the slab and the bottom rank of plates — a lamp at the height an anglepoise
+  // actually stands put its shade behind `DATEN`.
+  const armA = strut(0, 0.062 * M, 0.06 * M, 0.235 * M);
+  const armB = strut(0.06 * M, 0.235 * M, 0.215 * M, 0.3 * M);
+  const headX = 0.215 * M;
+  const headY = 0.3 * M;
+  // where the mouth of the shade points, and how far down the pool falls
+  const aim = [Math.sin(LAMP_TILT), -Math.cos(LAMP_TILT)];
 
   return (
     <group position={[x, worldY(floorY), z]} rotation={[0, yaw, 0]}>
-      {/* the frames: two legs and a rail at each end, in iron */}
-      {[-1, 1].map((sx) => (
-        <group key={sx}>
-          {[-1, 1].map((sz) => (
-            <mesh key={sz} position={[sx * endX, legH / 2, sz * legZ]} castShadow receiveShadow>
-              <boxGeometry args={[legT, legH, legT]} />
-              <meshStandardMaterial {...iron} />
-            </mesh>
-          ))}
-          {/* the end rail, and the foot the legs stand on */}
-          <mesh position={[sx * endX, legH * 0.86, 0]} castShadow receiveShadow>
-            <boxGeometry args={[legT * 0.7, legT * 0.8, depth - legT * 1.4]} />
+      {/* the four posts, each standing on a turned foot */}
+      {[-1, 1].map((sx) => [-1, 1].map((sz) => (
+        <group key={`${sx}:${sz}`} position={[sx * endX, 0, sz * legZ]}>
+          <mesh position={[0, footH * 0.3, 0]} castShadow receiveShadow>
+            <cylinderGeometry args={[legT * 0.6, legT * 0.8, footH * 0.6, 12]} />
+            <meshStandardMaterial {...surfaceProps(SURFACES.iron, 0.7)} />
+          </mesh>
+          <mesh position={[0, footH * 0.78, 0]}>
+            <cylinderGeometry args={[legT * 0.44, legT * 0.56, footH * 0.36, 12]} />
+            <meshStandardMaterial {...BENCH_BRASS} />
+          </mesh>
+          <mesh position={[0, footH + legH / 2, 0]} castShadow receiveShadow>
+            <boxGeometry args={[legT, legH, legT]} />
             <meshStandardMaterial {...iron} />
           </mesh>
-          <mesh position={[sx * endX, 0.022 * M, 0]} castShadow receiveShadow>
-            <boxGeometry args={[legT * 1.5, 0.045 * M, depth - legT * 0.6]} />
-            <meshStandardMaterial {...surfaceProps(SURFACES.iron, 0.65)} />
-          </mesh>
         </group>
-      ))}
-      {/* the stretcher tying the two frames together, low and to the back */}
-      <mesh position={[0, 0.24 * M, -legZ * 0.55]} castShadow receiveShadow>
-        <boxGeometry args={[len - legT * 3, 0.05 * M, 0.05 * M]} />
-        <meshStandardMaterial {...iron} />
-      </mesh>
+      )))}
 
-      {/* the lower shelf, and what is on it — a bench with an empty underneath
-          is a table */}
-      <mesh position={[0, 0.26 * M, 0]} castShadow receiveShadow>
-        <boxGeometry args={[len - legT * 2.6, 0.035 * M, depth - legT * 2]} />
+      {/* the end frames tying each pair of posts together, front to back */}
+      {[-1, 1].map((sx) => (
+        <mesh key={sx} position={[sx * endX, apronY, 0]} castShadow receiveShadow>
+          <boxGeometry args={[legT * 0.92, apronH * 0.92, depth - legT * 1.2]} />
+          <meshStandardMaterial {...iron} />
+        </mesh>
+      ))}
+
+      {/* The apron and the bottom rail: the two members that draw the bench.
+          Both faces get the band, front and back — the back one is barely seen
+          past the legs but a member that is plate on one side and nothing on
+          the other reads as a card standing on edge the moment the bench is
+          turned at all. */}
+      {[1, -1].map((sz) => (
+        <mesh key={sz} position={[0, apronY, sz * frontZ]} castShadow receiveShadow>
+          <boxGeometry args={[memberW, apronH, 0.035 * M]} />
+          {band(sz > 0 ? apronArt : null, 0.8)}
+        </mesh>
+      ))}
+      {[1, -1].map((sz) => (
+        <mesh key={sz} position={[0, railY, sz * frontZ]} castShadow receiveShadow>
+          <boxGeometry args={[memberW, railH, 0.032 * M]} />
+          {band(sz > 0 ? railArt : null, 0.65)}
+        </mesh>
+      ))}
+
+      {/* the corner brackets, one at every junction of member and post */}
+      {[-1, 1].map((sx) => [[apronY, apronH], [railY, railH]].map(([by, bh]) => (
+        <mesh
+          key={`${sx}:${by}`}
+          position={[sx * (endX - legT * 0.1), by, frontZ + 0.026 * M]}
+        >
+          <boxGeometry args={[legT * 1.7, bh * 1.34, 0.018 * M]} />
+          <meshStandardMaterial {...bracket} />
+        </mesh>
+      )))}
+
+      {/* the shelf, and the brace across the open bay above it */}
+      <mesh position={[0, shelfY, 0]} receiveShadow>
+        <boxGeometry args={[len - legT * 2.2, 0.03 * M, depth - legT * 1.6]} />
         <meshStandardMaterial {...ironDark} />
       </mesh>
-      {[[-0.28, 0.13, 0.34], [0.06, 0.1, 0.22], [0.3, 0.16, 0.3]].map(([fx, fh, fw]) => (
-        <mesh key={fx} position={[fx * len, 0.278 * M + (fh * M) / 2, 0]} castShadow receiveShadow>
-          <boxGeometry args={[fw * M, fh * M, fw * M * 0.8]} />
-          <meshStandardMaterial {...surfaceProps(SURFACES.iron, 0.7)} />
-        </mesh>
-      ))}
+      <mesh position={[brace.position[0], brace.position[1], -legZ * 0.35]} rotation={brace.lying}>
+        <boxGeometry args={[brace.length, 0.045 * M, 0.018 * M]} />
+        <meshStandardMaterial {...surfaceProps(SURFACES.iron, 0.62)} />
+      </mesh>
 
-      {/* the drawer bank at one end */}
-      <group position={[endX * 0.42, legH - 0.235 * M, 0]}>
+      {/* the drawer bank, filling the other bay */}
+      <group position={[bankX, shelfY + bankH / 2, 0]}>
         <mesh castShadow receiveShadow>
-          <boxGeometry args={[0.56 * M, 0.44 * M, depth - legT * 1.6]} />
-          <meshStandardMaterial {...surfaceProps(SURFACES.iron, 0.75)} />
+          <boxGeometry args={[bankW, bankH, bankD]} />
+          <meshStandardMaterial {...surfaceProps(SURFACES.iron, 0.6)} />
         </mesh>
         {[-1, 0, 1].map((d) => (
-          <group key={d} position={[0, d * -0.145 * M, (depth - legT * 1.6) / 2 + 0.008 * M]}>
-            <mesh castShadow receiveShadow>
-              <boxGeometry args={[0.53 * M, 0.13 * M, 0.016 * M]} />
-              <meshStandardMaterial {...surfaceProps(SURFACES.iron, 1.0)} />
+          <group key={d} position={[0, d * -bankH * 0.31, bankD / 2 + 0.006 * M]}>
+            <mesh receiveShadow>
+              <boxGeometry args={[bankW * 0.92, bankH * 0.28, 0.012 * M]} />
+              {band(drawerArt, 0.9)}
             </mesh>
-            {/* the pull, which is what makes it a drawer rather than a groove */}
-            <mesh position={[0, 0, 0.018 * M]} castShadow>
-              <boxGeometry args={[0.16 * M, 0.022 * M, 0.02 * M]} />
-              <meshStandardMaterial {...steel} />
+            {/* the bail: a strap hanging off two posts, which is the one part
+                of a drawer with a silhouette of its own */}
+            <mesh position={[0, -bankH * 0.015, 0.012 * M]} rotation={[0.95, 0, Math.PI]}>
+              <torusGeometry args={[bankW * 0.21, 0.012 * M, 5, 14, Math.PI]} />
+              <meshStandardMaterial {...BENCH_BRASS_HI} />
             </mesh>
           </group>
         ))}
       </group>
 
-      {/* the slab, overhanging the frames on every side */}
-      <mesh position={[0, 0.92 * M - topT / 2, 0]} castShadow receiveShadow>
+      {/* the chest on the shelf — his, by name, and the one object under there
+          with any value at all */}
+      <group position={[-0.34 * M, shelfY, 0.02 * M]} rotation={[0, 0.09, 0]}>
+        <mesh position={[0, 0.115 * M, 0]} castShadow receiveShadow>
+          <boxGeometry args={[0.44 * M, 0.23 * M, 0.27 * M]} />
+          {band(chestArt, 0.85)}
+        </mesh>
+        <mesh position={[0, 0.25 * M, 0]} castShadow receiveShadow>
+          <boxGeometry args={[0.46 * M, 0.05 * M, 0.29 * M]} />
+          <meshStandardMaterial {...surfaceProps(SURFACES.iron, 0.78)} />
+        </mesh>
+        <mesh position={[0, 0.276 * M, 0]} rotation={[0, 0, 0]}>
+          <torusGeometry args={[0.075 * M, 0.008 * M, 5, 14, Math.PI]} />
+          <meshStandardMaterial {...BENCH_BRASS_HI} />
+        </mesh>
+      </group>
+
+      {/* and the brass vessel beside it, which is the only warm note down there */}
+      <group position={[0.02 * M, shelfY, -0.02 * M]}>
+        <mesh position={[0, 0.028 * M, 0]} castShadow>
+          <cylinderGeometry args={[0.062 * M, 0.078 * M, 0.056 * M, 14]} />
+          <meshStandardMaterial {...SHELF_BRASS} />
+        </mesh>
+        <mesh position={[0, 0.14 * M, 0]} castShadow>
+          <cylinderGeometry args={[0.05 * M, 0.075 * M, 0.17 * M, 14]} />
+          <meshStandardMaterial {...SHELF_BRASS} />
+        </mesh>
+        <mesh position={[0, 0.255 * M, 0]}>
+          <cylinderGeometry args={[0.03 * M, 0.045 * M, 0.06 * M, 12]} />
+          <meshStandardMaterial {...SHELF_BRASS} />
+        </mesh>
+        <mesh position={[0.062 * M, 0.15 * M, 0]} rotation={[0, 0, -Math.PI / 2]}>
+          <torusGeometry args={[0.042 * M, 0.007 * M, 5, 12, Math.PI]} />
+          <meshStandardMaterial {...BENCH_BRASS} />
+        </mesh>
+      </group>
+
+      {/* the slab, overhanging the frame on every side */}
+      <mesh position={[0, benchH - topT / 2, 0]} castShadow receiveShadow>
         <boxGeometry args={[len, topT, depth]} />
         {/* top face only takes the artwork; the edges are end grain and read
             better as plain dark timber than as the top's own picture repeated */}
@@ -624,16 +814,82 @@ function Workbench({ M, x, floorY, z, ambient, yaw }) {
         <meshStandardMaterial attach="material-4" {...surfaceProps(SURFACES.iron, 0.75)} />
         <meshStandardMaterial attach="material-5" {...surfaceProps(SURFACES.iron, 0.5)} />
       </mesh>
-      {/* the steel edge strip along the front, which every real bench has and
-          which gives the slab a bright line to be read against */}
-      <mesh position={[0, 0.92 * M - topT / 2, depth / 2 + 0.006 * M]} castShadow receiveShadow>
-        <boxGeometry args={[len, topT * 0.9, 0.012 * M]} />
-        <meshStandardMaterial {...surfaceProps(SURFACES.steel, 0.9)} />
+      {/* the brass edge strip along the front, which every bench in the
+          reference has and which gives the slab a bright line to be read
+          against */}
+      <mesh position={[0, benchH - topT * 0.62, depth / 2 + 0.006 * M]} castShadow receiveShadow>
+        <boxGeometry args={[len, topT * 0.42, 0.014 * M]} />
+        <meshStandardMaterial {...BENCH_BRASS_HI} />
       </mesh>
 
+      {/* ── the lamp ─────────────────────────────────────────────────────── */}
+      <group position={[-0.58 * M, benchH, -0.1 * M]} rotation={[0, -0.62, 0]}>
+        <mesh position={[0, 0.011 * M, 0]} castShadow receiveShadow>
+          <cylinderGeometry args={[0.082 * M, 0.095 * M, 0.022 * M, 18]} />
+          <meshStandardMaterial {...BENCH_BRASS} />
+        </mesh>
+        <mesh position={[0, 0.036 * M, 0]}>
+          <cylinderGeometry args={[0.046 * M, 0.06 * M, 0.032 * M, 16]} />
+          <meshStandardMaterial {...BENCH_BRASS_HI} />
+        </mesh>
+        <mesh position={armA.position} rotation={armA.standing} castShadow>
+          <cylinderGeometry args={[0.013 * M, 0.013 * M, armA.length, 8]} />
+          <meshStandardMaterial {...BENCH_BRASS_HI} />
+        </mesh>
+        <mesh position={[0.06 * M, 0.235 * M, 0]}>
+          <sphereGeometry args={[0.019 * M, 10, 8]} />
+          <meshStandardMaterial {...BENCH_BRASS} />
+        </mesh>
+        <mesh position={armB.position} rotation={armB.standing} castShadow>
+          <cylinderGeometry args={[0.012 * M, 0.012 * M, armB.length, 8]} />
+          <meshStandardMaterial {...BENCH_BRASS_HI} />
+        </mesh>
+        {/* the shade, open at the mouth so the glass inside it can be seen */}
+        <mesh position={[headX, headY, 0]} rotation={[0, 0, LAMP_TILT]} castShadow>
+          <coneGeometry args={[0.085 * M, 0.115 * M, 18, 1, true]} />
+          <meshStandardMaterial {...BENCH_BRASS_HI} side={DoubleSide} />
+        </mesh>
+        {/* the glass. Its own source, so the room's bounce must not overwrite
+            it — the same contract the shaft's fittings hold. */}
+        <mesh position={[headX + aim[0] * 0.05 * M, headY + aim[1] * 0.05 * M, 0]}>
+          <sphereGeometry args={[0.042 * M, 12, 10]} />
+          <meshStandardMaterial
+            userData={{ selfLit: true }}
+            color="#3a2408"
+            emissive="#ffd79a"
+            emissiveIntensity={1.5}
+            roughness={0.4}
+          />
+        </mesh>
+        {glow && (
+          <sprite
+            position={[headX + aim[0] * 0.08 * M, headY + aim[1] * 0.08 * M, 0]}
+            scale={[0.42 * M, 0.42 * M, 1]}
+          >
+            <spriteMaterial map={glow} transparent opacity={0.4} depthWrite={false} />
+          </sprite>
+        )}
+      </group>
+      {/* The pool it throws, laid flat on the slab. This is the piece doing the
+          work: a shade that glows over an evenly lit bench reads as a prop, and
+          the light landing somewhere is what makes it a lamp. */}
+      {glow && (
+        <mesh position={[-0.33 * M, benchH + 0.004 * M, 0.04 * M]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[1.1 * M, 0.66 * M]} />
+          <meshBasicMaterial
+            map={glow}
+            transparent
+            opacity={0.5}
+            depthWrite={false}
+            blending={AdditiveBlending}
+          />
+        </mesh>
+      )}
+
+      {/* ── what is standing on the bench ────────────────────────────────── */}
       {/* the vice: the one part of a bench that reads instantly as a bench, and
           the only thing here that breaks the silhouette's top line */}
-      <group position={[-endX * 0.55, 0.92 * M, depth / 2 - 0.02 * M]}>
+      <group position={[-endX * 0.72, benchH, depth / 2 - 0.02 * M]}>
         <mesh position={[0, 0.035 * M, 0.09 * M]} castShadow receiveShadow>
           <boxGeometry args={[0.22 * M, 0.07 * M, 0.2 * M]} />
           <meshStandardMaterial {...surfaceProps(SURFACES.iron, 0.9)} />
@@ -641,19 +897,99 @@ function Workbench({ M, x, floorY, z, ambient, yaw }) {
         {[0.03, 0.15].map((jz) => (
           <mesh key={jz} position={[0, 0.1 * M, jz * M]} castShadow receiveShadow>
             <boxGeometry args={[0.18 * M, 0.11 * M, 0.035 * M]} />
-            <meshStandardMaterial {...steel} />
+            <meshStandardMaterial {...hardware} />
           </mesh>
         ))}
-        {/* the screw and its tommy bar */}
         <mesh position={[0, 0.09 * M, 0.24 * M]} rotation={[Math.PI / 2, 0, 0]} castShadow>
           <cylinderGeometry args={[0.018 * M, 0.018 * M, 0.14 * M, 10]} />
-          <meshStandardMaterial {...steel} />
+          <meshStandardMaterial {...hardware} />
         </mesh>
         <mesh position={[0, 0.09 * M, 0.3 * M]} rotation={[0, 0, Math.PI / 2.6]} castShadow>
           <cylinderGeometry args={[0.011 * M, 0.011 * M, 0.26 * M, 8]} />
-          <meshStandardMaterial {...steel} />
+          <meshStandardMaterial {...BENCH_BRASS_HI} />
         </mesh>
       </group>
+
+      {/* the tool rail: two posts, a pipe across them and three things hung off
+          it. The reference's is crowded with hardware; three is what survives
+          being read at this distance. */}
+      <group position={[0.2 * M, benchH, -0.19 * M]}>
+        {[-0.2, 0.2].map((px) => (
+          <mesh key={px} position={[px * M, 0.07 * M, 0]} castShadow>
+            <cylinderGeometry args={[0.013 * M, 0.015 * M, 0.14 * M, 8]} />
+            <meshStandardMaterial {...hardware} />
+          </mesh>
+        ))}
+        <mesh position={[0, 0.135 * M, 0]} rotation={[0, 0, Math.PI / 2]} castShadow>
+          <cylinderGeometry args={[0.012 * M, 0.012 * M, 0.44 * M, 8]} />
+          <meshStandardMaterial {...BENCH_BRASS_HI} />
+        </mesh>
+        {[-0.13, 0.01, 0.15].map((hx, i) => (
+          <mesh key={hx} position={[hx * M, 0.095 * M - i * 0.008 * M, 0.01 * M]}>
+            <boxGeometry args={[0.016 * M, 0.07 * M + i * 0.014 * M, 0.01 * M]} />
+            <meshStandardMaterial {...hardware} />
+          </mesh>
+        ))}
+      </group>
+
+      {/* the two canisters standing under the rail */}
+      {[[0.46, 0.075, 0.11], [0.57, 0.06, 0.085]].map(([cx, cr, ch]) => (
+        <group key={cx} position={[cx * M, benchH, 0.08 * M]}>
+          <mesh position={[0, (ch * M) / 2, 0]} castShadow receiveShadow>
+            <cylinderGeometry args={[cr * M, cr * M * 1.06, ch * M, 14]} />
+            <meshStandardMaterial {...hardware} />
+          </mesh>
+          <mesh position={[0, ch * M + 0.014 * M, 0]}>
+            <cylinderGeometry args={[cr * M * 0.5, cr * M * 0.62, 0.028 * M, 12]} />
+            <meshStandardMaterial {...BENCH_BRASS} />
+          </mesh>
+        </group>
+      ))}
+
+      {/* The valve cluster at the far end. This is the reference's crowd of
+          pipework, reduced to the three things that make it read: a block, two
+          risers with handwheels on them, and an elbow going nowhere. */}
+      <group position={[endX * 0.73, benchH, -0.12 * M]} rotation={[0, -0.24, 0]}>
+        <mesh position={[0, 0.055 * M, 0]} castShadow receiveShadow>
+          <boxGeometry args={[0.36 * M, 0.11 * M, 0.22 * M]} />
+          <meshStandardMaterial {...surfaceProps(SURFACES.iron, 0.9)} />
+        </mesh>
+        {[[-0.1, 0.22], [0.09, 0.15]].map(([vx, vh]) => (
+          <group key={vx} position={[vx * M, 0.11 * M, 0]}>
+            <mesh position={[0, (vh * M) / 2, 0]} castShadow>
+              <cylinderGeometry args={[0.026 * M, 0.03 * M, vh * M, 10]} />
+              <meshStandardMaterial {...hardware} />
+            </mesh>
+            <mesh position={[0, vh * M, 0]} rotation={[Math.PI / 2, 0, 0]}>
+              <torusGeometry args={[0.062 * M, 0.009 * M, 6, 16]} />
+              <meshStandardMaterial {...BENCH_BRASS_HI} />
+            </mesh>
+            {[0, Math.PI / 2].map((a) => (
+              <mesh key={a} position={[0, vh * M, 0]} rotation={[0, a, 0]}>
+                <boxGeometry args={[0.124 * M, 0.008 * M, 0.01 * M]} />
+                <meshStandardMaterial {...BENCH_BRASS} />
+              </mesh>
+            ))}
+          </group>
+        ))}
+        <mesh position={[0.2 * M, 0.09 * M, 0.02 * M]} rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[0.07 * M, 0.026 * M, 8, 14, Math.PI / 2]} />
+          <meshStandardMaterial {...BENCH_BRASS} />
+        </mesh>
+      </group>
+
+      {/* the few things left lying where they were put down */}
+      {[[-0.16, 0.05, 0.34], [-0.02, -0.32, -0.5], [0.12, 0.12, 0.2]].map(([tx, tz, ta]) => (
+        <mesh
+          key={tx}
+          position={[tx * M, benchH + 0.008 * M, tz * M]}
+          rotation={[0, ta, 0]}
+          castShadow
+        >
+          <boxGeometry args={[0.26 * M, 0.016 * M, 0.026 * M]} />
+          <meshStandardMaterial {...hardware} />
+        </mesh>
+      ))}
     </group>
   );
 }

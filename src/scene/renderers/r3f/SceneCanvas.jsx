@@ -45,6 +45,7 @@ installRoomTone();
  */
 function CameraRig({ vw, vh }) {
   const camera = useThree((s) => s.camera);
+  const raycaster = useThree((s) => s.raycaster);
   useLayoutEffect(() => {
     const c = cameraProps(vw, vh);
     camera.fov = c.fov;
@@ -56,8 +57,15 @@ function CameraRig({ vw, vh }) {
     // the camera is not a light: it sees every room, however the lights are
     // partitioned between them
     camera.layers.enableAll();
+    // And neither is the raycaster. `Room` puts every object it holds on its
+    // room's layer so the landing's pendant cannot light the shaft; a picking
+    // ray left on layer 0 therefore passes through the entire scene and hits
+    // nothing at all — which is exactly what it did, silently, the first time
+    // anything in here was given a pointer handler. The partition is a
+    // *lighting* device and picking is not lighting.
+    raycaster.layers.enableAll();
     camera.updateProjectionMatrix();
-  }, [camera, vw, vh]);
+  }, [camera, raycaster, vw, vh]);
   return null;
 }
 
@@ -105,9 +113,10 @@ function Output() {
   // material state rather than on which room asked.
   useLayoutEffect(() => {
     for (const room of ['shaft', 'landing']) {
-      const { toneCurve, exposure, wrap } = roomLight(tuning, room);
+      const { toneCurve, exposure, chroma, wrap } = roomLight(tuning, room);
       toneUniforms[room].curve.value = TONE_CURVES[toneCurve] ?? TONE_CURVES.none;
       toneUniforms[room].exposure.value = exposure;
+      toneUniforms[room].chroma.value = chroma;
       wrapUniforms[room].value = wrap;
     }
     invalidate();
@@ -140,7 +149,8 @@ function SceneProbe({ name }) {
  * }} props
  */
 function SceneCanvas({
-  vw, vh, zIndex, name, dprCeiling = 2, moving = false, antialias = true, onLost, children,
+  vw, vh, zIndex, name, dprCeiling = 2, moving = false, antialias = true, interactive = false,
+  onLost, children,
 }) {
   // A WebGL context can be taken away at any moment — a driver reset, the tab
   // backgrounded for long enough, too many contexts open across tabs. The
@@ -159,7 +169,15 @@ function SceneCanvas({
   };
 
   return (
-    <div style={{ position: 'absolute', inset: 0, zIndex, pointerEvents: 'none' }}>
+    /* Both canvases are transparent to the mouse by default: they are the
+       *scenery*, and a full-viewport element that eats clicks is how a layered
+       composition like this one stops working. `interactive` is the exception —
+       the shaft canvas holds the wall screen, whose buttons have to be
+       pressable — and it is safe to grant because R3F only ever raycasts the
+       objects that actually carry handlers (`internal.interaction`), so an
+       interactive canvas with three buttons in it tests three objects on a
+       pointer move and nothing else in the scene. */
+    <div style={{ position: 'absolute', inset: 0, zIndex, pointerEvents: interactive ? 'auto' : 'none' }}>
       <Canvas
         onCreated={handleCreated}
         // No `flat` and no reliance on R3F's default either: the tone curve is
@@ -196,7 +214,7 @@ function SceneCanvas({
         // as well as in the rig because R3F decides whether to aim the camera at
         // the origin at *creation*, before any effect has run.
         camera={{ ...cameraProps(vw, vh), rotation: [0, 0, 0], manual: true }}
-        style={{ pointerEvents: 'none' }}
+        style={{ pointerEvents: interactive ? 'auto' : 'none' }}
         // `percentage`, not `soft`, and that is a bug fix rather than a
         // downgrade: `soft` asks for `PCFSoftShadowMap`, which three deprecated
         // and now silently rewrites to `PCFShadowMap` — inside its own shadow

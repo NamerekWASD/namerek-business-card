@@ -29,17 +29,7 @@
 // is the classic signature of a scene ported by eye.
 
 import { bake } from './patterns.js';
-
-/**
- * A small deterministic generator. A bake seeded off the clock is a prop that
- * is a different object on every load, and two machines looking at this scene
- * have to be looking at the same one.
- * @param {number} seed
- */
-const seeded = (seed) => {
-  let s = seed >>> 0;
-  return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
-};
+import { FIELD, metalWear, mix, seeded } from './wear.js';
 
 /**
  * How near the rim of a panel a point is — 0 well inside, 1 hard on the edge.
@@ -703,4 +693,430 @@ export const benchTop = () => bake('bench:top', 512, 224, (ctx, w, h) => {
   front.addColorStop(1, 'rgba(20,13,6,0)');
   ctx.fillStyle = front;
   ctx.fillRect(0, 0, w, h);
+});
+
+// ── the workbench's ironwork ─────────────────────────────────────────────────
+// The reference's bench is not a timber bench with iron legs: it is a *riveted
+// frame* with a slab dropped into it. Every horizontal member — the apron under
+// the slab, the bottom rail the shelf sits on, the drawer fronts — is the same
+// article: a rolled plate with a brass strip along each arris and a row of
+// domed bolts down the middle of it. That row is what the eye reads the bench
+// by at this distance; without it the bench is three dark rectangles.
+//
+// So it is one bake with a bolt count, used at three sizes, rather than three
+// bakes saying the same thing. The bolts are painted rather than instanced
+// because they sit on a face the pendant only grazes: a dome there is half a
+// pixel of highlight, where a painted one keeps its brass whatever the angle.
+// The arrises are the opposite case and stay geometry — see the strips the
+// bench builds along the slab.
+
+const BENCH_IRON = '#251c12';
+const BENCH_BRASS = '#7d5c26';
+
+/** One domed bolt head, lit from the upper left like everything else in here. */
+const boltHead = (ctx, x, y, r) => {
+  const g = ctx.createRadialGradient(x - r * 0.35, y - r * 0.4, r * 0.1, x, y, r);
+  g.addColorStop(0, '#a8823a');
+  g.addColorStop(0.55, '#6d5122');
+  g.addColorStop(1, '#2a1f10');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+  // the shadow it drops onto the plate, which is most of why it reads as proud
+  ctx.fillStyle = 'rgba(10,6,2,0.55)';
+  ctx.beginPath();
+  ctx.arc(x + r * 0.28, y + r * 0.34, r * 0.92, 0.2, 2.3);
+  ctx.fill();
+};
+
+// What the bench's iron is made of, as `metalWear` states a metal: bare steel
+// under the finish, the oxide that comes out of it, and what a rubbed patch
+// comes up as. One object, so the frame, the drawers and the chest are visibly
+// the same alloy however differently each of them has been used.
+const BENCH_METAL = { dark: '#140d06', rust: '#6b3d18', light: '#8d7043' };
+
+/**
+ * A riveted member of the bench frame: the apron, the bottom rail and the end
+ * brackets are all this plate at different lengths.
+ *
+ * @param {number} bolts how many heads across the run
+ * @param {number} [seed] so two members standing one above the other do not
+ *   carry pixel-identical pitting
+ */
+export const benchBand = (bolts, seed = 0) => bake(
+  `bench:band:${bolts}:${seed}`, 1024, 64, (ctx, w, h) => {
+    ctx.fillStyle = BENCH_IRON;
+    ctx.fillRect(0, 0, w, h);
+
+    // the plate's own slight crown, so it is not a flat rectangle of one value
+    const crown = ctx.createLinearGradient(0, 0, 0, h);
+    crown.addColorStop(0, 'rgba(80,62,36,0.30)');
+    crown.addColorStop(0.42, 'rgba(80,62,36,0.06)');
+    crown.addColorStop(1, 'rgba(0,0,0,0.34)');
+    ctx.fillStyle = crown;
+    ctx.fillRect(0, 0, w, h);
+
+    // Where this member has been used: its own rim, worse toward the bottom
+    // edge where water sits, and worst along the line of bolts — a fastening is
+    // a place damp gets in, which is why every real plate weeps from its heads
+    // rather than from its middle.
+    metalWear(ctx, w, h, {
+      ...BENCH_METAL,
+      seed: 0xb1a5 + bolts * 977 + seed * 31,
+      field: mix(
+        FIELD.edges(0.9, 0.26),
+        FIELD.bottom(0.45),
+        FIELD.band(0.5, 0.53, 0.1),
+        FIELD.blotches(0.35, 6, seed + 3),
+      ),
+      pit: 2.6,
+      bloom: 14,
+      // along the run, because a rolled section is finished along its length
+      scratch: 26,
+      scratchAngle: 0,
+      scratchSpread: 0.16,
+      polish: 6,
+      streaks: 10,
+      grime: 0.85,
+    });
+
+    // the brass strip along each arris — the bench's brightest line, and the
+    // one that draws its silhouette out of the dark room behind it
+    for (const [y, t] of [[0, h * 0.1], [h - h * 0.085, h * 0.085]]) {
+      const strip = ctx.createLinearGradient(0, y, 0, y + t);
+      strip.addColorStop(0, '#a37c34');
+      strip.addColorStop(0.5, BENCH_BRASS);
+      strip.addColorStop(1, '#3d2c11');
+      ctx.fillStyle = strip;
+      ctx.fillRect(0, y, w, t);
+    }
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.fillRect(0, h * 0.1, w, 1.6);
+    ctx.fillRect(0, h - h * 0.085 - 1.6, w, 1.6);
+
+    // the plate joints: a member this long is two or three plates, and the butt
+    // lines are the only vertical incident on the whole run
+    for (const f of [0.34, 0.68]) {
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(w * f, h * 0.1, 1.8, h * 0.8);
+      ctx.fillStyle = 'rgba(140,110,62,0.16)';
+      ctx.fillRect(w * f + 1.8, h * 0.1, 1.2, h * 0.8);
+    }
+
+    for (let i = 0; i < bolts; i += 1) {
+      boltHead(ctx, (w * (i + 0.5)) / bolts, h * 0.53, h * 0.115);
+    }
+  },
+);
+
+/**
+ * One drawer front: the same plate, with the sunk panel a drawer has and a bolt
+ * at each corner of it. The bail handle is geometry — a strap standing off the
+ * face is the one part of a drawer with a silhouette.
+ */
+export const drawerFace = () => bake('bench:drawer', 384, 96, (ctx, w, h) => {
+  ctx.fillStyle = BENCH_IRON;
+  ctx.fillRect(0, 0, w, h);
+  // A drawer is worn where it is *pulled*, and that is the one place on it that
+  // gets brighter rather than darker — an arc of burnished metal under the bail
+  // where forty years of thumbs have taken the finish back to steel. The rim
+  // and the bottom edge get the ordinary treatment underneath it.
+  metalWear(ctx, w, h, {
+    ...BENCH_METAL,
+    seed: 0xd7a4,
+    field: mix(
+      FIELD.edges(0.7, 0.2),
+      FIELD.bottom(0.3),
+      FIELD.around(0.95, 0.5, 0.6, 0.34),
+    ),
+    pit: 1.6,
+    bloom: 6,
+    scratch: 14,
+    scratchAngle: 0,
+    scratchSpread: 0.5,
+    polish: 16,
+    grime: 0.5,
+  });
+
+  // the sunk panel: a groove with a lit lip inside it, which is the whole of
+  // how a pressed panel reads
+  const inset = h * 0.14;
+  ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+  ctx.lineWidth = 2.4;
+  ctx.strokeRect(inset, inset, w - inset * 2, h - inset * 2);
+  ctx.strokeStyle = 'rgba(150,118,66,0.28)';
+  ctx.lineWidth = 1.4;
+  ctx.strokeRect(inset + 2.2, inset + 2.2, w - inset * 2 - 4.4, h - inset * 2 - 4.4);
+
+  const face = ctx.createLinearGradient(0, inset, 0, h - inset);
+  face.addColorStop(0, 'rgba(96,74,42,0.20)');
+  face.addColorStop(1, 'rgba(0,0,0,0.28)');
+  ctx.fillStyle = face;
+  ctx.fillRect(inset, inset, w - inset * 2, h - inset * 2);
+
+  for (const [bx, by] of [[0.07, 0.16], [0.93, 0.16], [0.07, 0.84], [0.93, 0.84]]) {
+    boltHead(ctx, w * bx, h * by, h * 0.062);
+  }
+  const strip = ctx.createLinearGradient(0, 0, 0, h * 0.055);
+  strip.addColorStop(0, '#9c7631');
+  strip.addColorStop(1, '#3a2a10');
+  ctx.fillStyle = strip;
+  ctx.fillRect(0, 0, w, h * 0.055);
+});
+
+/**
+ * The tool chest that lives on the bench's lower shelf.
+ *
+ * It is the one object under there with any value at all — the shelf is the
+ * darkest place in the room — so the panel is painted a shade lighter than the
+ * frame around it and carries the strapping and the two lid catches. Mykolai
+ * named it and the lamp as the two things about the reference that had to
+ * survive whatever else got simplified.
+ */
+export const chestPanel = () => bake('bench:chest', 256, 160, (ctx, w, h) => {
+  ctx.fillStyle = '#31261a';
+  ctx.fillRect(0, 0, w, h);
+  // A box that gets carried and dropped: the corners go first, the lid seam is
+  // rubbed by opening, and it stands on a shelf so its bottom rots. Scratched
+  // across rather than along — a chest is dragged off a shelf sideways.
+  metalWear(ctx, w, h, {
+    ...BENCH_METAL,
+    seed: 0xc4e5,
+    field: mix(
+      FIELD.edges(1.1, 0.24),
+      FIELD.bottom(0.55),
+      FIELD.band(0.4, 0.34, 0.07),
+    ),
+    pit: 3,
+    bloom: 12,
+    scratch: 20,
+    scratchAngle: Math.PI / 2,
+    scratchSpread: 0.6,
+    polish: 10,
+    streaks: 8,
+    grime: 0.7,
+  });
+
+  // the lid seam, a third of the way down
+  const lid = h * 0.34;
+  ctx.fillStyle = 'rgba(0,0,0,0.62)';
+  ctx.fillRect(0, lid, w, 3);
+  ctx.fillStyle = 'rgba(148,116,64,0.22)';
+  ctx.fillRect(0, lid + 3, w, 1.6);
+
+  // the strapping: two bands round the body, with a catch straddling the seam
+  for (const f of [0.24, 0.76]) {
+    const x = w * f - w * 0.035;
+    const band = ctx.createLinearGradient(x, 0, x + w * 0.07, 0);
+    band.addColorStop(0, 'rgba(0,0,0,0.4)');
+    band.addColorStop(0.4, 'rgba(122,94,46,0.5)');
+    band.addColorStop(1, 'rgba(0,0,0,0.45)');
+    ctx.fillStyle = band;
+    ctx.fillRect(x, 0, w * 0.07, h);
+    boltHead(ctx, w * f, h * 0.12, 4.4);
+    boltHead(ctx, w * f, h * 0.9, 4.4);
+    ctx.fillStyle = '#8a6a2c';
+    ctx.fillRect(x + w * 0.008, lid - h * 0.07, w * 0.054, h * 0.15);
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(x + w * 0.008, lid + h * 0.055, w * 0.054, 2.4);
+  }
+
+  // the corner protectors
+  ctx.fillStyle = 'rgba(126,96,48,0.4)';
+  for (const [cx, cy] of [[0, 0], [w - 16, 0], [0, h - 16], [w - 16, h - 16]]) {
+    ctx.fillRect(cx, cy, 16, 3);
+    ctx.fillRect(cx, cy, 3, 16);
+  }
+});
+
+// ── the wall screen's frame ──────────────────────────────────────────────────
+// Painted to Mykolai's reference, with one deliberate departure from it: the
+// band is a good deal narrower. He liked the frame and said the width was the
+// one thing he did not — "мне только не нравятся сильно широкие рамки" — and
+// chose a band about two thirds of the reference's rather than half, so there
+// is still room for a step and a rail to sit in.
+//
+// The split between what is here and what is geometry follows the same rule as
+// everywhere else in this file: **form is geometry, surface is paint.** The
+// corner blocks, the rails, the vents and the stepped lip are meshes, because
+// their whole contribution is catching the pendant along one edge and dropping
+// a shadow off the other, and no painting does that. What is baked is what a
+// mesh cannot be: the pitting, the thin paint on the arrises, the grime that
+// gathers along the bottom of anything bolted to a wall for forty years.
+
+/**
+ * One length of the frame's own band, as a tile that repeats along its run.
+ *
+ * A strip rather than a fitted texture, because the four members are different
+ * lengths and a fitted one would need four bakes to say the same thing. The
+ * grain runs across the band, which is how a rolled section is finished, so the
+ * repeat direction is the only one the eye can check and it is the one that
+ * carries no incident.
+ */
+export const frameBand = () => bake('screen:band', 128, 64, (ctx, w, h) => {
+  const rnd = seeded(0xf7a3);
+
+  ctx.fillStyle = '#2b2620';
+  ctx.fillRect(0, 0, w, h);
+
+  // the rolling marks: fine lines across the section, never quite parallel
+  for (let i = 0; i < 130; i += 1) {
+    const y = rnd() * h;
+    ctx.globalAlpha = 0.04 + rnd() * 0.12;
+    ctx.strokeStyle = rnd() > 0.5 ? '#181410' : '#4a4238';
+    ctx.lineWidth = 0.6 + rnd() * 1.3;
+    ctx.beginPath();
+    ctx.moveTo(-2, y);
+    ctx.bezierCurveTo(w * 0.35, y + (rnd() - 0.5) * 2, w * 0.7, y + (rnd() - 0.5) * 2, w + 2, y);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // the pitting, heavier toward the lower edge where water sits
+  for (let i = 0; i < 1500; i += 1) {
+    const x = rnd() * w;
+    const y = rnd() * h;
+    if (rnd() > 0.25 + (y / h) * 0.75) continue;
+    ctx.globalAlpha = 0.1 + rnd() * 0.4;
+    ctx.fillStyle = rnd() > 0.35 ? '#141009' : '#6a4322';
+    ctx.beginPath();
+    ctx.arc(x, y, 0.4 + rnd() * 1.7, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // The arrises. A member gets handled, and the paint goes thin on the two
+  // edges that stand proud — that is surface, not shading: the metal under it
+  // is genuinely showing. Kept to two pixels, so it reads as an edge rather
+  // than as a light on one.
+  for (const y of [0, h - 2]) {
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = '#6e6353';
+    ctx.fillRect(0, y, w, 2);
+  }
+  ctx.globalAlpha = 1;
+
+  // and the grime along the bottom
+  const dirt = ctx.createLinearGradient(0, h, 0, h * 0.5);
+  dirt.addColorStop(0, 'rgba(10,8,5,0.4)');
+  dirt.addColorStop(1, 'rgba(10,8,5,0)');
+  ctx.fillStyle = dirt;
+  ctx.fillRect(0, 0, w, h);
+});
+
+/**
+ * The face of one control-panel button.
+ *
+ * Lettering, and this file's own rule says lettering in a texture is how a
+ * scene loses its typography. The exception is deliberate and narrow: this is a
+ * *legend on a machine*, struck into a control plate, in the same class as the
+ * crate's sprayed stencil and the patch bay's designation strips. It is not the
+ * building's signage and it is not the page's — those stay in the DOM, where
+ * they can be selected, read by a screen reader and rendered at the display's
+ * own resolution.
+ *
+ * @param {string} label @param {'left' | 'right' | 'mark' | null} glyph
+ */
+export const buttonFace = (label, glyph = null) => bake(
+  `screen:button:${label}`, 256, 96, (ctx, w, h) => {
+    const rnd = seeded(0xb77 + label.length * 31);
+
+    ctx.fillStyle = '#241f19';
+    ctx.fillRect(0, 0, w, h);
+    for (let i = 0; i < 900; i += 1) {
+      ctx.globalAlpha = 0.05 + rnd() * 0.13;
+      ctx.fillStyle = rnd() > 0.5 ? '#3a3227' : '#12100c';
+      ctx.beginPath();
+      ctx.arc(rnd() * w, rnd() * h, 0.5 + rnd() * 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // the bead round the plate, and the bolt in each corner
+    ctx.globalAlpha = 0.5;
+    ctx.strokeStyle = '#8a6a2e';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(7, 7, w - 14, h - 14);
+    ctx.globalAlpha = 1;
+    for (const [bx, by] of [[18, 18], [w - 18, 18], [18, h - 18], [w - 18, h - 18]]) {
+      ctx.fillStyle = '#0d0b08';
+      ctx.beginPath(); ctx.arc(bx, by, 4.6, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#6b5f4a';
+      ctx.beginPath(); ctx.arc(bx, by, 3.4, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // The legend, struck: a dark groove with a lit lower lip, which is the same
+    // two-stroke trick every engraved mark in this file uses.
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '700 38px "Space Mono", "Consolas", monospace';
+    const cx = w / 2 + (glyph === 'left' ? 14 : 0) + (glyph === 'right' ? -14 : 0);
+    ctx.fillStyle = '#0b0906';
+    ctx.fillText(label, cx, h / 2 - 1);
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle = '#c99a4e';
+    ctx.fillText(label, cx, h / 2 + 1);
+    ctx.globalAlpha = 1;
+
+    // the arrow, drawn rather than set — a glyph from a font at this size is a
+    // different weight from the label beside it
+    if (glyph === 'left' || glyph === 'right') {
+      const s = glyph === 'left' ? -1 : 1;
+      const ax = w / 2 + s * (w * 0.32);
+      ctx.fillStyle = '#c99a4e';
+      ctx.globalAlpha = 0.85;
+      ctx.beginPath();
+      ctx.moveTo(ax + s * 11, h / 2);
+      ctx.lineTo(ax - s * 8, h / 2 - 12);
+      ctx.lineTo(ax - s * 8, h / 2 + 12);
+      ctx.closePath();
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    // the wear where a thumb has been, which is the whole reason a button on a
+    // forty-year-old panel does not look like a rendered rectangle
+    const thumb = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w * 0.4);
+    thumb.addColorStop(0, 'rgba(120,104,78,0.16)');
+    thumb.addColorStop(1, 'rgba(120,104,78,0)');
+    ctx.fillStyle = thumb;
+    ctx.fillRect(0, 0, w, h);
+  },
+);
+
+/**
+ * The counter plate above the glass — the small window a machine of this period
+ * shows its own position in.
+ */
+export const counterPlate = (text) => bake(`screen:counter:${text}`, 256, 88, (ctx, w, h) => {
+  const rnd = seeded(0xc07);
+  ctx.fillStyle = '#17130e';
+  ctx.fillRect(0, 0, w, h);
+  // the recess it sits in
+  ctx.fillStyle = '#0a0806';
+  ctx.fillRect(10, 12, w - 20, h - 24);
+  for (let i = 0; i < 400; i += 1) {
+    ctx.globalAlpha = 0.05 + rnd() * 0.1;
+    ctx.fillStyle = rnd() > 0.5 ? '#2e281f' : '#000000';
+    ctx.beginPath();
+    ctx.arc(rnd() * w, rnd() * h, 0.6 + rnd() * 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.globalAlpha = 0.45;
+  ctx.strokeStyle = '#8a6a2e';
+  ctx.lineWidth = 2.4;
+  ctx.strokeRect(10, 12, w - 20, h - 24);
+  ctx.globalAlpha = 1;
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = '700 40px "Space Mono", "Consolas", monospace';
+  ctx.fillStyle = '#0b0906';
+  ctx.fillText(text, w / 2, h / 2 - 1);
+  ctx.globalAlpha = 0.9;
+  ctx.fillStyle = '#e0a95a';
+  ctx.fillText(text, w / 2, h / 2 + 1);
+  ctx.globalAlpha = 1;
 });
