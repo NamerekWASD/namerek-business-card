@@ -13,6 +13,33 @@ import { CAM_ORIGIN_Y, CAM_PERSPECTIVE, SHAFT_DEPTH } from './camera.js';
 export const DOORWAY_W_FRAC = 0.78; // of the shaft's width
 export const DOORWAY_H_FRAC = 0.94; // of its height
 
+// ── how far a leaf actually travels ──────────────────────────────────────────
+// Not its own width. A leaf that slides its full width ends up entirely inside
+// the pocket behind the architrave, and the doorway it was in is then a clean
+// rectangular hole with no evidence in it that a door was ever there — which is
+// how a lift shaft is not built. A real landing door parks with its leading
+// stile still standing in the opening, both because there is no pocket deep
+// enough to swallow it and because that stile is what a hand or a gate strikes.
+//
+// So the travel is short of the leaf by this much, and what stays behind is the
+// astragal — the leaf's own leading edge, which is cast in the architrave's
+// ironwork rather than the leaf's plate (see `DoorLeaf` in `NearScene.jsx`).
+// That is the whole reason the reveal reads: it is the frame's own metal,
+// standing proud of a plate that is in shadow, so the eye gets a bright vertical
+// edge in the frame's colour instead of a strip of door-coloured door.
+//
+// The figure is a little wider than the astragal itself, so a sliver of plate
+// shows behind it and the stile has something to stand *against*. Widen it much
+// past this and it starts eating the landing screen, which already runs 118 px
+// under the frame on its outer side.
+export const LEAF_PARK_FRAC = 0.045; // of one leaf's own width
+
+// The astragal's width, as a fraction of one leaf. It lives here rather than in
+// the backend that draws it because it is the other half of `LEAF_PARK_FRAC`:
+// the reveal has to be wider than the stile standing in it, and the two numbers
+// are only meaningful against each other. `geometry.test.js` holds that edge.
+export const ASTRAGAL_W_FRAC = 0.028;
+
 // How far the masonry at the far end runs past the viewport, in viewports, so
 // nothing pops in at ride speed.
 export const BACK_OVERSCAN = 0.7;

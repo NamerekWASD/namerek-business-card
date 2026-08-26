@@ -1,10 +1,17 @@
 import { useEffect } from 'react';
 import { preloadSurfaceTextures } from '../renderers/r3f/surfaceMaterial.js';
-import { markStrip } from '../renderers/r3f/screenMark.js';
+import { settledMark } from '../renderers/r3f/screenMark.js';
 
-// The download half of the boot: the shared surface bakes, and the frames of
-// the logo's reveal. Everything here is an image the browser has to fetch and
-// decode before anything can be drawn with it.
+// The download half of the boot: the shared surface bakes, and the mark. Both
+// are images the browser has to fetch and decode before anything can be drawn
+// with them.
+//
+// The mark used to arrive here as a hundred and twenty stills — the frames of a
+// reveal the wall screen played. That reveal is gone: the mark is cut in half
+// down the astragal and painted on the two door leaves, so parting the doors is
+// the reveal and there is nothing to play. One still is all the scene now needs,
+// and it is still a barrier because the leaves are the very first thing in
+// frame — see `settledMark`.
 //
 // This used to be the *whole* barrier, and it used to also wait on a 6.6 MB
 // arcade cabinet that `LandingProps` had already switched off. Now it is two
@@ -30,7 +37,7 @@ export default function SceneWarmup({ onSettle }) {
       () => { if (live) onSettle('tiles'); },
       () => { if (live) onSettle('tiles'); },
     );
-    markStrip().then(
+    settledMark().then(
       () => { if (live) onSettle('mark'); },
       () => { if (live) onSettle('mark'); },
     );

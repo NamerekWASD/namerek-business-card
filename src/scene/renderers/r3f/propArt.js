@@ -397,19 +397,25 @@ export const cratePanel = (boards = 5, stencilled = false) => bake(
   },
 );
 
-// ── the patch bay ────────────────────────────────────────────────────────────
-// The one prop that is about the site's own subject: a board of jacks with
-// three of them bridged is, underneath the brass, a switched network. That idea
-// was always there and always illegible, because the board was 132 scene pixels
-// across — a smear of specks at the far end of a corridor. What it needed was
-// not a different idea but the size to state the one it has.
+// ── the valve rack ───────────────────────────────────────────────────────────
+// The one prop that is about the site's own subject. It used to state that with
+// a field of jacks and three cords bridged across it — a switched network,
+// under the brass — and the idea was sound but the object was mute: a board of
+// holes reads as a board of holes at any distance, and nothing on it was ever
+// doing anything the eye could catch.
 //
-// So it is a real distribution panel: a cast case with a stepped bezel (the
-// period's grammar is the step, per the styling system), a hinged door standing
-// open, and the jack field inside it. This bakes the field's own backplate. The
-// jacks, the cords and the pilot lamps are geometry: a brass eyelet catches the
-// light on its own and a painted dot never will, which is the same call the
-// gate-versus-bolts note in `patterns.js` makes.
+// A rack of valves states the same thing louder, and states it in *light*.
+// Three decks of eight, standing in a cast case with its door swung back, is
+// the machine this whole building is a joke about — and a hot heater carries
+// down a corridor in a way a brass eyelet never did. The mechanics come over
+// one for one: what used to be "this circuit has a cord in it" is now "this
+// valve is in the live stage", and it drives the same board of lamps (see
+// `usePilotLamps`).
+//
+// This bakes the backplane the decks are bolted to. The valves, the shelves and
+// the wire guard are geometry, for the same reason the jacks were: a curved
+// glass with something hot inside it catches the light on its own, and a
+// painted bottle never will.
 //
 // ── drawn to the frame reference ────────────────────────────────────────────
 // Mykolai's reference for the wall screen's frame is the style note for this
@@ -430,7 +436,75 @@ const CAST = '#241f18';   // the crackle-finished field
 const BRASS = '#8a6a2e';  // raised members only
 const LEGEND = '#8b8168'; // the engraved strips
 
-export const patchBayPlate = () => bake('patchbay:plate', 384, 448, (ctx, w, h) => {
+/**
+ * The rack's layout, stated once for both halves of it.
+ *
+ * The painting and the geometry describe the same object from two different
+ * places — this file has only a canvas and knows nothing about metres,
+ * `LandingProps` has only metres and never sees the canvas — so every figure
+ * the two must agree on lives here and neither writes one of its own. A
+ * designation strip that has drifted behind the valves it labels is invisible
+ * on the bench and obvious in the room, which is the worst way round.
+ *
+ * Everything vertical is a fraction *down* the plate, the way a canvas is
+ * measured. `PLATE` is the only entry in metres, and it is what the case in
+ * `LandingProps` is built around.
+ */
+export const RACK = {
+  COLS: 8,
+  /** where each chassis deck's top surface sits, down the plate */
+  SHELVES: [0.3, 0.565, 0.83],
+  /** how tall a valve stands, as a fraction of the plate's height */
+  VALVE_H: 0.2,
+  /** and the clear band above each row, which its strip sits in */
+  STRIP_GAP: 0.055,
+  /** how tall a designation strip is, rebate included */
+  STRIP_H: 21,
+  /** the field the eight columns are spread across, as fractions across */
+  SPAN: [0.075, 0.925],
+  /** the brass bead, in from every edge */
+  BEAD: 10,
+  /** the backplane itself, in metres */
+  PLATE: { W: 0.66, H: 0.84 },
+  /**
+   * …and the canvas it is painted on, which is that shape and not a convenient
+   * one. A plate 0.79 as wide as it is tall painted on a canvas 0.86 as wide
+   * stretches every circle on it into an ellipse — invisible on a bolt head,
+   * plain on the scorch ring round the supply lamp.
+   */
+  CANVAS: [384, 488],
+  /** the supply lamp, which sits below the guard rather than behind it */
+  PILOT: [0.82, 0.912],
+  /** where the guard's rails run, and how far down its wires reach */
+  RAILS: [0.03, 0.315, 0.58, 0.845],
+  /** sockets standing empty — a valve pulled and not yet replaced */
+  EMPTY: [5, 12, 18],
+  /**
+   * The stages wired live, and which of them are carrying.
+   *
+   * `[socket, carrying]`, in reading order across the decks, and it is the
+   * exact shape the patch cords used to hand to `usePilotLamps`: a carrying
+   * stage sits hot and drops out for a moment the way a relay chatters, an idle
+   * one sits cold and strikes when something passes through it.
+   */
+  STAGE: [
+    [1, true], [3, false], [6, true], [9, true],
+    [14, false], [16, true], [20, false], [22, true],
+  ],
+};
+
+/** The centre of column `c`, as a fraction across the plate. */
+export const rackCol = (c) => RACK.SPAN[0]
+  + (RACK.SPAN[1] - RACK.SPAN[0]) * ((c + 0.5) / RACK.COLS);
+
+/** The boundary between columns `c-1` and `c` — where a guard wire goes. */
+export const rackGap = (c) => RACK.SPAN[0]
+  + (RACK.SPAN[1] - RACK.SPAN[0]) * (c / RACK.COLS);
+
+/** The designation strip labelling the row that stands on shelf `r`. */
+export const rackStrip = (r) => RACK.SHELVES[r] - RACK.VALVE_H - RACK.STRIP_GAP;
+
+export const valveRackPlate = () => bake('valverack:plate', ...RACK.CANVAS, (ctx, w, h) => {
   const rnd = seeded(0x9ac);
 
   // ── the field ──────────────────────────────────────────────────────────────
@@ -471,59 +545,90 @@ export const patchBayPlate = () => bake('patchbay:plate', 384, 448, (ctx, w, h) 
   ctx.globalAlpha = 0.5;
   ctx.strokeStyle = BRASS;
   ctx.lineWidth = 3;
-  ctx.strokeRect(10, 10, w - 20, h - 20);
+  ctx.strokeRect(RACK.BEAD, RACK.BEAD, w - RACK.BEAD * 2, h - RACK.BEAD * 2);
   ctx.globalAlpha = 0.3;
   ctx.strokeStyle = '#0e0c08';
   ctx.lineWidth = 1.2;
-  ctx.strokeRect(13, 13, w - 26, h - 26);
+  ctx.strokeRect(RACK.BEAD + 3, RACK.BEAD + 3, w - RACK.BEAD * 2 - 6, h - RACK.BEAD * 2 - 6);
   ctx.globalAlpha = 1;
 
+  // ── the ledgers ────────────────────────────────────────────────────────────
+  // The rails each deck is bolted to. A shelf meeting the backplane along a
+  // bare line is a shelf floating in front of it; a rail with a bolt row down
+  // it is how the thing is actually held up, and it is the one place this
+  // painting is allowed to say something structural.
+  //
+  // Deliberately not a shadow. The decks are geometry standing in real light,
+  // and painting their darkness in as well is the doubled-shading fault this
+  // file opens by warning about.
+  for (const shelf of RACK.SHELVES) {
+    const y = h * shelf;
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle = '#191510';
+    ctx.fillRect(w * 0.05, y - 11, w * 0.9, 12);
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = '#4a4133';
+    ctx.fillRect(w * 0.05, y - 11, w * 0.9, 2.2);
+    ctx.globalAlpha = 1;
+    for (let c = 0; c < RACK.COLS; c += 1) {
+      const bx = w * rackCol(c);
+      ctx.fillStyle = '#0b0906';
+      ctx.beginPath(); ctx.arc(bx, y - 5, 3.4, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#584e3d';
+      ctx.beginPath(); ctx.arc(bx, y - 5.9, 2.6, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
   // ── the designation strips ─────────────────────────────────────────────────
-  // A cream field between the rows of jacks, engraved rather than printed, with
-  // the numbering struck into it. Each sits in a shallow rebate: a dark line
-  // above it and a lighter one below, and that pair is the whole of why a strip
-  // reads as let into the panel rather than stuck onto it.
-  for (let r = 0; r < 3; r += 1) {
-    const y = h * (0.1 + r * 0.2);
-    const sx = w * 0.075;
-    const sw = w * 0.85;
+  // A cream field over each row of valves, engraved rather than printed, with
+  // the stage numbering struck into it. Each sits in a shallow rebate: a dark
+  // line above it and a lighter one below, and that pair is the whole of why a
+  // strip reads as let into the panel rather than stuck onto it.
+  for (let r = 0; r < RACK.SHELVES.length; r += 1) {
+    // `rackStrip` gives the top of the rebate; the cream sits two pixels in.
+    const y = h * rackStrip(r) + 2;
+    const sx = w * RACK.SPAN[0];
+    const sw = w * (RACK.SPAN[1] - RACK.SPAN[0]);
+    const sh = RACK.STRIP_H - 4;
     ctx.fillStyle = '#0c0a07';
-    ctx.fillRect(sx - 2, y - 2, sw + 4, 21);
+    ctx.fillRect(sx - 2, y - 2, sw + 4, RACK.STRIP_H);
     ctx.fillStyle = LEGEND;
-    ctx.fillRect(sx, y, sw, 17);
+    ctx.fillRect(sx, y, sw, sh);
     // the strip's own age: celluloid that has yellowed unevenly
     for (let i = 0; i < 70; i += 1) {
       ctx.globalAlpha = 0.05 + rnd() * 0.12;
       ctx.fillStyle = rnd() > 0.5 ? '#5b533f' : '#a49a7e';
       ctx.beginPath();
-      ctx.arc(sx + rnd() * sw, y + rnd() * 17, 1 + rnd() * 4, 0, Math.PI * 2);
+      ctx.arc(sx + rnd() * sw, y + rnd() * sh, 1 + rnd() * 4, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.globalAlpha = 0.3;
     ctx.fillStyle = '#514a3c';
-    ctx.fillRect(sx, y + 12, sw, 5);
+    ctx.fillRect(sx, y + sh - 5, sw, 5);
     ctx.globalAlpha = 1;
-    // the divisions, and a struck mark in each
+    // the divisions, one per valve, and a struck mark in each
     ctx.fillStyle = '#2a2318';
-    for (let c = 1; c < 6; c += 1) ctx.fillRect(sx + (sw * c) / 6, y, 1.3, 17);
+    for (let c = 1; c < RACK.COLS; c += 1) {
+      ctx.fillRect(sx + (sw * c) / RACK.COLS, y, 1.3, sh);
+    }
     ctx.globalAlpha = 0.78;
-    for (let c = 0; c < 6; c += 1) {
-      const cx = sx + (sw * (c + 0.5)) / 6;
-      ctx.fillRect(cx - 8, y + 5, 7 + rnd() * 8, 4);
+    for (let c = 0; c < RACK.COLS; c += 1) {
+      const cx = sx + (sw * (c + 0.5)) / RACK.COLS;
+      ctx.fillRect(cx - 6, y + 5, 5 + rnd() * 6, 4);
     }
     ctx.globalAlpha = 1;
   }
 
   // ── the mimic ──────────────────────────────────────────────────────────────
-  // The lower part of the panel carries an engraved schematic of what the board
-  // switches: nodes, and the links between them. It is the one place in this
-  // scene where the site's own subject is drawn rather than implied, and it is
-  // engraved rather than printed because everything else on a cast panel of
-  // this date is.
-  const my = h * 0.78;
-  const mh = h * 0.16;
-  const mx = w * 0.1;
-  const mw = w * 0.8;
+  // The band under the bottom deck carries an engraved schematic of what the
+  // rack amplifies: stages, and the path between them. It is the one place in
+  // this scene where the site's own subject is drawn rather than implied, and
+  // it is engraved rather than printed because everything else on a cast panel
+  // of this date is.
+  const my = h * 0.855;
+  const mh = h * 0.115;
+  const mx = w * 0.08;
+  const mw = w * 0.6;
   ctx.globalAlpha = 0.5;
   ctx.strokeStyle = '#0d0b08';
   ctx.lineWidth = 2;
@@ -566,15 +671,15 @@ export const patchBayPlate = () => bake('patchbay:plate', 384, 448, (ctx, w, h) 
   }
   ctx.globalAlpha = 1;
 
-  // ── the lamp sockets ───────────────────────────────────────────────────────
-  // Six bezelled holes in a row, and nothing lit painted into them. The lamps
-  // themselves are geometry with a live emissive (see `usePilotLamps`), so what
-  // belongs here is only the hole each one sits in — a dark socket with a brass
-  // ring and the scorch a hot bulb leaves on the enamel around it. Paint a glow
-  // in as well and every lamp on the board would be permanently half-on.
-  for (let c = 0; c < 6; c += 1) {
-    const cx = w * (0.115 + (c * 0.77) / 5);
-    const cy = h * 0.7;
+  // ── the supply lamp's socket ───────────────────────────────────────────────
+  // One bezelled hole beside the mimic, and nothing lit painted into it. The
+  // lamp itself is geometry with a live emissive, so what belongs here is only
+  // the hole it sits in — a dark socket with a brass ring and the scorch a hot
+  // bulb leaves on the enamel around it. Paint a glow in as well and the lamp
+  // would be permanently half-on whatever the rack is doing.
+  {
+    const cx = w * RACK.PILOT[0];
+    const cy = h * RACK.PILOT[1];
     const scorch = ctx.createRadialGradient(cx, cy, 0, cx, cy, 21);
     scorch.addColorStop(0, 'rgba(10,8,5,0.5)');
     scorch.addColorStop(1, 'rgba(10,8,5,0)');
@@ -613,6 +718,127 @@ export const patchBayPlate = () => bake('patchbay:plate', 384, 448, (ctx, w, h) 
   ctx.fillStyle = soot;
   ctx.fillRect(0, 0, w, h);
 });
+
+
+// ── the punched tape ─────────────────────────────────────────────────────────
+// The pale thing on the bench, and the only object on this floor that is paper.
+// It is what the desk lamp is pointed at, which is the whole reason it earns a
+// place: the lamp has been throwing a pool onto an empty slab, and a lamp lights
+// *something* or it is an ornament.
+//
+// ── it is drawn bigger than it was ──────────────────────────────────────────
+// A real eight-track tape is an inch across. At this room's metre that is eight
+// scene pixels — four on screen, a thread. So the tape is 6 cm wide, two and a
+// half times life size, and the same call the landing terminal's typeface had to
+// make for the same reason. What is *not* stretched is the proportion: nine hole
+// positions across the width against a row pitch a tenth of it, which is the
+// ratio a real tape has, so it still reads as tape rather than as ribbon.
+//
+// The tile is 48 rows tall and the rows divide it exactly, because this canvas
+// repeats along a strip nearly a metre long — a row pitch that does not close
+// puts a visible seam every third of a metre.
+
+const TAPE = {
+  /** nine hole positions: three tracks, the sprocket, then five more */
+  SLOTS: 9,
+  /** where the sprocket sits among them */
+  SPROCKET: 3,
+  ROWS: 48,
+  /** the tile, at ten pixels to a row */
+  CANVAS: [96, 480],
+};
+
+export const punchTape = () => bake('bench:tape', ...TAPE.CANVAS, (ctx, w, h) => {
+  const rnd = seeded(0x7a9e);
+  const pitch = h / TAPE.ROWS;
+  const slot = (i) => (w * (i + 0.5)) / TAPE.SLOTS;
+
+  // ── the paper ──────────────────────────────────────────────────────────────
+  // Oiled manila, not white. A tape painted at the value paper is in daylight
+  // is the brightest thing in the room by a factor of four and stands under the
+  // page's own heading — the post box's lesson, and it applies to anything pale
+  // down here.
+  ctx.fillStyle = '#6b6047';
+  ctx.fillRect(0, 0, w, h);
+  for (let i = 0; i < 900; i += 1) {
+    ctx.globalAlpha = 0.04 + rnd() * 0.1;
+    ctx.fillStyle = rnd() > 0.5 ? '#80745a' : '#4e452f';
+    ctx.beginPath();
+    ctx.arc(rnd() * w, rnd() * h, 1 + rnd() * 5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // the edges, which are where a tape gets handled and where it darkens first
+  for (const [ex, dir] of [[0, 1], [w, -1]]) {
+    const edge = ctx.createLinearGradient(ex, 0, ex + dir * 11, 0);
+    edge.addColorStop(0, 'rgba(24,19,12,0.5)');
+    edge.addColorStop(1, 'rgba(24,19,12,0)');
+    ctx.fillStyle = edge;
+    ctx.fillRect(Math.min(ex, ex + dir * 11), 0, 11, h);
+  }
+
+  // ── the perforation ────────────────────────────────────────────────────────
+  // A hole is a hole: nothing behind this tape is lit, so a punched hole is the
+  // darkest thing on the strip and needs no more than that. What it does need
+  // is the lit lower lip — a punch leaves a burr that catches the light, and it
+  // is the only reason a grid of black dots reads as *through* the paper rather
+  // than printed on it.
+  //
+  // The data is drawn to look like text rather than noise: the high bit is
+  // mostly clear, one track is almost always set, and there are blank rows.
+  // Nobody will decode it and everybody would feel a field of coin flips.
+  for (let r = 0; r < TAPE.ROWS; r += 1) {
+    const y = (r + 0.5) * pitch;
+    const blank = rnd() < 0.09;
+    for (let s = 0; s < TAPE.SLOTS; s += 1) {
+      const sprocket = s === TAPE.SPROCKET;
+      if (!sprocket && blank) continue;
+      const bias = [0.62, 0.5, 0.55, 0, 0.7, 0.44, 0.5, 0.86, 0.14][s];
+      if (!sprocket && rnd() > bias) continue;
+      const cx = slot(s);
+      const rad = sprocket ? pitch * 0.17 : pitch * 0.32;
+      ctx.fillStyle = '#0d0a07';
+      ctx.beginPath(); ctx.arc(cx, y, rad, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 0.4;
+      ctx.strokeStyle = '#9a8d6d';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(cx, y + 0.7, rad, Math.PI * 0.15, Math.PI * 0.85);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  // ── what it has been through ───────────────────────────────────────────────
+  // Creases across it, and the oil it picked up off the bench. Both run *across*
+  // the tape, because that is the only way a strip this narrow can be folded or
+  // dragged.
+  for (let i = 0; i < 7; i += 1) {
+    const y = rnd() * h;
+    ctx.globalAlpha = 0.16 + rnd() * 0.2;
+    ctx.strokeStyle = '#241d12';
+    ctx.lineWidth = 0.9 + rnd() * 1.4;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(w, y + (rnd() - 0.5) * 5);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  for (let i = 0; i < 5; i += 1) {
+    const cx = rnd() * w;
+    const cy = rnd() * h;
+    const r = 8 + rnd() * 22;
+    const oil = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    oil.addColorStop(0, 'rgba(30,23,13,0.3)');
+    oil.addColorStop(1, 'rgba(30,23,13,0)');
+    ctx.fillStyle = oil;
+    ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+  }
+});
+
+/** How long one tile of the tape is, as a multiple of its width. */
+export const TAPE_ASPECT = TAPE.CANVAS[1] / TAPE.CANVAS[0];
 
 
 // ── the workbench ────────────────────────────────────────────────────────────
@@ -1018,70 +1244,168 @@ export const frameBand = () => bake('screen:band', 128, 64, (ctx, w, h) => {
  *
  * @param {string} label @param {'left' | 'right' | 'mark' | null} glyph
  */
+// ── the console's buttons ────────────────────────────────────────────────────
+// Two canvases per control, and the split is the whole of what was wrong with
+// the first cut. That one baked the plate, the bead, the bolts and the legend
+// into a single picture and then handed the *whole picture* through as an
+// `emissiveMap` — so the swell that was meant to say "this legend is lit" lit
+// the button's paintwork, its bolts and its grime along with it, and Mykolai's
+// verdict on the result was the correct one. An illuminated pushbutton has a
+// lamp behind its legend, not behind its face.
+//
+// So `buttonFace` is the albedo — what the plate looks like with the lamp out —
+// and `buttonLegend` is a black canvas with nothing on it but the mark that
+// lights. Only the second one goes to `emissiveMap`. The two are baked from one
+// `strike` so the lit mark and the engraved one cannot fall out of register.
+//
+// ── and why grey ─────────────────────────────────────────────────────────────
+// Everything else on this panel is the scene's iron: warm, dark, corroded, and
+// stated as such all through `SURFACES`. Mykolai asked for the buttons to sit
+// *outside* that — «серый оттенок, чтобы он выбивался из общей концепции» —
+// and the reason it works rather than looking like a mistake is that it is the
+// same distinction a real panel makes. The case is painted ironwork; the
+// controls are a different component, bought in, moulded in a pale grey
+// phenolic, and forty years of thumbs have polished them paler still. A grey
+// cap on a warm panel reads as a *part*, which is exactly the cue that it is
+// the part you touch.
+// **Cool grey, not neutral grey**, and the reason is the room rather than the
+// part. Every light on this landing is amber — the pendant at `#ffd29e`, the
+// bounce at `#fff3e6` — and `landingChroma` runs at 1.6, so a *neutral* albedo
+// comes back off this wall as warm olive: the first cut of this was grey in the
+// bake and yellow on the panel. To read as grey under that light the pigment
+// has to lean the other way, which is the same trick `SURFACES.steel` already
+// plays as the one cool entry in that catalogue.
+const CAP = '#7a7d81';
+const CAP_HI = '#a7abaf';
+const CAP_LO = '#2b2e30';
+const CAP_INK = '#121417';
+
+/** Where a legend sits, so the albedo and the lit mask cannot drift apart. */
+const strike = (ctx, w, label, glyph) => {
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = '700 38px "Space Mono", "Consolas", monospace';
+  const cx = w / 2 + (glyph === 'left' ? 14 : 0) + (glyph === 'right' ? -14 : 0);
+  const arrow = (glyph === 'left' || glyph === 'right')
+    ? { s: glyph === 'left' ? -1 : 1, x: w / 2 + (glyph === 'left' ? -1 : 1) * (w * 0.32) }
+    : null;
+  return { cx, arrow };
+};
+
+/** The arrow, drawn rather than set: a font glyph at this size is a different
+ *  weight from the label beside it. */
+const arrowPath = (ctx, ax, s, y) => {
+  ctx.beginPath();
+  ctx.moveTo(ax + s * 11, y);
+  ctx.lineTo(ax - s * 8, y - 12);
+  ctx.lineTo(ax - s * 8, y + 12);
+  ctx.closePath();
+};
+
+/**
+ * The cap's own face — pale phenolic, its bead, its bolts and its thumb wear.
+ * No light in it: this is what the button looks like with the lamp out.
+ */
 export const buttonFace = (label, glyph = null) => bake(
   `screen:button:${label}`, 256, 96, (ctx, w, h) => {
     const rnd = seeded(0xb77 + label.length * 31);
 
-    ctx.fillStyle = '#241f19';
+    ctx.fillStyle = CAP;
     ctx.fillRect(0, 0, w, h);
+    // moulded, not cast: a fine even speckle rather than the granular crust an
+    // iron surface in this scene carries
     for (let i = 0; i < 900; i += 1) {
-      ctx.globalAlpha = 0.05 + rnd() * 0.13;
-      ctx.fillStyle = rnd() > 0.5 ? '#3a3227' : '#12100c';
+      ctx.globalAlpha = 0.04 + rnd() * 0.1;
+      ctx.fillStyle = rnd() > 0.5 ? CAP_HI : CAP_LO;
       ctx.beginPath();
-      ctx.arc(rnd() * w, rnd() * h, 0.5 + rnd() * 2, 0, Math.PI * 2);
+      ctx.arc(rnd() * w, rnd() * h, 0.5 + rnd() * 1.8, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.globalAlpha = 1;
 
     // the bead round the plate, and the bolt in each corner
-    ctx.globalAlpha = 0.5;
-    ctx.strokeStyle = '#8a6a2e';
+    ctx.globalAlpha = 0.42;
+    ctx.strokeStyle = CAP_LO;
     ctx.lineWidth = 3;
     ctx.strokeRect(7, 7, w - 14, h - 14);
     ctx.globalAlpha = 1;
     for (const [bx, by] of [[18, 18], [w - 18, 18], [18, h - 18], [w - 18, h - 18]]) {
-      ctx.fillStyle = '#0d0b08';
+      ctx.fillStyle = '#1c1f21';
       ctx.beginPath(); ctx.arc(bx, by, 4.6, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#6b5f4a';
+      ctx.fillStyle = '#767c80';
       ctx.beginPath(); ctx.arc(bx, by, 3.4, 0, Math.PI * 2); ctx.fill();
     }
 
     // The legend, struck: a dark groove with a lit lower lip, which is the same
-    // two-stroke trick every engraved mark in this file uses.
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.font = '700 38px "Space Mono", "Consolas", monospace';
-    const cx = w / 2 + (glyph === 'left' ? 14 : 0) + (glyph === 'right' ? -14 : 0);
-    ctx.fillStyle = '#0b0906';
+    // two-stroke trick every engraved mark in this file uses. It is *engraved*
+    // here and *lit* in `buttonLegend`; both, so the label is still legible on
+    // a control that has nothing to offer and never lights at all.
+    const { cx, arrow } = strike(ctx, w, label, glyph);
+    ctx.fillStyle = CAP_INK;
     ctx.fillText(label, cx, h / 2 - 1);
-    ctx.globalAlpha = 0.85;
-    ctx.fillStyle = '#c99a4e';
-    ctx.fillText(label, cx, h / 2 + 1);
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = CAP_HI;
+    ctx.fillText(label, cx, h / 2 + 2);
     ctx.globalAlpha = 1;
-
-    // the arrow, drawn rather than set — a glyph from a font at this size is a
-    // different weight from the label beside it
-    if (glyph === 'left' || glyph === 'right') {
-      const s = glyph === 'left' ? -1 : 1;
-      const ax = w / 2 + s * (w * 0.32);
-      ctx.fillStyle = '#c99a4e';
-      ctx.globalAlpha = 0.85;
-      ctx.beginPath();
-      ctx.moveTo(ax + s * 11, h / 2);
-      ctx.lineTo(ax - s * 8, h / 2 - 12);
-      ctx.lineTo(ax - s * 8, h / 2 + 12);
-      ctx.closePath();
+    if (arrow) {
+      ctx.fillStyle = CAP_INK;
+      arrowPath(ctx, arrow.x, arrow.s, h / 2);
       ctx.fill();
-      ctx.globalAlpha = 1;
     }
 
     // the wear where a thumb has been, which is the whole reason a button on a
-    // forty-year-old panel does not look like a rendered rectangle
+    // forty-year-old panel does not look like a rendered rectangle. On a pale
+    // cap it goes the other way from the iron in this file: use *polishes* a
+    // moulded surface and leaves grime in the bead round it.
     const thumb = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w * 0.4);
-    thumb.addColorStop(0, 'rgba(120,104,78,0.16)');
-    thumb.addColorStop(1, 'rgba(120,104,78,0)');
+    thumb.addColorStop(0, 'rgba(198,206,211,0.2)');
+    thumb.addColorStop(1, 'rgba(198,206,211,0)');
     ctx.fillStyle = thumb;
     ctx.fillRect(0, 0, w, h);
+    metalWear(ctx, w, h, {
+      seed: 0xb77 + label.length * 31,
+      field: mix(FIELD.edges(0.85, 0.16), FIELD.bottom(0.3)),
+      dark: '#26292b',
+      rust: '#4a4239',
+      light: '#c3c9cd',
+      pit: 1.6,
+      polish: 2,
+      grime: 0.25,
+    });
+  },
+);
+
+/**
+ * The same button's lit mark, and nothing else. Black everywhere the lamp does
+ * not reach, which — this being an `emissiveMap` and nothing else — means the
+ * swell has no way to reach the paintwork.
+ */
+export const buttonLegend = (label, glyph = null) => bake(
+  `screen:legend:${label}`, 256, 96, (ctx, w, h) => {
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, w, h);
+    const { cx, arrow } = strike(ctx, w, label, glyph);
+    // A struck legend on a lit button is a *window*: the mark is cut through
+    // the paint and the lamp behind it comes out of the cut. So it is drawn at
+    // full white and the colour is decided by the material's `emissive`, the
+    // way every other lamp in this scene has its colour decided.
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(label, cx, h / 2);
+    if (arrow) {
+      arrowPath(ctx, arrow.x, arrow.s, h / 2);
+      ctx.fill();
+    }
+    // the light bleeding into the plate around the cut, which is what stops a
+    // lit legend reading as white text pasted on grey
+    ctx.globalAlpha = 0.28;
+    ctx.filter = 'blur(6px)';
+    ctx.fillText(label, cx, h / 2);
+    if (arrow) {
+      arrowPath(ctx, arrow.x, arrow.s, h / 2);
+      ctx.fill();
+    }
+    ctx.filter = 'none';
+    ctx.globalAlpha = 1;
   },
 );
 

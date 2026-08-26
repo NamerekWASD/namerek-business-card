@@ -42,9 +42,22 @@
 // grain up adds contrast without darkening the wall it is on. That is what
 // makes grain a knob a person can drag without re-dialling the lighting after
 // every nudge.
+//
+// ── the exception: a tile painted here rather than photographed ──────────────
+// `brick.js` draws the shaft's masonry instead of loading a picture of it, and
+// a picture is exactly what it is: bond, joints, chipped arrises, the lot. So
+// for those the bake keeps the painting and reads `tex` as *contrast* about its
+// own mean rather than as how far to pull it toward white — see `draw`. The
+// rest of the contract is unchanged, and deliberately so: it is still a
+// multiplier, still normalised to a mean of one, and the wall's pigment still
+// lives in `SURFACES` where every other surface keeps it. The painting carries
+// only as much hue as a brick has *against its own mortar*; the red is the
+// catalogue's.
 
 import { CanvasTexture, Color, NoColorSpace, RepeatWrapping, SRGBColorSpace } from 'three';
 import { SURFACES, TILES, scaleChannels } from '../../model/materials.js';
+import { brickCanvas } from './brick.js';
+import { plateCanvas } from './plate.js';
 import { readLight } from './tuning.js';
 
 /** @import { Surface, Shade } from '../../model/types.js' */
@@ -138,6 +151,35 @@ function tileImage(url) {
   return job;
 }
 
+/**
+ * The tiles this renderer paints for itself, by the name the catalogue calls
+ * them. Looked at before `TILES`, so a `Surface` says `tile: 'brick'` exactly
+ * the way it says `tile: 'pour'` and nothing above the renderer has to know
+ * which of the two it got.
+ */
+const PAINTED_TILES = { brick: brickCanvas, plate: plateCanvas };
+
+/**
+ * Whatever this surface's `tile` names, ready to be drawn into a bake — a
+ * decoded photograph, or a canvas this renderer painted itself.
+ *
+ * The catalogue names its tiles and says nothing about where they come from,
+ * and the choice between a JPEG and a painter is made here, once, on behalf of
+ * both bakes.
+ *
+ * @param {Surface} s
+ * @returns {Promise<CanvasImageSource | null>}
+ */
+function tileSource(s) {
+  const painter = PAINTED_TILES[s.tile];
+  if (painter) return Promise.resolve(painter());
+  const url = TILES[s.tile];
+  return url ? tileImage(url) : Promise.resolve(null);
+}
+
+/** Whether this surface's tile is painted here rather than photographed. */
+const isPainted = (s) => Boolean(PAINTED_TILES[s.tile]);
+
 /** Baked grain, keyed by what actually went into it. */
 const baked = new Map();
 
@@ -158,10 +200,10 @@ export function bakeSurface(s) {
   const hit = baked.get(key);
   if (hit) return hit;
 
-  const url = TILES[s.tile];
-  const job = !url || step <= 0 || typeof document === 'undefined'
+  const painted = isPainted(s);
+  const job = step <= 0 || typeof document === 'undefined'
     ? Promise.resolve(null)
-    : tileImage(url).then((img) => (img ? draw(img, step) : null));
+    : tileSource(s).then((img) => (img ? draw(img, step, painted) : null));
   baked.set(key, job);
   return job;
 }
@@ -200,16 +242,15 @@ export function bakeRoughness(s) {
   const hit = roughs.get(key);
   if (hit) return hit;
 
-  const url = TILES[s.tile];
-  const job = !url || k === 0 || typeof document === 'undefined'
+  const job = k === 0 || typeof document === 'undefined'
     ? Promise.resolve(null)
-    : tileImage(url).then((img) => (img ? drawRoughness(img, k) : null));
+    : tileSource(s).then((img) => (img ? drawRoughness(img, k) : null));
   roughs.set(key, job);
   return job;
 }
 
 /**
- * @param {HTMLImageElement} img @param {number} k signed, -1..1
+ * @param {CanvasImageSource} img @param {number} k signed, -1..1
  * @returns {CanvasTexture | null}
  */
 function drawRoughness(img, k) {
@@ -270,29 +311,56 @@ const toLinear = (v) => {
 };
 
 /**
- * @param {HTMLImageElement} img @param {number} strength
+ * @param {CanvasImageSource} img @param {number} strength
+ * @param {boolean} [painted] whether the source is one this renderer drew
  * @returns {CanvasTexture | null}
  */
-function draw(img, strength) {
+function draw(img, strength, painted = false) {
+  // A painted tile keeps its own resolution. It is authored at the size it is
+  // meant to be read at — a brick tile is four bricks by twelve courses, and
+  // squeezed into 256px a course is twenty-one pixels tall with an eight-pixel
+  // joint inside it, which mips down to a smear. A photograph has no such
+  // structure to lose and 256 is plenty for it.
+  const size = painted ? Number(/** @type {HTMLCanvasElement} */ (img).width) || BAKE_SIZE : BAKE_SIZE;
   const canvas = document.createElement('canvas');
-  canvas.width = BAKE_SIZE;
-  canvas.height = BAKE_SIZE;
+  canvas.width = size;
+  canvas.height = size;
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   if (!ctx) return null;
 
-  ctx.drawImage(img, 0, 0, BAKE_SIZE, BAKE_SIZE);
-  const frame = ctx.getImageData(0, 0, BAKE_SIZE, BAKE_SIZE);
+  ctx.drawImage(img, 0, 0, size, size);
+  const frame = ctx.getImageData(0, 0, size, size);
   const px = frame.data;
 
-  // The grain, per channel so the tile's own hue survives in its dark spots,
-  // pulled toward white by `strength`. Past 1 it travels further than the tile
-  // itself and clamps at black, which is what makes the slider's top end worth
-  // having on a wall whose catalogue figure is 0.14.
+  // ── what `strength` means, and why it is not the same thing twice ──────────
+  // For a photograph it is *how much grain*: the tile is pulled toward white by
+  // it, per channel so the tile's own hue survives in its dark spots. Past 1 it
+  // travels further than the tile itself and clamps at black, which is what
+  // makes the slider's top end worth having on a wall whose catalogue figure is
+  // 0.14.
+  //
+  // For a painted tile that is the wrong operation. A brick wall pulled toward
+  // white is a brick wall with the mortar bleached out of it — the picture is
+  // the point, not a modulation of it — so there `strength` is *contrast*: each
+  // pixel is blended toward the tile's own mean, which leaves the mean where it
+  // was. 0 is a flat wall, 1 is the painting as authored, past 1 is harder. The
+  // mean staying put is what keeps the bake's `gain` — and so the wall's
+  // brightness — constant while that knob is dragged.
+  const centre = [0, 0, 0];
+  if (painted) {
+    for (let i = 0; i < px.length; i += 4) {
+      for (let c = 0; c < 3; c += 1) centre[c] += px[i + c];
+    }
+    for (let c = 0; c < 3; c += 1) centre[c] /= px.length / 4;
+  }
+
   let sum = 0;
   for (let i = 0; i < px.length; i += 4) {
     for (let c = 0; c < 3; c += 1) {
-      const v = 255 * (1 - strength * (1 - px[i + c] / 255));
-      px[i + c] = v < 0 ? 0 : v;
+      const v = painted
+        ? centre[c] + (px[i + c] - centre[c]) * strength
+        : 255 * (1 - strength * (1 - px[i + c] / 255));
+      px[i + c] = v < 0 ? 0 : (v > 255 ? 255 : v);
     }
     sum += 0.2126 * toLinear(px[i]) + 0.7152 * toLinear(px[i + 1]) + 0.0722 * toLinear(px[i + 2]);
   }

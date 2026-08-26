@@ -67,8 +67,14 @@ const wait = (rnd, lo, hi) => (lo + (hi - lo) * rnd() ** 2) * 1000;
  * @param {boolean} live false while the doors are shut — a board nobody can see
  *   should not be asking the scene for frames
  * @param {number} [seed]
+ * @param {{ lit: number, dark: number }} [levels] what "on" and "off" are worth
+ *   for this board. The defaults are a pilot lamp's, which is a thing that is
+ *   on or off; a valve heater dims and comes back instead, and hands its own
+ *   narrower pair in — see `VALVE_LIT` in `LandingProps.jsx`.
  */
-export default function usePilotLamps(materials, patched, live, seed = 0x9ac) {
+export default function usePilotLamps(
+  materials, patched, live, seed = 0x9ac, levels = { lit: LAMP_LIT, dark: LAMP_DARK },
+) {
   // Held across renders so a re-render mid-blink does not restart the board on
   // a fresh pattern — the lamps keep whatever state they were in.
   const state = useRef(null);
@@ -96,7 +102,7 @@ export default function usePilotLamps(materials, patched, live, seed = 0x9ac) {
 
     const paint = (i) => {
       const material = materials.current?.[i];
-      if (material) material.emissiveIntensity = lamps[i].on ? LAMP_LIT : LAMP_DARK;
+      if (material) material.emissiveIntensity = lamps[i].on ? levels.lit : levels.dark;
     };
 
     const t0 = now();

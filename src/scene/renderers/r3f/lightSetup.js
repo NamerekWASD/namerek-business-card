@@ -54,12 +54,12 @@
 export const LIGHT_SETUP = {
   // SHAFT — the bulkhead lamp on the wall
   shaftToneCurve: 'cineon',
-  shaftExposure: 1.5,
-  shaftChroma: 1.14,
-  shaftAmbient: 0.175,
+  shaftExposure: 1.27,
+  shaftChroma: 0.92,
+  shaftAmbient: 0.14,
   shaftBounce: '#fff6ec',
   shaftEnv: 1.15,
-  shaftEnvColor: '#ffc286',
+  shaftEnvColor: '#c69c71',
   shaftWrap: 0,
   shaftLights: 3,
   lampPower: 3.6,
@@ -72,16 +72,16 @@ export const LIGHT_SETUP = {
 
   // LANDING — the pendant in the corridor
   landingToneCurve: 'neutral',
-  landingExposure: 1.3,
-  landingChroma: 1.16,
+  landingExposure: 1.22,
+  landingChroma: 1.61,
   landingAmbient: 0.185,
   landingBounce: '#fff3e6',
   landingEnv: 0.95,
-  landingEnvColor: '#ffecd6',
-  landingWrap: 0,
+  landingEnvColor: '#4c3720',
+  landingWrap: 0.07,
   landingIntensity: 8.2,
   landingDecay: 2.09,
-  landingColor: '#ffdeb8',
+  landingColor: '#ffd29e',
   landingGlass: 3.85,
   floorShade: 1.2,
 

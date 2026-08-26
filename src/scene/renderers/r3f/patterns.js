@@ -15,6 +15,7 @@
 
 import { CanvasTexture, RepeatWrapping, SRGBColorSpace } from 'three';
 import { CAGE_GATE } from '../../model/materials.js';
+import { FIELD, metalWear, mix, seeded } from './wear.js';
 
 const cache = new Map();
 
@@ -79,6 +80,271 @@ export const gateLattice = () => bake('gate', 128, 128, (ctx, w, h) => {
   pass(1, bar, thickness, 0);
   pass(-1, bar, thickness, 0);
 });
+
+/**
+ * The shaft's safety rack: the toothed rail a runaway cage's gear bites into.
+ *
+ * Mykolai asked for it — «люди придумали металлические зубья на 2 краях шахты,
+ * чтобы в случае чего лифт не падал плашмя вниз» — and asked whether it could be
+ * done as a texture. It can, and the reason it can is the **alpha**: the teeth
+ * are cut out of the canvas rather than painted onto it, so the plane carrying
+ * this has a genuinely toothed *silhouette* against the wall behind it. A
+ * saw-edge painted opaque on a rectangle is a picture of a rack; a saw-edge cut
+ * out of one is a rack. `alphaTest` rather than `transparent` at the call site,
+ * because this is hard-edged ironwork with nothing to sort against.
+ *
+ * One tooth per tile, so the plane repeats down the shaft at the rack's own
+ * pitch and rides on a transform modulo that pitch — see `Wall` in
+ * `ShaftScene.jsx`. The web runs the full height of the tile, which is what
+ * makes the rail continuous however far the cage travels.
+ *
+ * Drawn with the wall on the left of the canvas and the teeth pointing right,
+ * into the shaft. The right-hand wall mirrors it on the texture's own `repeat`,
+ * so there is one canvas for both.
+ */
+export const guideRack = () => bake('rack', 96, 128, (ctx, w, h) => {
+  let seed = 0x7c41;
+  const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+
+  const WEB = 56;          // where the blade leaves the web
+  const STEEL = '#6a6154';
+  const STEEL_HI = '#9d9280';
+  const STEEL_LO = '#2b2620';
+
+  ctx.clearRect(0, 0, w, h);
+
+  // ── the web: the flat the rail is bolted to the wall through ───────────────
+  ctx.fillStyle = STEEL;
+  ctx.fillRect(0, 0, WEB, h);
+  // lit up-left like every other relief here
+  ctx.fillStyle = STEEL_HI;
+  ctx.globalAlpha = 0.5;
+  ctx.fillRect(0, 0, 5, h);
+  ctx.globalAlpha = 0.32;
+  ctx.fillRect(WEB - 10, 0, 4, h);
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = STEEL_LO;
+  ctx.fillRect(WEB - 4, 0, 4, h);
+
+  // ── the tooth ──────────────────────────────────────────────────────────────
+  // A ratchet, not a saw: the long face slopes up out of the web and the short
+  // one comes back square, so the gear rides over it going up and catches on it
+  // going down. That asymmetry is the whole of what the thing is for, and it is
+  // legible at a glance even at this size.
+  const tip = w - 4;
+  ctx.beginPath();
+  ctx.moveTo(WEB - 2, 6);
+  ctx.lineTo(tip, 88);
+  ctx.lineTo(tip, 100);
+  ctx.lineTo(WEB - 2, 100);
+  ctx.closePath();
+  ctx.fillStyle = STEEL;
+  ctx.fill();
+  // the slope catches the light, the square underside does not
+  ctx.strokeStyle = STEEL_HI;
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(WEB - 2, 6);
+  ctx.lineTo(tip, 88);
+  ctx.stroke();
+  ctx.strokeStyle = STEEL_LO;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(WEB - 2, 100);
+  ctx.lineTo(tip, 100);
+  ctx.stroke();
+
+  // ── the fixings, and what eighty years leave on them ───────────────────────
+  for (const y of [30, 94]) {
+    const r = 7;
+    ctx.fillStyle = 'rgba(30,24,20,0.6)';
+    ctx.beginPath(); ctx.arc(26 + r * 0.3, y + r * 0.3, r, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = STEEL;
+    ctx.beginPath(); ctx.arc(26, y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = STEEL_HI;
+    ctx.beginPath(); ctx.arc(26 - r * 0.3, y - r * 0.32, r * 0.5, 0, Math.PI * 2); ctx.fill();
+    // the rust weeping out from under the head
+    const run = ctx.createLinearGradient(26, y, 26, y + 34);
+    run.addColorStop(0, 'rgba(104,58,26,0.45)');
+    run.addColorStop(1, 'rgba(104,58,26,0)');
+    ctx.fillStyle = run;
+    ctx.fillRect(22, y, 8, 34);
+  }
+  // the polish along the tooth's own slope, where the gear has ridden it — wear
+  // that makes metal *brighter*, which is the half usually left out
+  for (let i = 0; i < 14; i += 1) {
+    const t = rnd();
+    const x = WEB + t * (tip - WEB);
+    const y = 6 + t * 82 + (rnd() - 0.5) * 7;
+    ctx.globalAlpha = 0.1 + rnd() * 0.28;
+    ctx.fillStyle = rnd() > 0.4 ? '#c3b79c' : '#231d17';
+    ctx.fillRect(x, y, 2 + rnd() * 9, 1 + rnd() * 2);
+  }
+  ctx.globalAlpha = 1;
+});
+
+// ── the counterweight's filler weights ───────────────────────────────────────
+// The block running opposite the cage is not a block. A counterweight is a
+// steel frame with a stack of cast-iron slabs dropped into it, and how many
+// slabs there are is how the machine was balanced against the car it was fitted
+// to — which is why the stack, and not the frame, is the thing that says what
+// the object is. Mykolai's word for them is «блины», and that is what they are:
+// slabs a hand's depth thick, cast in a sand mould, with rounded edges because
+// a sand mould has no arrises to give in the first place.
+//
+// **The relief is painted, and this is the one place in the shaft besides
+// `guideRack` where that is the honest choice rather than a shortcut.** Every
+// bulkhead lamp in this shaft is on the *left* wall — `LAMPS.side` puts them
+// there and nowhere else, because two symmetric rows would light the cage from
+// both sides at once and produce no modelling at all — and the counterweight
+// hangs on the right, further away than `LAMPS.reach`. Nothing reaches it. Its
+// bevels are real geometry, because the silhouette of a stack of slabs is the
+// point of the rebuild, but the light *across* them has to be in the paint:
+// lit along the top edge and down the left, in shadow along the bottom and
+// down the right, which is the same up-left throw every other painted relief in
+// this directory keeps.
+//
+// Three variants rather than one. A vertical stack of three dozen identical
+// castings is the loudest kind of repeat there is, and the cost of the fix is
+// two more small canvases and two more draw calls — see `Counterweight` in
+// `ShaftScene.jsx`, which deals them out round-robin.
+const CAST = '#615d58';
+const CAST_HI = '#9c968a';
+const CAST_LO = '#241e17';
+
+/** How many faces the stack is dealt from. */
+export const CW_PLATE_VARIANTS = 3;
+
+/** @param {number} variant which of `CW_PLATE_VARIANTS` castings this is */
+export const counterweightPlate = (variant = 0) => bake(
+  `cw-plate:${variant}`, 256, 128, (ctx, w, h) => {
+    const seed = 0x51c0 + variant * 9721;
+    const rnd = seeded(seed);
+
+    ctx.fillStyle = CAST;
+    ctx.fillRect(0, 0, w, h);
+
+    // The sand-cast skin. This is the whole difference between cast iron and
+    // the rolled plate lining the walls: rolled steel is smooth and scored
+    // along its length, a casting is granular all over, because what it was
+    // last in contact with was sand.
+    for (let i = 0; i < 2600; i += 1) {
+      ctx.globalAlpha = 0.04 + rnd() * 0.15;
+      ctx.fillStyle = rnd() > 0.5 ? CAST_HI : CAST_LO;
+      ctx.beginPath();
+      ctx.arc(rnd() * w, rnd() * h, 0.4 + rnd() * 1.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // Where the mould filled unevenly — broad, low-frequency, and placed off
+    // centre per variant so the three faces do not share a bright middle.
+    const bx = w * (0.34 + variant * 0.16);
+    const belly = ctx.createRadialGradient(bx, h * 0.44, 0, bx, h * 0.44, w * 0.6);
+    belly.addColorStop(0, 'rgba(168,156,132,0.22)');
+    belly.addColorStop(1, 'rgba(168,156,132,0)');
+    ctx.fillStyle = belly;
+    ctx.fillRect(0, 0, w, h);
+
+    // and eighty years in a wet shaft on top of it
+    metalWear(ctx, w, h, {
+      seed,
+      field: mix(FIELD.edges(0.8, 0.2), FIELD.bottom(0.6), FIELD.blotches(0.5, 5, seed)),
+      dark: '#1d1710',
+      rust: '#7d4a22',
+      light: '#ab9b7c',
+      pit: 6.5,
+      bloom: 5,
+      scratch: 5,
+      scratchSpread: 0.7,
+      polish: 2.5,
+      streaks: 5,
+      grime: 0.55,
+    });
+
+    // ── the arrises ──────────────────────────────────────────────────────────
+    // Painted, for the reason given at the head of this section. Kept to a
+    // sixth of the plate at each edge: any wider and the slab reads as a pillow
+    // rather than as iron with its corners knocked off.
+    const HI = '196,183,153';
+    const LO = '12,10,7';
+    /** A band fading away from one edge of the plate. */
+    const arris = (rgbs, k, x, y, x2, y2, rect) => {
+      const g = ctx.createLinearGradient(x, y, x2, y2);
+      g.addColorStop(0, `rgba(${rgbs},${k})`);
+      g.addColorStop(1, `rgba(${rgbs},0)`);
+      ctx.fillStyle = g;
+      ctx.fillRect(rect[0], rect[1], rect[2], rect[3]);
+    };
+    arris(HI, 0.5, 0, 0, 0, 15, [0, 0, w, 15]);
+    arris(HI, 0.3, 0, 0, 16, 0, [0, 0, 16, h]);
+    arris(LO, 0.62, 0, h, 0, h - 17, [0, h - 17, w, 17]);
+    arris(LO, 0.4, w, 0, w - 16, 0, [w - 16, 0, 16, h]);
+  },
+);
+
+/**
+ * The light escaping round a recessed button.
+ *
+ * Mykolai's brief for the console: «нужно вместо текущего свечения сделать
+ * свечение по краям предварительно сделав отступ». A pushbutton of this period
+ * is not a lamp with a lens on the front — it is a cap standing in a hole, with
+ * the lamp behind it, and what a viewer across the room actually sees of that
+ * lamp is the **reveal**: the few millimetres of gap between the cap and the
+ * metal it is sunk into, lit from inside. So the cap keeps its own paint and
+ * the glow lives in the gap around it.
+ *
+ * This bakes that gap. `fx` and `fy` are how much of the plane the cap covers
+ * on each axis, so the bright part is exactly the border left over, and the
+ * falloff runs outward from the cap's own outline onto the bezel — light does
+ * not stop at the edge of the hole it came out of.
+ *
+ * Painted as a field rather than as four gradients because the corners are the
+ * whole difficulty: four overlapping linear gradients double up where they
+ * cross and leave four bright dots at the corners of every button. A distance
+ * to the cap's rectangle has no corners to get wrong.
+ *
+ * Used as an `emissiveMap` on an additively-blended material, so black really
+ * is nothing rather than dark grey — see `PressButton` in `ScreenFrame.jsx`.
+ *
+ * @param {number} fx @param {number} fy
+ */
+// How bright the reveal is baked, against the legend's own 255. The two lamps
+// share one `emissiveIntensity` — they are one bulb — so the balance between
+// them has to live here, and at parity the reveal blew out into a solid orange
+// rectangle while the legend was still coming up. A slot is dimmer than the cut
+// it lights through; this is that ratio, measured on the panel.
+const PEAK = 116;
+
+export const buttonRecess = (fx, fy) => bake(
+  `recess:${fx.toFixed(3)}:${fy.toFixed(3)}:${PEAK}`, 128, 64, (ctx, w, h) => {
+    const frame = ctx.createImageData(w, h);
+    const px = frame.data;
+    const x0 = (w / 2) * (1 - fx);
+    const y0 = (h / 2) * (1 - fy);
+    const x1 = w - x0;
+    const y1 = h - y0;
+    // How far the spill carries past the reveal, as a multiple of the reveal's
+    // own width. Under one and the light stops dead at the edge of the bezel,
+    // which is the look of a sticker rather than of a lamp.
+    const reachX = Math.max(1e-3, x0 * 1.2);
+    const reachY = Math.max(1e-3, y0 * 1.2);
+    for (let y = 0; y < h; y += 1) {
+      for (let x = 0; x < w; x += 1) {
+        const dx = Math.max(x0 - x, x - x1, 0) / reachX;
+        const dy = Math.max(y0 - y, y - y1, 0) / reachY;
+        const k = Math.max(0, 1 - Math.hypot(dx, dy)) ** 1.7;
+        const v = Math.round(PEAK * k);
+        const i = (y * w + x) * 4;
+        px[i] = v;
+        px[i + 1] = v;
+        px[i + 2] = v;
+        px[i + 3] = 255;
+      }
+    }
+    ctx.putImageData(frame, 0, 0);
+  },
+);
 
 /**
  * The bloom around a bright fitting. A small very bright thing bleeds in any

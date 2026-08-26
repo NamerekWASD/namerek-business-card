@@ -2,7 +2,9 @@ import { useLayoutEffect, useRef } from 'react';
 import rustBrass from '../../assets/textures/rust-brass.jpg';
 import { SURFACES } from '../model/materials.js';
 import { surfaceStyle } from '../renderers/css3d/surfaceStyle.js';
-import { ARCHITRAVE_DEPTH, DOORWAY_H_FRAC, DOORWAY_W_FRAC } from '../model/geometry.js';
+import {
+  ARCHITRAVE_DEPTH, ASTRAGAL_W_FRAC, DOORWAY_H_FRAC, DOORWAY_W_FRAC, LEAF_PARK_FRAC,
+} from '../model/geometry.js';
 import { doorClosureAt } from '../../lift/ride.js';
 import useRideFrame from '../../lift/useRideFrame.js';
 import Architrave from './Architrave.jsx';
@@ -30,7 +32,11 @@ function Doorway({ vw, vh, top, floor, deck, intro, shake, frame = true }) {
     for (const s of [0, 1]) {
       const node = leafRefs[s].current;
       if (!node) continue;
-      const pct = ((s ? 1 - closure : closure - 1) * 100).toFixed(2);
+      // Short of the leaf's own width, so it parks with its leading edge still
+      // standing in the opening instead of disappearing behind the jamb — see
+      // `LEAF_PARK_FRAC`. The WebGL backend does the same in scene pixels.
+      const travel = 100 * (1 - LEAF_PARK_FRAC);
+      const pct = ((s ? 1 - closure : closure - 1) * travel).toFixed(2);
       const px = ((s ? 1 : -1) * shake).toFixed(2);
       node.style.transform = `translateX(calc(${pct}% + ${px}px))`;
     }
@@ -75,6 +81,19 @@ function Doorway({ vw, vh, top, floor, deck, intro, shake, frame = true }) {
             }}
           >
             <div style={{ position: 'absolute', top: '7%', bottom: '7%', [s ? 'left' : 'right']: 10, width: 3, background: 'rgba(0,0,0,0.6)' }} />
+            {/* The astragal: the leaf's leading stile, in the architrave's own
+                ironwork rather than the plate's. It is what stays standing in
+                the opening once the door is fully open (`LEAF_PARK_FRAC`), so
+                it is the one part of a leaf that has to read from across the
+                room — hence its own tone rather than the shadow line beside
+                it. The WebGL backend builds it as real geometry. */}
+            <div
+              style={{
+                position: 'absolute', top: '1%', bottom: '1%', [s ? 'left' : 'right']: 0, width: `${ASTRAGAL_W_FRAC * 100}%`,
+                backgroundImage: 'linear-gradient(90deg, #8a6f45, #5a462b)',
+                boxShadow: `${s ? '' : '-'}3px 0 8px rgba(0,0,0,0.7)`,
+              }}
+            />
             <div
               style={{
                 position: 'absolute', left: '8%', right: '8%', bottom: '7%', height: 13,

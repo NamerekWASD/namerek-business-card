@@ -1,6 +1,7 @@
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import {
-  AdditiveBlending, CatmullRomCurve3, DoubleSide, QuadraticBezierCurve3, Vector3,
+  AdditiveBlending, BufferAttribute, BufferGeometry, CatmullRomCurve3, DoubleSide,
+  LatheGeometry, Vector2, Vector3,
 } from 'three';
 import { CAM_PERSPECTIVE, SHAFT_DEPTH } from '../model/camera.js';
 import {
@@ -11,10 +12,11 @@ import { surfaceProps } from '../renderers/r3f/surfaceMaterial.js';
 import { worldY } from '../renderers/r3f/camera.js';
 import { useLightTuning } from '../renderers/r3f/tuning.js';
 import {
-  benchBand, benchTop, chestPanel, cratePanel, drawerFace, patchBayPlate, postBoxCard, postBoxSkin,
+  RACK, TAPE_ASPECT, benchBand, benchTop, chestPanel, cratePanel, drawerFace, postBoxCard,
+  postBoxSkin, punchTape, rackCol, rackGap, valveRackPlate,
 } from '../renderers/r3f/propArt.js';
 import { lampGlow } from '../renderers/r3f/patterns.js';
-import usePilotLamps, { LAMP_DARK } from '../renderers/r3f/pilotLamps.js';
+import usePilotLamps from '../renderers/r3f/pilotLamps.js';
 import { SCREEN_SIDE } from '../../lift/decks.js';
 
 // One identifying object per landing, so a floor is somewhere rather than a
@@ -137,55 +139,92 @@ const artwork = (map, ambient, weight = FACE.side) => (map ? {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// EG — the patch bay
+// EG — the valve rack
 // ─────────────────────────────────────────────────────────────────────────────
-// The one prop that is about the site's own subject: a board of jacks with two
-// of them bridged is, under the brass, a switched network. That idea was always
-// here and always illegible, because the board was 132 scene pixels across —
-// four tenths of a metre, a smear of specks at the far end of a corridor.
+// The one prop that is about the site's own subject. It was a patch bay: a
+// field of jacks with three cords bridged across it, which is a switched
+// network under the brass. The idea was right and the object was mute — a board
+// of holes reads as a board of holes from any distance, and the only thing on
+// it the eye could catch was six beads of glass the size of a full stop.
 //
-// What it needed was not a different idea but the room to state the one it has,
-// and four things to stop it reading as a sticker on the wall:
+// It is now three decks of eight valves in the same case. Everything the panel
+// had that was working is kept, because none of it was ever about the jacks:
 //
-// *Size.* A distribution panel of this period is a cast case the better part of
-// a metre tall, hung at hand height because someone has to work at it.
+// *Size.* A distribution case of this period is the better part of a metre
+// tall, hung at hand height because someone has to work at it.
 //
 // *A case, with the door standing open.* A flat plate has no silhouette; a
 // hinged door swung back gives it one, throws a shadow across the wall behind
 // it, and says the thing is in use rather than sealed.
 //
 // *Its supply, arriving somewhere.* A cable rising out of a gland on the top of
-// the case and running away under the cornice is what makes the panel part of
+// the case and running away under the cornice is what makes the rack part of
 // the building rather than an object placed against it.
 //
-// *Lamps that are not all doing the same thing.* See `usePilotLamps`.
+// *Lamps that are not all doing the same thing.* See `usePilotLamps`. What
+// changed is only what they are: the board used to be six pilot lamps *about*
+// the circuits, and it is now the circuits themselves. "This jack has a cord in
+// it" became "this valve is in the live stage", one for one.
 //
-// It is also, measured, the best-lit spot in the room: hung at 1.5 m on the
-// centre gutter it faces the pendant almost square-on, where a prop on the
-// floor catches it at a graze.
+// And it gains the thing the jack field never had, which is why the swap was
+// worth it: a valve is *lit from inside*, and this is the best-lit spot in the
+// room only in the sense that the pendant reaches it. Twenty-one hot heaters
+// standing in a dark case do not need reaching.
+//
+// ── why most of them sit still ──────────────────────────────────────────────
+// Only eight of the twenty-one are driven. That is a budget decision and a
+// truth about the object at the same time. The budget: this scene is
+// `frameloop="demand"`, and every valve that changes is a redraw of a landing
+// holding a pendant, the props and the wall screen — a board of eight settles
+// at two or three redraws a second, and twenty-four would triple that for a
+// prop nobody is looking straight at. The truth: a heater does not blink. What
+// a working bay looks like is a wall of steady filaments with the switched
+// stages moving against it, and a rack where every valve flickered would read
+// as a Christmas tree.
 
-const JACK_ROWS = [0.185, 0.385, 0.585]; // down the plate, under the bake's strips
-const JACK_COLS = [0, 1, 2, 3, 4, 5].map((c) => 0.075 + (0.85 * (c + 0.5)) / 6);
-// …and the ones that are bridged. Without the cords it is a grid of holes.
-const CORDS = [[0, 1, 2, 4], [1, 0, 0, 5], [2, 2, 1, 3]]; // [rowA, colA, rowB, colB]
-// Which of the six lamps has a cord in its circuit, which is what decides
-// whether it sits lit and drops out or sits dark and blips — see
-// `usePilotLamps`. Taken from `CORDS` rather than written out again, so a
-// patched circuit cannot end up with an idle lamp over it.
-const PATCHED = [0, 1, 2, 3, 4, 5].map(
-  (c) => CORDS.some(([, ca, , cb]) => ca === c || cb === c),
-);
-// where the lamps sit on the plate, matching the sockets the bake paints
-const LAMP_ROW = 0.7;
-const LAMP_COLS = [0, 1, 2, 3, 4, 5].map((c) => 0.115 + (c * 0.77) / 5);
+// Which sockets are driven, and what each of them is doing. Both are read off
+// `RACK.STAGE` rather than written out again here, so a valve cannot end up
+// wired to a lamp that is not in it — the same discipline `PATCHED` kept when
+// this was a patch bay and the cords decided it.
+const RACK_DRIVEN = RACK.STAGE.map(([socket]) => socket);
+const RACK_CARRYING = RACK.STAGE.map(([, carrying]) => carrying);
 
-function PatchBay({ M, x, y, z, ambient, live }) {
-  const caseW = 0.78 * M;
-  const caseH = 0.98 * M;
+/**
+ * How hard a heater glows, driven and undriven.
+ *
+ * Not `LAMP_LIT` / `LAMP_DARK`, and the difference is the whole character of
+ * the prop. Those two are authored for a pilot lamp, which is a thing that is
+ * *on or off* and has to clear the brass ring it sits in at one end and go
+ * properly cold at the other. A heater has no off state worth painting: it
+ * dims and comes back. So the swing is narrower, it is centred near where the
+ * undriven valves sit, and the result is a rack that breathes rather than one
+ * that flashes.
+ */
+const VALVE_LIT = 2.6;
+const VALVE_DIM = 0.55;
+const VALVE_WARM = 1.0;
+
+/**
+ * The profile of a valve, turned about its own axis.
+ *
+ * Ten points and ten segments, which is more than it sounds like it needs and
+ * exactly as much as it does: the whole silhouette of the object is the
+ * shoulder and the dome, and a cylinder with a flat top is a battery.
+ *
+ * @param {number} r the glass at its widest @param {number} h overall
+ */
+const valveProfile = (r, h) => [
+  [0, 0], [0.6, 0], [0.66, 0.06], [0.62, 0.13], [1, 0.22],
+  [1, 0.74], [0.88, 0.86], [0.55, 0.95], [0.2, 1], [0, 1],
+].map(([pr, ph]) => new Vector2(pr * r, ph * h));
+
+function ValveRack({ M, x, y, z, ambient, live }) {
+  const plateW = RACK.PLATE.W * M;
+  const plateH = RACK.PLATE.H * M;
+  const caseW = plateW + 0.12 * M;
+  const caseH = plateH + 0.14 * M;
   const caseD = 0.16 * M;
-  const plateW = caseW - 0.12 * M;
-  const plateH = caseH - 0.14 * M;
-  const plate = patchBayPlate();
+  const plate = valveRackPlate();
   const plateArt = artwork(plate, ambient);
 
   const cast = surfaceProps(SURFACES.iron, 0.9);
@@ -194,30 +233,53 @@ function PatchBay({ M, x, y, z, ambient, live }) {
 
   /** A point on the plate, in the case's own local frame. */
   const onPlate = (u, v) => [(u - 0.5) * plateW, (0.5 - v) * plateH];
-  const jackAt = (row, col) => onPlate(JACK_COLS[col], JACK_ROWS[row]);
 
-  const cords = useMemo(() => CORDS.map(([ra, ca, rb, cb]) => {
-    const [ax, ay] = jackAt(ra, ca);
-    const [bx, by] = jackAt(rb, cb);
-    // A cord hangs. The control point is pulled *below* the straight line
-    // between its ends, which is the whole difference between a cable and a
-    // pencil stroke — and it hangs proud of the plate, not on it.
-    return new QuadraticBezierCurve3(
-      new Vector3(ax, ay, 0.03 * M),
-      new Vector3((ax + bx) / 2, Math.min(ay, by) - 0.16 * M, 0.09 * M),
-      new Vector3(bx, by, 0.03 * M),
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [M, plateW, plateH]);
+  const pitch = ((RACK.SPAN[1] - RACK.SPAN[0]) / RACK.COLS) * plateW;
+  const valveR = pitch * 0.42;
+  const valveH = RACK.VALVE_H * plateH;
+  const deckT = 0.018 * M;
+  const deckD = 0.13 * M;
 
-  // The live board. The materials are collected by ref and written to directly,
-  // never through state — see `usePilotLamps` for why, and for why this costs
-  // the scene almost nothing despite running while nobody is riding.
-  const lampMaterials = useRef([]);
-  usePilotLamps(lampMaterials, PATCHED, live);
+  // One geometry for twenty-one valves. They differ in nothing but where they
+  // stand and how hard they are glowing, and the second of those is a material.
+  const glass = useMemo(
+    () => new LatheGeometry(valveProfile(valveR, valveH), 10),
+    [valveR, valveH],
+  );
+  useEffect(() => () => glass.dispose(), [glass]);
 
   // the case's own front plane, which everything inside it is measured from
   const front = caseD / 2;
+  const plateZ = front + 0.058 * M;
+  const standZ = plateZ + 0.062 * M;
+  const guardZ = plateZ + 0.128 * M;
+
+  /** Every socket in the rack, in reading order, with what is standing in it. */
+  const sockets = useMemo(() => {
+    const out = [];
+    for (let r = 0; r < RACK.SHELVES.length; r += 1) {
+      for (let c = 0; c < RACK.COLS; c += 1) {
+        const i = r * RACK.COLS + c;
+        const [sx] = onPlate(rackCol(c), 0);
+        const deckY = (0.5 - RACK.SHELVES[r]) * plateH;
+        out.push({
+          i,
+          x: sx,
+          y: deckY,
+          empty: RACK.EMPTY.includes(i),
+          driven: RACK_DRIVEN.indexOf(i),
+        });
+      }
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plateW, plateH]);
+
+  // The live rack. The materials are collected by ref and written to directly,
+  // never through state — see `usePilotLamps` for why, and for why this costs
+  // the scene almost nothing despite running while nobody is riding.
+  const heaters = useRef([]);
+  usePilotLamps(heaters, RACK_CARRYING, live, 0x9ac, { lit: VALVE_LIT, dark: VALVE_DIM });
 
   return (
     <group position={[x, worldY(y), z]}>
@@ -263,96 +325,106 @@ function PatchBay({ M, x, y, z, ambient, live }) {
         </mesh>
       </group>
 
-      {/* the plate, recessed inside the bezel */}
-      <mesh position={[0, 0, front + 0.058 * M]} receiveShadow>
+      {/* the backplane, recessed inside the bezel */}
+      <mesh position={[0, 0, plateZ]} receiveShadow>
         <planeGeometry args={[plateW, plateH]} />
         {plateArt
           ? <meshStandardMaterial {...plateArt} roughness={0.62} metalness={0.2} />
           : <meshStandardMaterial {...surfaceProps(SURFACES.iron, 0.7)} />}
       </mesh>
 
-      {/* the cords first, so they read as plugged into the jacks rather than
-          laid across the top of them */}
-      <group position={[0, 0, front + 0.06 * M]}>
-        {cords.map((curve, i) => (
-          // eslint-disable-next-line react/no-array-index-key
-          <mesh key={i} castShadow>
-            <tubeGeometry args={[curve, 26, 0.008 * M, 6, false]} />
-            <meshStandardMaterial color="#2b1f14" roughness={0.8} metalness={0.08} />
-          </mesh>
-        ))}
-        {/* and the plugs on their ends — a cord that stops at the panel face is
-            a cord lying against it */}
-        {CORDS.flatMap(([ra, ca, rb, cb], i) => [[ra, ca], [rb, cb]].map(([r, c], k) => {
-          const [jx, jy] = jackAt(r, c);
-          return (
-            <mesh key={`${i}-${k}`} position={[jx, jy, 0.018 * M]} rotation={[Math.PI / 2, 0, 0]} castShadow>
-              <cylinderGeometry args={[0.011 * M, 0.014 * M, 0.045 * M, 10]} />
-              <meshStandardMaterial {...brass} />
-            </mesh>
-          );
-        }))}
-      </group>
+      {/* ── the decks ────────────────────────────────────────────────────────
+          A chassis plate per row, bolted to the ledger the bake paints behind
+          it. It is what the valves stand on and it is also the only horizontal
+          in the prop: three lit edges stacked up the case, which is most of
+          what makes the thing read as a rack rather than a cupboard. */}
+      {RACK.SHELVES.map((v) => (
+        <mesh
+          key={v}
+          position={[0, (0.5 - v) * plateH - deckT / 2, plateZ + deckD / 2 - 0.008 * M]}
+          castShadow
+          receiveShadow
+        >
+          <boxGeometry args={[plateW * 0.95, deckT, deckD]} />
+          <meshStandardMaterial {...surfaceProps(SURFACES.iron, 1.15)} />
+        </mesh>
+      ))}
 
-      {/* the field itself: an eyelet per hole, because a brass ring catches the
-          light on its own and a painted dot never will */}
-      <group position={[0, 0, front + 0.062 * M]}>
-        {JACK_ROWS.map((_, r) => JACK_COLS.map((__, c) => {
-          const [jx, jy] = jackAt(r, c);
-          return (
-            <mesh key={`${r}-${c}`} position={[jx, jy, 0]} rotation={[Math.PI / 2, 0, 0]}>
-              <cylinderGeometry args={[0.014 * M, 0.014 * M, 0.01 * M, 10, 1, true]} />
-              <meshStandardMaterial {...brass} side={2} />
-            </mesh>
-          );
-        }))}
-      </group>
+      {/* ── the valves ───────────────────────────────────────────────────────
+          One material each, because each is glowing at its own level and a
+          shared one would make the whole rack breathe in step — which is the
+          single thing that would give the game away. */}
+      {sockets.map((s) => (s.empty ? (
+        // a bare socket: the ceramic is what says a valve was pulled out of it
+        // rather than never fitted
+        <mesh key={s.i} position={[s.x, s.y + 0.012 * M, standZ]}>
+          <cylinderGeometry args={[valveR * 0.68, valveR * 0.74, 0.024 * M, 10]} />
+          <meshStandardMaterial color="#4a4234" roughness={0.85} metalness={0.05} />
+        </mesh>
+      ) : (
+        <mesh key={s.i} geometry={glass} position={[s.x, s.y, standZ]}>
+          <meshStandardMaterial
+            ref={(node) => {
+              if (s.driven >= 0) heaters.current[s.driven] = node;
+            }}
+            userData={{ selfLit: true }}
+            color="#2b2119"
+            emissive="#ff9a3a"
+            emissiveIntensity={s.driven >= 0 ? VALVE_DIM : VALVE_WARM}
+            roughness={0.28}
+            metalness={0.06}
+          />
+        </mesh>
+      )))}
 
-      {/* ── the row of pilot lamps ───────────────────────────────────────────
-          A bead of glass in a brass bezel, one per circuit. Each is its own
-          material because each is driven separately; sharing one would make the
-          whole row blink in step, which is the single thing that would give the
-          game away. */}
-      <group position={[0, 0, front + 0.062 * M]}>
-        {LAMP_COLS.map((u, i) => {
-          const [lx, ly] = onPlate(u, LAMP_ROW);
+      {/* ── the wire guard ───────────────────────────────────────────────────
+          Rails across the decks and a wire down every gap between columns.
+          Down the *gaps*: at this size a guard that crossed the valves would
+          take a bite out of each one, and the whole job of the thing is to be
+          read through. It stops above the legend band, because a guard is over
+          the glass and not over the strip someone has to read. */}
+      <group position={[0, 0, guardZ]}>
+        {Array.from({ length: RACK.COLS + 1 }, (_, c) => {
+          const [wx] = onPlate(rackGap(c), 0);
+          const [, top] = onPlate(0, RACK.RAILS[0]);
+          const [, bottom] = onPlate(0, RACK.RAILS[RACK.RAILS.length - 1]);
           return (
-            <group key={u} position={[lx, ly, 0]}>
-              <mesh rotation={[Math.PI / 2, 0, 0]} castShadow>
-                <cylinderGeometry args={[0.021 * M, 0.023 * M, 0.016 * M, 12]} />
-                <meshStandardMaterial {...brass} />
-              </mesh>
-              <mesh position={[0, 0, 0.011 * M]}>
-                <sphereGeometry args={[0.016 * M, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
-                <meshStandardMaterial
-                  ref={(node) => { lampMaterials.current[i] = node; }}
-                  userData={{ selfLit: true }}
-                  color="#2e1c06"
-                  emissive={PATCHED[i] ? '#ffb454' : '#ff8f3c'}
-                  emissiveIntensity={LAMP_DARK}
-                  roughness={0.3}
-                />
-              </mesh>
-            </group>
+            <mesh key={c} position={[wx, (top + bottom) / 2, 0]}>
+              <cylinderGeometry args={[0.005 * M, 0.005 * M, top - bottom, 6]} />
+              <meshStandardMaterial {...steel} />
+            </mesh>
           );
         })}
+        {RACK.RAILS.map((v) => (
+          <mesh key={v} position={[0, (0.5 - v) * plateH, 0]} rotation={[0, 0, Math.PI / 2]}>
+            <cylinderGeometry args={[0.0065 * M, 0.0065 * M, plateW * 0.94, 6]} />
+            <meshStandardMaterial {...steel} />
+          </mesh>
+        ))}
       </group>
 
-      {/* the mains pilot, above the field and steady — the one lamp on the
-          board that says the panel has power rather than traffic */}
-      <mesh position={[caseW * 0.36, caseH * 0.42, front + 0.062 * M]} rotation={[Math.PI / 2, 0, 0]}>
-        <cylinderGeometry args={[0.019 * M, 0.019 * M, 0.02 * M, 10]} />
-        <meshStandardMaterial {...brass} />
-      </mesh>
-      <mesh position={[caseW * 0.36, caseH * 0.42, front + 0.074 * M]}>
-        <sphereGeometry args={[0.016 * M, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
-        <meshStandardMaterial
-          userData={{ selfLit: true }}
-          color="#3a2408"
-          emissive="#ffb454"
-          emissiveIntensity={3}
-        />
-      </mesh>
+      {/* the mains pilot, below the guard and steady — the one lamp on the case
+          that says the rack has power rather than traffic */}
+      {(() => {
+        const [px, py] = onPlate(RACK.PILOT[0], RACK.PILOT[1]);
+        return (
+          <group position={[px, py, plateZ]}>
+            <mesh rotation={[Math.PI / 2, 0, 0]}>
+              <cylinderGeometry args={[0.019 * M, 0.019 * M, 0.02 * M, 10]} />
+              <meshStandardMaterial {...brass} />
+            </mesh>
+            <mesh position={[0, 0, 0.012 * M]}>
+              <sphereGeometry args={[0.016 * M, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
+              <meshStandardMaterial
+                userData={{ selfLit: true }}
+                color="#3a2408"
+                emissive="#ffb454"
+                emissiveIntensity={3}
+              />
+            </mesh>
+          </group>
+        );
+      })()}
 
       {/* ── the door ─────────────────────────────────────────────────────────
           Hinged on the left and standing open a little past square.
@@ -406,7 +478,7 @@ const GLAND_X = 0.24;
 const offRoom = (vw, z) => vw / 2 + vw * 0.58 * ((CAM_PERSPECTIVE - z) / CAM_PERSPECTIVE);
 
 /**
- * The cable the patch bay is fed by: up out of the gland, and away to the right
+ * The cable the valve rack is fed by: up out of the gland, and away to the right
  * under the cornice.
  *
  * ── the route, and why it is this one ───────────────────────────────────────
@@ -597,6 +669,51 @@ const strut = (ax, ay, bx, by) => {
   };
 };
 
+/**
+ * A flat strip laid along a curve, with its width always across the same axis.
+ *
+ * `tubeGeometry` cannot do this — a tape has no cross-section to sweep, it has
+ * a face, and a tube with a flattened profile twists along its own Frenet frame
+ * and puts a barley-sugar curl in something that is a strip of paper. Holding
+ * the width on X instead is what keeps the run flat on the slab *and* flat
+ * against the room where it hangs down: both are moves in the y-z plane, and a
+ * ribbon whose width never leaves X is correctly turned for either.
+ *
+ * `getSpacedPoints` and not `getPoints`, because the artwork repeats along the
+ * length: parameter-spaced samples bunch the perforation up wherever the curve
+ * is tight, which on this run is exactly the nose of the bench.
+ *
+ * @param {import('three').Curve<Vector3>} curve
+ * @param {number} width @param {number} segments
+ * @param {number} repeats how many tiles of artwork fit along it
+ */
+const ribbon = (curve, width, segments, repeats) => {
+  const pts = curve.getSpacedPoints(segments);
+  const position = new Float32Array((segments + 1) * 6);
+  const uv = new Float32Array((segments + 1) * 4);
+  const index = [];
+  for (let i = 0; i <= segments; i += 1) {
+    const p = pts[i];
+    position.set([p.x - width / 2, p.y, p.z, p.x + width / 2, p.y, p.z], i * 6);
+    const v = (i / segments) * repeats;
+    uv.set([0, v, 1, v], i * 4);
+    if (i < segments) {
+      const a = i * 2;
+      index.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+    }
+  }
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new BufferAttribute(position, 3));
+  geometry.setAttribute('uv', new BufferAttribute(uv, 2));
+  geometry.setIndex(index);
+  geometry.computeVertexNormals();
+  return geometry;
+};
+
+/** Where the tape stands, which is where the lamp's pool lands. */
+const TAPE_X = -0.23;
+const TAPE_W = 0.06;
+
 function Workbench({ M, x, floorY, z, ambient, yaw }) {
   const len = 2.05 * M;
   const depth = 0.72 * M;
@@ -629,6 +746,11 @@ function Workbench({ M, x, floorY, z, ambient, yaw }) {
   // room nothing reaches, and at `FACE.side` it read as brighter than the bench
   // it is under.
   const chestArt = artwork(chestPanel(), ambient, 0.5);
+  // The tape lies flat under the lamp for most of its length and hangs against
+  // the room for the rest, so it is neither an upward face nor a flank. Read at
+  // `FACE.up`, because the half of it that decides how the object reads is the
+  // half in the pool.
+  const tapeArt = artwork(punchTape(), ambient, FACE.up);
   const glow = lampGlow();
 
   const iron = surfaceProps(SURFACES.iron, 0.85);
@@ -673,6 +795,29 @@ function Workbench({ M, x, floorY, z, ambient, yaw }) {
   const headY = 0.3 * M;
   // where the mouth of the shade points, and how far down the pool falls
   const aim = [Math.sin(LAMP_TILT), -Math.cos(LAMP_TILT)];
+
+  // ── the tape's run ─────────────────────────────────────────────────────────
+  // Off the underside of the reel, over the reader, along the slab, and down
+  // the front of the bench. Two things in it are not free-hand: it clears the
+  // top of the brass nose strip and comes down *in front* of it, so it drapes
+  // over the edge rather than through it; and it stands a little proud of the
+  // slab but under the lamp's pool, so the pool washes over the tape instead of
+  // the tape masking the pool. Both are one number each and both look like a
+  // modelling error when they are wrong.
+  const reelY = benchH + 0.155 * M;
+  const tape = useMemo(() => {
+    const curve = new CatmullRomCurve3([
+      [0, 0.069, -0.042], [0, 0.062, 0.005], [0, 0.062, 0.062], [0, 0.02, 0.1],
+      [0, 0.005, 0.15], [0.005, 0.005, 0.26], [0.008, -0.004, 0.352],
+      [0.012, -0.035, 0.386], [0.018, -0.13, 0.394], [0.026, -0.27, 0.379],
+      [0.034, -0.39, 0.352],
+    ].map(([px, py, pz]) => new Vector3(px * M, benchH + py * M, pz * M)),
+    false, 'centripetal');
+    const repeats = curve.getLength() / (TAPE_W * M * TAPE_ASPECT);
+    return ribbon(curve, TAPE_W * M, 56, repeats);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [M, benchH]);
+  useEffect(() => () => tape.dispose(), [tape]);
 
   return (
     <group position={[x, worldY(floorY), z]} rotation={[0, yaw, 0]}>
@@ -872,9 +1017,13 @@ function Workbench({ M, x, floorY, z, ambient, yaw }) {
       </group>
       {/* The pool it throws, laid flat on the slab. This is the piece doing the
           work: a shade that glows over an evenly lit bench reads as a prop, and
-          the light landing somewhere is what makes it a lamp. */}
+          the light landing somewhere is what makes it a lamp.
+          Four millimetres above the tape rather than below it. Additive and
+          `depthWrite: false` still test depth, so a pool under the tape gets
+          drawn and then covered — the one pale object on the bench would come
+          out as the only thing the lamp misses. */}
       {glow && (
-        <mesh position={[-0.33 * M, benchH + 0.004 * M, 0.04 * M]} rotation={[-Math.PI / 2, 0, 0]}>
+        <mesh position={[-0.33 * M, benchH + 0.009 * M, 0.04 * M]} rotation={[-Math.PI / 2, 0, 0]}>
           <planeGeometry args={[1.1 * M, 0.66 * M]} />
           <meshBasicMaterial
             map={glow}
@@ -978,8 +1127,75 @@ function Workbench({ M, x, floorY, z, ambient, yaw }) {
         </mesh>
       </group>
 
-      {/* the few things left lying where they were put down */}
-      {[[-0.16, 0.05, 0.34], [-0.02, -0.32, -0.5], [0.12, 0.12, 0.2]].map(([tx, tz, ta]) => (
+      {/* ── the punched tape ─────────────────────────────────────────────────
+          A reel on the slab, a reader under it, and the tape running out across
+          the bench and over the front edge. It stands where it does for one
+          reason: it is what the lamp is aimed at. The shade tilts down and
+          forward and its pool lands at about (-0.23, 0.15) on the slab, which
+          up to now was bare timber — a lamp lighting nothing is an ornament,
+          and this is the object that turns the pool into an act.
+          Paper is also the only material on this floor that is not metal or
+          timber, and the only pale one. */}
+      <group position={[TAPE_X * M, 0, 0]}>
+        {/* the reel: two flanges, the wound tape between them, and the spindle
+            it turns on. Axis along the bench, so what the room sees is a disc —
+            the one circle on a bench made entirely of right angles. */}
+        {[-1, 1].map((s) => (
+          <mesh key={s} position={[s * 0.036 * M, reelY, -0.04 * M]} rotation={[0, 0, Math.PI / 2]} castShadow>
+            <cylinderGeometry args={[0.105 * M, 0.105 * M, 0.006 * M, 20]} />
+            <meshStandardMaterial {...hardware} />
+          </mesh>
+        ))}
+        <mesh position={[0, reelY, -0.04 * M]} rotation={[0, 0, Math.PI / 2]} castShadow>
+          <cylinderGeometry args={[0.086 * M, 0.086 * M, 0.066 * M, 18]} />
+          <meshStandardMaterial color="#5f5540" roughness={0.94} metalness={0.02} />
+        </mesh>
+        <mesh position={[0, reelY, -0.04 * M]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.034 * M, 0.034 * M, 0.078 * M, 12]} />
+          <meshStandardMaterial {...BENCH_BRASS} />
+        </mesh>
+        {/* the standard it hangs off, bolted to the slab */}
+        <mesh position={[0, benchH + 0.055 * M, -0.075 * M]} castShadow receiveShadow>
+          <boxGeometry args={[0.11 * M, 0.11 * M, 0.02 * M]} />
+          <meshStandardMaterial {...surfaceProps(SURFACES.iron, 0.85)} />
+        </mesh>
+        <mesh position={[0, benchH + 0.008 * M, -0.075 * M]} castShadow receiveShadow>
+          <boxGeometry args={[0.17 * M, 0.016 * M, 0.07 * M]} />
+          <meshStandardMaterial {...surfaceProps(SURFACES.iron, 0.7)} />
+        </mesh>
+
+        {/* the reader head the tape passes through, and the two knobs that set
+            it. A tape that merely lies on a bench is litter; a tape that goes
+            into something is a machine mid-job. */}
+        <mesh position={[0, benchH + 0.028 * M, 0.035 * M]} castShadow receiveShadow>
+          <boxGeometry args={[0.13 * M, 0.056 * M, 0.1 * M]} />
+          <meshStandardMaterial {...surfaceProps(SURFACES.iron, 1.0)} />
+        </mesh>
+        <mesh position={[0, benchH + 0.058 * M, 0.035 * M]} castShadow>
+          <boxGeometry args={[0.134 * M, 0.008 * M, 0.03 * M]} />
+          <meshStandardMaterial {...BENCH_BRASS_HI} />
+        </mesh>
+        {[-0.042, 0.042].map((kx) => (
+          <mesh key={kx} position={[kx * M, benchH + 0.032 * M, 0.088 * M]} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[0.016 * M, 0.018 * M, 0.014 * M, 10]} />
+            <meshStandardMaterial {...BENCH_BRASS} />
+          </mesh>
+        ))}
+
+        {/* and the tape itself */}
+        {tape && (
+          <mesh geometry={tape} castShadow>
+            {tapeArt
+              ? <meshStandardMaterial {...tapeArt} roughness={0.95} metalness={0} side={DoubleSide} />
+              : <meshStandardMaterial color="#6b6047" roughness={0.95} side={DoubleSide} />}
+          </mesh>
+        )}
+      </group>
+
+      {/* the few things left lying where they were put down. There used to be
+          a third, at (-0.16, 0.05) — the tape runs through that spot now, and a
+          bar lying across it was the one collision on this slab. */}
+      {[[-0.02, -0.32, -0.5], [0.12, 0.12, 0.2]].map(([tx, tz, ta]) => (
         <mesh
           key={tx}
           position={[tx * M, benchH + 0.008 * M, tz * M]}
@@ -1233,7 +1449,7 @@ function LandingProps({ idx, vw, vh, top, live = true }) {
   const content = SCREEN_SIDE[idx] === 'left' ? 'right' : 'left';
   const { landingAmbient: ambient } = useLightTuning();
   const ceilingY = landingCeilingY(vh, top);
-  // where the patch bay hangs, which its cable has to leave from
+  // where the valve rack hangs, which its cable has to leave from
   const bayX = vw / 2 + 0.1 * M * (content === 'right' ? -1 : 1);
   // A prop standing under the column is turned back toward the middle of the
   // room, which is where both the pendant and the camera are: it puts a lit
@@ -1254,7 +1470,7 @@ function LandingProps({ idx, vw, vh, top, live = true }) {
               panel hung behind the page's paragraph is a panel nobody sees. It
               stands in the gutter between the column and the wall screen, at
               the height someone would actually work at it. */}
-          <PatchBay
+          <ValveRack
             M={M} x={bayX} y={floorY - 1.54 * M} z={back + 0.05 * M}
             ambient={ambient} live={live}
           />

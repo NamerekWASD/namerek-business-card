@@ -2,8 +2,9 @@ import { useMemo } from 'react';
 import { DoubleSide, Plane, Vector3 } from 'three';
 import { SHAFT_DEPTH } from '../model/camera.js';
 import {
-  ARCHITRAVE_DEPTH, ARCHITRAVE_MEMBER_W, CAGE_DEPTH, CAGE_FAR, CAGE_FLOOR_Y, CAGE_NEAR,
-  CAGE_POST_Z, CAGE_ROOF_Y, DOORWAY_H_FRAC, DOORWAY_W_FRAC, FRAME_TIERS, cageInset, openingTop,
+  ARCHITRAVE_DEPTH, ARCHITRAVE_MEMBER_W, ASTRAGAL_W_FRAC, CAGE_DEPTH, CAGE_FAR, CAGE_FLOOR_Y,
+  CAGE_NEAR, CAGE_POST_Z, CAGE_ROOF_Y, DOORWAY_H_FRAC, DOORWAY_W_FRAC, FRAME_TIERS,
+  LEAF_PARK_FRAC, cageInset, openingTop,
 } from '../model/geometry.js';
 import { SURFACES } from '../model/materials.js';
 import { Box, Panel } from '../renderers/r3f/Surface.jsx';
@@ -11,6 +12,7 @@ import { surfaceProps } from '../renderers/r3f/surfaceMaterial.js';
 import { useFittingMaterial } from '../renderers/r3f/useSurfaceMaterial.js';
 import { worldY } from '../renderers/r3f/camera.js';
 import { doorLeafFace, gateLattice, hazardStripe } from '../renderers/r3f/patterns.js';
+import { MARK_RISE, MARK_SPAN, leafMark } from '../renderers/r3f/leafMark.js';
 import useRideMotion from '../renderers/r3f/useRideMotion.js';
 import SceneLights from './SceneLights.jsx';
 import Room from '../renderers/r3f/Room.jsx';
@@ -30,9 +32,10 @@ import CanvasBoot from '../../boot/CanvasBoot.jsx';
 const LEAF_Z_FRAC = 0.3;
 const LEAF_D = 10;
 // How far the astragal — the meeting stile the two leaves seal against — stands
-// proud of the plate behind it, and how wide it is as a fraction of one leaf.
+// proud of the plate behind it. Its width is a doorway dimension rather than a
+// backend one and lives in `geometry.js`, next to the reveal it has to fit
+// inside; see `ASTRAGAL_W_FRAC` there.
 const ASTRAGAL_D = 7;
-const ASTRAGAL_W = 0.022;
 
 // The leaves carry their own light, and that is not a stylistic choice. The
 // shaft's fittings stand `LAMPS.proud` off the far wall; a shut leaf's face ends
@@ -47,6 +50,11 @@ const ASTRAGAL_W = 0.022;
 // on the next commit — the same flag the lamp glass and the marquee already use.
 const LEAF_GLOW = '#ffdcae';
 const LEAF_GLOW_I = 0.26;
+// The mark inlaid across the two leaves is struck brass rather than plate, so it
+// is pitched off the astragal's tone — the frame's ironwork — and a little above
+// it. It is the one thing on a shut door meant to be found, and at the plate's
+// own level it was found by nobody.
+const MARK_GLOW_I = LEAF_GLOW_I * 1.55;
 // and the astragal's own, which belongs to the architrave rather than to the
 // leaf — see the material that reads it
 const FRAME_TONE = '#8a7657';
@@ -93,10 +101,20 @@ function DoorLeaf({ side, left, top, w, h, z, clip }) {
   // The astragal is one of the four vertical members that frame every opening
   // in this scene, and it was flat colour like the rest of them. Grained, at
   // the frame's own tile size.
-  const astragal = useFittingMaterial(SURFACES.doorFrame, 1.1, [w * ASTRAGAL_W, h]);
-  const stileW = w * ASTRAGAL_W;
+  const astragal = useFittingMaterial(SURFACES.doorFrame, 1.22, [w * ASTRAGAL_W_FRAC, h]);
+  const stileW = w * ASTRAGAL_W_FRAC;
   // 0 meets its partner on its own right, 1 on its own left
   const stileX = side ? stileW / 2 : w - stileW / 2;
+
+  // The mark's half, measured off the *opening* rather than off this leaf: it
+  // spans both leaves, so a size taken from one of them would halve when the
+  // doorway's proportions changed and quarter the mark. `w` here is one leaf, so
+  // the opening is `w * 2`.
+  const mark = leafMark(side);
+  const markH = Math.min(w * 2, h) * MARK_SPAN;
+  const markW = markH / 2;
+  // …and it hangs off the meeting edge, which is the same edge the stile is on
+  const markX = side ? markW / 2 : w - markW / 2;
 
   return (
     <group position={[left, worldY(top), z]}>
@@ -124,6 +142,35 @@ function DoorLeaf({ side, left, top, w, h, z, clip }) {
             color={plate.color}
             roughness={0.64}
             metalness={0.22}
+            clippingPlanes={clip ?? null}
+            userData={{ selfLit: true }}
+          />
+        </mesh>
+      )}
+      {/* ── the mark ─────────────────────────────────────────────────────────
+          Half of it, hung against this leaf's meeting edge, so the two leaves
+          shut on a whole one. It is the site's entrance: whole on a closed door,
+          parting with the doors, and behind it the workshop. Nothing animates
+          it — see `leafMark.js`.
+
+          In front of the face plate and behind the astragal, which is what puts
+          the stile *over* the middle of the mark rather than beside it. And
+          clipped with everything else on the leaf: a mark that carried on past
+          the architrave would be the one part of the door that failed to slide
+          into the pocket. */}
+      {mark && (
+        <mesh position={[markX, -h * MARK_RISE, LEAF_D + 0.9]} receiveShadow>
+          <planeGeometry args={[markW, markH]} />
+          <meshStandardMaterial
+            map={mark}
+            emissiveMap={mark}
+            emissive={FRAME_TONE}
+            emissiveIntensity={MARK_GLOW_I}
+            color={plate.color}
+            roughness={0.42}
+            metalness={0.7}
+            transparent
+            depthWrite={false}
             clippingPlanes={clip ?? null}
             userData={{ selfLit: true }}
           />
@@ -163,6 +210,9 @@ function Doorway({ vw, vh, top, floor, deck, intro, ticker }) {
   const h = vh * DOORWAY_H_FRAC;
   const left = (vw - w) / 2;
   const leafW = w / 2;
+  // Short of the leaf's own width, so it parks with its leading stile still in
+  // the opening rather than vanishing into the pocket — see `LEAF_PARK_FRAC`.
+  const travel = leafW * (1 - LEAF_PARK_FRAC);
 
   const leaves = useRideMotion(ticker, (group, _floorPos, snapshot) => {
     // **Both halves of "which door is open" come off the ticker, never off a
@@ -193,9 +243,9 @@ function Doorway({ vw, vh, top, floor, deck, intro, ticker }) {
     const shut = doorClosureAt(floor, ride, at);
     const closure = !ride && floor === at ? Math.max(shut, intro) : shut;
     const [a, b] = group.children;
-    if (a) a.position.x = (closure - 1) * leafW;
-    if (b) b.position.x = (1 - closure) * leafW;
-  }, 0, [floor, deck, intro, leafW]);
+    if (a) a.position.x = (closure - 1) * travel;
+    if (b) b.position.x = (1 - closure) * travel;
+  }, 0, [floor, deck, intro, travel]);
 
   // The opening, widened into the pocket the frame's own jambs make — so a leaf
   // slides *behind* the architrave and is gone, instead of being cut off at the

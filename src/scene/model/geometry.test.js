@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-  LANDING_CEILING_CLEARANCE, PENDANT_DROP, PENDANT_HEAD_RISE, PENDANT_LINKS, PENDANT_LINK_PITCH,
-  PENDANT_SCALE, landingCeilingY, pendantAnchorY, pendantChainTopY,
+  ASTRAGAL_W_FRAC, LANDING_CEILING_CLEARANCE, LEAF_PARK_FRAC, PENDANT_DROP, PENDANT_HEAD_RISE,
+  PENDANT_LINKS, PENDANT_LINK_PITCH, PENDANT_SCALE, landingCeilingY, pendantAnchorY,
+  pendantChainTopY,
 } from './geometry.js';
 
 const vh = 962;
@@ -37,5 +38,31 @@ describe('the landing pendant', () => {
   it('carries the yoke at the shade\'s own scale', () => {
     expect(PENDANT_HEAD_RISE / PENDANT_SCALE).toBeCloseTo(51);
     expect(PENDANT_LINK_PITCH / PENDANT_SCALE).toBeCloseTo(2 * (7 + 2) * 1.45 * 0.6);
+  });
+});
+
+describe('a leaf parked open', () => {
+  // The whole point of the reveal: a leaf that travels its own full width ends
+  // up inside the pocket behind the architrave, and the open doorway is then a
+  // clean hole with no evidence a door was ever in it.
+  it('stops short of its own width', () => {
+    expect(LEAF_PARK_FRAC).toBeGreaterThan(0);
+    expect(1 - LEAF_PARK_FRAC).toBeLessThan(1);
+  });
+
+  // What stands in the reveal is the astragal — frame ironwork, standing proud
+  // of a plate in shadow, which is what makes the parked edge read at all. If it
+  // ever grows wider than the reveal it is the *only* thing standing there, and
+  // the door reads as a pillar with nothing behind it.
+  it('shows its astragal and a sliver of plate behind it', () => {
+    expect(ASTRAGAL_W_FRAC).toBeLessThan(LEAF_PARK_FRAC);
+    expect(LEAF_PARK_FRAC - ASTRAGAL_W_FRAC).toBeGreaterThan(0.01);
+  });
+
+  // And it has to stay a reveal rather than a door that never really opens. The
+  // opening loses twice this, and the landing screen behind it is already
+  // running under the frame on its outer side.
+  it('does not eat the opening', () => {
+    expect(LEAF_PARK_FRAC).toBeLessThan(0.08);
   });
 });

@@ -19,9 +19,14 @@ import whiteStucco from '../../assets/textures/white_stucco.png';
 // (see `renderers/r3f/surfaceMaterial.js`) every large plane in this scene was
 // wearing one of them: the shaft, the landing and the back wall were all rusty
 // brass. That was invisible and therefore harmless; made visible it is simply
-// wrong, because none of those surfaces is metal. A lift shaft is cast
-// concrete, a landing is plastered and painted, and the floor of one is
-// trowelled and walked on. Three different materials, three tiles.
+// wrong, because none of those surfaces is metal. A lift shaft is masonry, a
+// landing is plastered and painted, and the floor of one is trowelled and
+// walked on. Different materials, different tiles.
+//
+// The two concrete tiles below no longer dress anything — the shaft is brick
+// now, and its tile is painted rather than photographed (see `brick.js`). They
+// stay in the catalogue unused, at 65 KB the pair, so that putting a wall back
+// to cast concrete is one word rather than a download.
 //
 // PolyHaven, CC0, downsampled to 512 — the bake composites into a 256px canvas,
 // so a 1K source would be sixteen times the bytes for the same result.
@@ -42,6 +47,25 @@ export const TILES = {
   pour: concretePour,     // layered pours, streaked — the blind wall at the end of it
   plaster: plasterCrazed, // painted plaster crazed into a fine craquelure — a landing
   worn: concreteWorn,     // chipped, patched, walked-on slab — a landing floor
+  // Painted, not photographed — `renderers/r3f/brick.js` draws it. It is named
+  // here because the catalogue is where a tile's *name* belongs, and `null`
+  // because there is no file to load: the WebGL backend looks for a painter
+  // before it looks for a URL, and the CSS backend, having no canvas to ask,
+  // falls back to the surface's own gradient the same way `none` does.
+  //
+  // Why the shaft is brick at all: it is the one surface in the scene the
+  // viewer spends the whole ride looking at, and a cast-concrete tile spread
+  // over it had nothing in it at this distance — no course, no joint, no unit
+  // of measure. A wall a lift moves past has to have a *grid* on it or the
+  // motion has nothing to read against.
+  brick: null,
+  // Likewise painted — `renderers/r3f/plate.js`. The two corridor walls are the
+  // *lining* of the shaft rather than the building: riveted steel plating, which
+  // is what the three rivet seams and the brass line already bolted to them have
+  // always implied, and what the safety rack running down each of them has to be
+  // fixed to. The blind wall at the far end stays brick, because that is the
+  // building itself.
+  plate: null,
   none: null,
 };
 
@@ -70,10 +94,37 @@ export const TILES = {
 // the eye something to read the rest of the scene as warm *against*.
 /** @type {Record<string, Surface>} */
 export const SURFACES = {
-  // the corridor either side of us — furthest from the lamp, so the flattest
-  shaftWall: { from: '#3b2c1d', to: '#1b140d', tile: 'board', scale: 340, tex: 0.22, rough: 0.92, metal: 0.05 },
-  // the blind wall at the far end, between the landings
-  backWall: { from: '#3f301e', to: '#1e170f', tile: 'pour', scale: 420, tex: 0.18, rough: 0.94, metal: 0.05 },
+  // ── the shaft: a brick building lined in steel ─────────────────────────────
+  // Two materials and one size. Both tiles are painted (`brick.js`, `plate.js`)
+  // and both are authored 1.2 m square in the scene's own metre — `pxPerM` in
+  // `geometry.js`, about 300 px at a 900px-tall viewport — so they carry the
+  // same `scale` and a plate seam and a brick course are measured against the
+  // same room.
+  //
+  // `scale` is not a taste figure. The bench's `grainScale` multiplies it and
+  // ships at 0.7, so 513 × 0.7 lands on the 360 px that 1.2 m asks for. Move
+  // one and the other has to move with it, or the wall stops being built out of
+  // units. `brick.test.js` and `plate.test.js` hold that edge.
+  //
+  // `tex` is not the usual figure either. For a painted tile it is contrast
+  // about the picture's own mean rather than how much grain to add (see
+  // `surfaceMaterial.js`), and the bench multiplies a wall's by `grainWall`,
+  // which ships at 3 — so 1/3 is "the painting as authored" and anything much
+  // under it is a wall going out of focus.
+  //
+  // The pigment is the catalogue's, not the painting's: a painted map is a
+  // *multiplier*, so a colour painted into it as well would square the hue. The
+  // tiles stay warm near-greys and the red and the steel live here. Both hexes
+  // hold the luminance the ochre before them had, to within half a level.
+  //
+  // the corridor either side of us — riveted plating, and the flattest surface
+  // in the scene because it is furthest from the lamp
+  shaftWall: { from: '#342d23', to: '#1a1711', tile: 'plate', scale: 513, tex: 0.34, rough: 0.86, metal: 0.22 },
+  // The blind wall at the far end: brick, and less saturated than the first cut
+  // at it — «цвет кирпича слишком насыщенно красный», so the chroma came down
+  // about a quarter at the same luminance. Still plainly brick, no longer
+  // plainly a fire engine.
+  backWall: { from: '#482d22', to: '#231611', tile: 'brick', scale: 513, tex: 0.32, rough: 0.94, metal: 0.05 },
   // inside the landing: another room, so its own colour and its own light
   landing: { from: '#5d4523', to: '#2a1f10', tile: 'plaster', scale: 480, tex: 0.16, rough: 0.9, metal: 0.04 },
   // Its own surface, and not only so it can carry a different tile. The floor

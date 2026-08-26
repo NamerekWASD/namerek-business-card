@@ -72,6 +72,22 @@ export function wave(t, period, phase) {
 }
 
 /**
+ * Every material one button drives. A button is two lamps, not one — the
+ * legend struck on its face and the light escaping round it out of the reveal
+ * it sits in — and they swell together off one waveform because they are one
+ * bulb behind one plate. Both are `meshStandardMaterial`, so both take the same
+ * `emissiveIntensity`, and how bright each *reads* at a given intensity is
+ * decided where it is baked rather than by giving the driver two numbers.
+ *
+ * @param {import('three').Material | import('three').Material[] | null} entry
+ * @returns {import('three').Material[]}
+ */
+const lamps = (entry) => {
+  if (!entry) return [];
+  return Array.isArray(entry) ? entry.filter(Boolean) : [entry];
+};
+
+/**
  * Drives a row of legend materials.
  *
  * Written straight to the materials, never through React state — a pulse
@@ -79,7 +95,7 @@ export function wave(t, period, phase) {
  * a change to one float, and the landing holds the pendant, the props and the
  * whole wall screen. Same rule as `pilotLamps`, same reason.
  *
- * @param {{ current: (import('three').Material | null)[] }} legends
+ * @param {{ current: (import('three').Material | import('three').Material[] | null)[] }} legends
  * @param {{ current: boolean[] }} hot which buttons the pointer currently owns.
  *   Those are skipped: hover and press are answers to the viewer and outrank an
  *   invitation the viewer has already accepted.
@@ -98,8 +114,10 @@ export default function useButtonPulse(legends, hot, specs, live) {
     const plan = JSON.parse(shape);
     const dark = () => {
       for (let i = 0; i < plan.length; i += 1) {
-        const material = legends.current?.[i];
-        if (material && !hot.current?.[i]) material.emissiveIntensity = GLOW.idle;
+        if (hot.current?.[i]) continue;
+        for (const material of lamps(legends.current?.[i])) {
+          material.emissiveIntensity = GLOW.idle;
+        }
       }
       invalidateScene();
     };
@@ -115,13 +133,13 @@ export default function useButtonPulse(legends, hot, specs, live) {
       const t = performance.now() - t0;
       let changed = false;
       for (let i = 0; i < plan.length; i += 1) {
-        const material = legends.current?.[i];
-        if (!material || hot.current?.[i]) continue;
+        if (hot.current?.[i]) continue;
         const spec = plan[i];
         const want = spec
           ? GLOW.idle + (GLOW.peak - GLOW.idle) * wave(t, spec.period, spec.phase)
           : GLOW.idle;
-        if (material.emissiveIntensity !== want) {
+        for (const material of lamps(legends.current?.[i])) {
+          if (material.emissiveIntensity === want) continue;
           material.emissiveIntensity = want;
           changed = true;
         }

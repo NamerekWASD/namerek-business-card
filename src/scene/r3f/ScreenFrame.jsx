@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ExtrudeGeometry, Shape } from 'three';
+import { AdditiveBlending, ExtrudeGeometry, Shape } from 'three';
 import { SURFACES } from '../model/materials.js';
 import { useFittingMaterial } from '../renderers/r3f/useSurfaceMaterial.js';
-import { buttonFace, counterPlate, frameBand } from '../renderers/r3f/propArt.js';
+import { buttonFace, buttonLegend, counterPlate, frameBand } from '../renderers/r3f/propArt.js';
+import { buttonRecess } from '../renderers/r3f/patterns.js';
 import { invalidateScene } from '../renderers/r3f/frames.js';
 import useButtonPulse, { GLOW } from '../renderers/r3f/buttonPulse.js';
 import { GITHUB_URL, PROJECT_PAGES } from '../../decks/content.js';
@@ -252,6 +253,48 @@ function Vent({ y, w, band, material, rib, z }) {
 }
 
 /**
+ * How a button sits in the run it is sunk into, as fractions of its own height.
+ *
+ * `GAP` is the reveal — the bare slot between the cap and the metal round it,
+ * which is where the lamp behind the button shows. It is the whole of what
+ * Mykolai asked for: the glow used to be smeared over the cap's own face, and a
+ * lit cap is a lamp, while a dark cap in a lit slot is a *control*.
+ *
+ * `SHOULDER` is the bezel left outside the reveal. It has to survive the spill
+ * — light that reaches the outer edge of the bezel and stops there draws a
+ * bright rectangle, which is the one shape that gives away a painted glow.
+ */
+// Both were half this in the first cut and neither read at all: a reveal a
+// couple of screen pixels wide is a dark line, not a slot with a lamp in it.
+const GAP = 0.26;
+const SHOULDER = 0.12;
+
+/**
+ * How brightly the cap's own paint is carried, and **why it is carried at all
+ * rather than lit.**
+ *
+ * Measured on the panel: a cool grey cap lit by this landing came back at
+ * rgb(112, 77, 12) — a blue channel at a tenth of red, which is not a grey by
+ * any description. Nothing was wrong. Every light in this room is amber (the
+ * pendant at `#ffd29e`, the bounce at `#fff3e6`) and `landingChroma` runs at
+ * 1.61, so the grade takes whatever warmth the light leaves on a surface and
+ * multiplies it. Working back from the measurement, an albedo that came out
+ * neutral through that would need eight times more blue than red — there is no
+ * such pigment, and Mykolai's «серый оттенок» is unreachable by repainting.
+ *
+ * So the cap is carried the way every painted prop on this landing is carried
+ * (see `artwork` in `LandingProps.jsx`): its albedo is dropped to near black so
+ * the amber has nothing to land on, and the bake is handed back as its own
+ * `emissiveMap` at white. What the panel then shows is the paint itself, at the
+ * hue it was painted, and the grade's chroma acts on *that* — which is what
+ * makes these three the one grey thing in a room made of rust.
+ *
+ * The level is chosen to land where the lit version already sat, so the change
+ * is one of hue and not of a button suddenly shouting.
+ */
+const CAP_LIT = 0.45;
+
+/**
  * A control-panel button that goes down when it is pressed.
  *
  * ── written to the mesh, never through state ────────────────────────────────
@@ -261,58 +304,106 @@ function Vent({ y, w, band, material, rib, z }) {
  * for a change to one float. This scene has been bitten once already by
  * positioning something from a prop; see `useRideMotion`.
  *
- * ── who owns the legend ─────────────────────────────────────────────────────
- * Two things write `emissiveIntensity` on the same material: the invitation
- * (`buttonPulse`, a slow swell that says this can be pressed at all) and the
- * answer (a pointer over it, a finger on it). The answer wins while the pointer
- * is here, which is what `hot` is for — this component raises the flag and the
- * row's pulse leaves that button alone until it drops again.
+ * ── two lamps, one bulb ─────────────────────────────────────────────────────
+ * A button lights in two places and they are the same lamp: the legend struck
+ * through the cap, and the reveal round the cap's edge. Both are driven off one
+ * `emissiveIntensity`, and both are registered under this button's index so the
+ * row's pulse and the pointer handlers reach them together.
+ *
+ * ── who owns them ───────────────────────────────────────────────────────────
+ * Two things write that value: the invitation (`buttonPulse`, a slow swell that
+ * says this can be pressed at all) and the answer (a pointer over it, a finger
+ * on it). The answer wins while the pointer is here, which is what `hot` is for
+ * — this component raises the flag and the row's pulse leaves that button alone
+ * until it drops again.
  */
 function PressButton({
   x, y, w, h, label, glyph, cap: capMaterial, bezel, z, band,
   index, legends, hot, onPress,
 }) {
   const cap = useRef(null);
-  const legend = useRef(null);
+  // The legend and the reveal, in that order. A plain array on a ref, not
+  // state: it is handed straight to the pulse, which writes the materials.
+  const lit = useRef([]);
   const face = buttonFace(label, glyph);
+  const legend = buttonLegend(label, glyph);
   // Ten scene pixels of relief at the band this frame is built to, and half of
   // that in travel. Both were a third of this in the first cut, and a cap
   // standing three pixels off its bezel is a printed rectangle whichever way it
   // moves — which is precisely what Mykolai asked this not to be.
   const travel = band * 0.13;
 
+  // The bezel, and the glow plane laid over it — one size, so the bake knows
+  // exactly how much of itself the cap covers and the bright part of the ring
+  // lands in the reveal rather than behind the button.
+  const bezelW = w + (h * (GAP + SHOULDER)) * 2;
+  const bezelH = h + (h * (GAP + SHOULDER)) * 2;
+  const glow = buttonRecess(w / bezelW, h / bezelH);
+
   // The cursor is the other half of "it presses". A cap that goes down under a
   // pointer still shaped like an arrow reads as the scene reacting to the
   // mouse; the same cap under a hand reads as a control.
   const cursor = (shape) => { document.body.style.cursor = shape; };
 
-  const set = (at, glow) => {
+  const set = (at, level) => {
     if (cap.current) cap.current.position.z = at;
-    if (legend.current) legend.current.emissiveIntensity = glow;
+    for (const material of lit.current) {
+      if (material) material.emissiveIntensity = level;
+    }
     // Both canvases are on demand, so a press that does not ask for a frame is
     // a button that only moves the next time something else happens to redraw.
     invalidateScene();
   };
 
-  // Handing this button's own legend up to the row's pulse. A callback ref
-  // rather than an effect: the material exists the moment the mesh is attached,
-  // and an effect would leave the row driving a hole for a frame.
-  const holdLegend = (material) => {
-    legend.current = material;
-    if (legends) legends.current[index] = material;
+  // Handing this button's own lamps up to the row's pulse. Callback refs rather
+  // than an effect: the material exists the moment the mesh is attached, and an
+  // effect would leave the row driving a hole for a frame. The array's identity
+  // never changes, so registering it from either slot is enough.
+  const hold = (slot) => (material) => {
+    lit.current[slot] = material;
+    if (legends) legends.current[index] = lit.current;
   };
   const mark = (on) => { if (hot) hot.current[index] = on; };
 
   return (
     <group position={[x, y, 0]}>
       {/* the surround it sits in — a button with no shoulder is a sticker */}
+      {/* The surround it sits in — a button with no shoulder is a sticker.
+          It stands a little proud of the run rather than inside it: at the
+          depth this used to be authored at, the whole plate was buried in the
+          bottom run's own box and had never once been visible. */}
       <Plate
-        w={w + h * 0.36}
-        h={h + h * 0.36}
+        w={bezelW}
+        h={bezelH}
         depth={band * 0.4}
         material={bezel}
-        position={[0, 0, z.band - band * 0.5]}
+        position={[0, 0, z.band - band * 0.36]}
       />
+      {/* The reveal: the light escaping round the cap, laid on the bezel's own
+          front face. It is *behind* the cap, which is what makes the middle of
+          it disappear — the cap is opaque and this is depth-tested against it,
+          so only the border round the cap survives. Additive and `depthWrite`
+          off, because it is light rather than paint: adding nothing where the
+          bake is black is the whole reason the corners of the slot do not show
+          as a dark rectangle. */}
+      {glow && (
+        <mesh position={[0, 0, z.band + band * 0.055]}>
+          <planeGeometry args={[bezelW, bezelH]} />
+          <meshStandardMaterial
+            ref={hold(1)}
+            color="#000000"
+            emissive="#ffb45e"
+            emissiveMap={glow}
+            emissiveIntensity={GLOW.idle}
+            roughness={1}
+            metalness={0}
+            transparent
+            depthWrite={false}
+            blending={AdditiveBlending}
+            userData={{ selfLit: true }}
+          />
+        </mesh>
+      )}
       <group
         ref={cap}
         position={[0, 0, z.band]}
@@ -328,18 +419,45 @@ function PressButton({
           material={capMaterial}
           position={[0, 0, -band * 0.165]}
         />
+        {/* The paint. Near-black albedo and its own bake as `emissiveMap` —
+            see `CAP_LIT` for why a grey button on this landing has to be
+            carried rather than lit. Nothing drives this: it is paintwork, and
+            the whole complaint about the first cut was paintwork that
+            pulsed. */}
         {face && (
           <mesh position={[0, 0, band * 0.18]}>
             <planeGeometry args={[w * 0.97, h * 0.9]} />
             <meshStandardMaterial
-              ref={holdLegend}
               map={face}
               emissiveMap={face}
-              emissive="#ffb45e"
+              emissive="#ffffff"
+              emissiveIntensity={CAP_LIT}
+              color="#1a1d20"
+              roughness={0.62}
+              metalness={0.08}
+              userData={{ selfLit: true }}
+            />
+          </mesh>
+        )}
+        {/* And the lamp behind it. A separate plane a hair in front, additive
+            like the reveal, because that is what the two of them are: one bulb
+            showing through the legend cut into the cap and round the cap's own
+            edge. Additive also means the mark cannot darken the paint it sits
+            on when the bulb is out, which a `map` on this plane would. */}
+        {legend && (
+          <mesh position={[0, 0, band * 0.205]}>
+            <planeGeometry args={[w * 0.97, h * 0.9]} />
+            <meshStandardMaterial
+              ref={hold(0)}
+              color="#000000"
+              emissive="#ffd7a2"
+              emissiveMap={legend}
               emissiveIntensity={GLOW.idle}
-              color="#ffffff"
-              roughness={0.55}
-              metalness={0.25}
+              roughness={1}
+              metalness={0}
+              transparent
+              depthWrite={false}
+              blending={AdditiveBlending}
               userData={{ selfLit: true }}
             />
           </mesh>
@@ -435,7 +553,11 @@ function ScreenFrame({ w, h, variant = 'plain', live = false }) {
   const band = frameBand();
   const runH = useBandMaterial(band, w);
   const runV = useBandMaterial(band, h);
-  const capM = useBandMaterial(band, w * 0.185, 0.42, 0.45);
+  // The buttons' own paint, and the one thing on this panel that is deliberately
+  // *not* the scene's iron. See the note at the head of `buttonFace`: on a real
+  // console the controls are a bought-in part in pale moulded phenolic, and a
+  // grey cap on a warm panel reads as the part you are meant to touch.
+  const capGrey = { color: '#666d71', roughness: 0.6, metalness: 0.1 };
 
   const fallback = useFittingMaterial(SURFACES.cabinetFrame, 1, [w, m.band]);
   const iron = useFittingMaterial(SURFACES.cabinetFrame, 1.25, [m.corner, m.corner]);
@@ -562,11 +684,11 @@ function ScreenFrame({ w, h, variant = 'plain', live = false }) {
           key={c.label}
           x={c.at * w * 0.26}
           y={botY}
-          w={w * 0.2}
+          w={w * 0.185}
           h={m.foot * 0.44}
           label={c.label}
           glyph={c.glyph}
-          cap={capM ?? fallback}
+          cap={capGrey}
           bezel={rib}
           z={Z}
           band={m.band}

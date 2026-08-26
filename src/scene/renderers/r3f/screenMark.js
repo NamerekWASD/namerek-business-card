@@ -65,6 +65,34 @@ async function still(svg, t) {
 /** @type {Promise<HTMLImageElement[]> | null} */
 let strip = null;
 
+/** @type {Promise<HTMLImageElement | null> | null} */
+let settled = null;
+
+/**
+ * The mark as it ends up: one still, decoded once, shared by everything that
+ * wants the finished thing rather than the reveal.
+ *
+ * This is what the scene actually uses now. The reveal moved off the wall
+ * screen and onto the doors, where it is not an animation at all — the leaves
+ * carry two halves of the mark and parting them is the reveal — so nothing left
+ * in the shipped scene plays the strip, and decoding a hundred and twenty
+ * rasterisations of the same SVG at boot to show the last one is a hundred and
+ * nineteen wasted.
+ *
+ * It still has to go through `shift`: the file's own declarations all carry
+ * `both` fill, so at time zero every element is holding its `from` state and a
+ * plain rasterisation of it is blank. See the note at the top of this file.
+ */
+export function settledMark() {
+  if (settled) return settled;
+  settled = (async () => {
+    if (typeof document === 'undefined') return null;
+    const svg = await (await fetch(markUrl)).text();
+    return still(svg, SPAN);
+  })();
+  return settled;
+}
+
 /**
  * Every frame of the reveal, decoded once and shared.
  *
