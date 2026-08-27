@@ -791,3 +791,57 @@ export const screenGlow = (flutes = 26) => bake(`screen:${flutes}`, 256, 256, (c
     ctx.fillRect(0, y, w, pitch + 0.5);
   }
 });
+
+/**
+ * The frame bar that rolls down a running screen, as a multiply mask.
+ *
+ * ── why a screen needs one at all ────────────────────────────────────────────
+ * `screenGlow` above is a perfectly good picture of a lit panel and that is
+ * exactly its problem: a picture. Mykolai's words for it — «это читается как
+ * текстура, а не эмиссивный экран с низкой герцовкой». He is right, and the
+ * reason is that nothing about a static bake distinguishes *glass with a lamp
+ * behind it* from *a screen that is drawing*. The flutes already run the right
+ * way — across the panel, like scan lines — so what is missing is not detail,
+ * it is that they are not going anywhere.
+ *
+ * A tube refreshing slower than the eye gives you one unmistakable artefact: a
+ * wide, soft band of the last field still fading while the next one is drawn,
+ * travelling down the picture because the two rates never quite agree. That is
+ * the whole of what this bakes — a trough, not a highlight, because the bar is
+ * the part of the screen that has *not* been redrawn yet.
+ *
+ * Baked as a column rather than a picture: it varies only down the panel, so
+ * four pixels across is four more than it needs, and it is scrolled by moving
+ * the map's own `offset` — a uniform, so a rolling bar costs one float a tick
+ * rather than a canvas. `bake` gives it `RepeatWrapping`, and the trough is
+ * shaped to reach flat well before either end so the wrap has no seam in it.
+ */
+export const screenRaster = () => bake('raster', 4, 512, (ctx, w, h) => {
+  // How dark the middle of the bar goes, and how much of the panel it covers.
+  // Deep enough to be seen through the terminal's own print, shallow enough
+  // that it never reads as the screen having a fault.
+  // Measured on the panel rather than picked: at the bake's own 0.26 the bar
+  // came back as a 10% dip once the tone curve had had it, which is a screen
+  // that is technically breathing. This lands it near 18%, which is where it
+  // stops needing to be pointed out.
+  const depth = 0.36;
+  const reach = 0.17;
+  // And the line at its trailing edge. A soft trough on its own is a shadow;
+  // what says *this is a raster* is that one side of it is a hard edge — the
+  // beam's return, arriving where the fade has not yet caught up.
+  const edgeAt = 0.5 + reach * 0.92;
+  const edgeT = 0.009;
+  const edgeTo = 0.72;
+
+  for (let y = 0; y < h; y += 1) {
+    const p = y / h;
+    const d = Math.abs(p - 0.5) / reach;
+    // A parabola, zero at the trough's own edge: it lands flat rather than
+    // stopping, so nothing draws an outline round the bar.
+    const soft = d < 1 ? 1 - d * d : 0;
+    const edge = Math.abs(p - edgeAt) < edgeT ? edgeTo : 1;
+    const v = Math.round(255 * (1 - depth * soft) * edge);
+    ctx.fillStyle = `rgb(${v},${v},${v})`;
+    ctx.fillRect(0, y, w, 1);
+  }
+});

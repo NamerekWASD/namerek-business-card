@@ -33,3 +33,5 @@ package-lock.json
 .temp/*
 .codex/*
 .kilo/*
+# Playwright MCP session output
+.playwright-mcp/

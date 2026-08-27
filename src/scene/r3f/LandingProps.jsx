@@ -12,8 +12,8 @@ import { surfaceProps } from '../renderers/r3f/surfaceMaterial.js';
 import { worldY } from '../renderers/r3f/camera.js';
 import { useLightTuning } from '../renderers/r3f/tuning.js';
 import {
-  RACK, TAPE_ASPECT, benchBand, benchTop, chestPanel, cratePanel, drawerFace, postBoxCard,
-  postBoxSkin, punchTape, rackCol, rackGap, valveRackPlate,
+  RACK, SHEET, TAPE_ASPECT, benchBand, benchTop, chestPanel, cratePanel, drawerFace,
+  postBoxCard, postBoxSkin, punchTape, rackCol, rackGap, schematicSheet, valveRackPlate,
 } from '../renderers/r3f/propArt.js';
 import { lampGlow } from '../renderers/r3f/patterns.js';
 import usePilotLamps from '../renderers/r3f/pilotLamps.js';
@@ -1298,6 +1298,101 @@ function Crates({ M, x, floorY, z, ambient }) {
     </group>
   );
 }
+// ─────────────────────────────────────────────────────────────────────────────
+// 2. OG — the framed schematic
+// ─────────────────────────────────────────────────────────────────────────────
+// The crates stand under the column; this hangs in the gutter, where the valve
+// rack hangs on the EG. It is the second half of `SHEET` in `propArt.js`: this
+// file owns metres and never opens that canvas, and the aspect the two agree on
+// is a clause in `schematic.test.js`.
+//
+// A framed drawing is four mouldings, and the reason it cannot be one box with
+// a picture on it is the same reason the crates got battens: what makes a frame
+// read is its stepped silhouette against the wall, and a rectangle has none.
+
+function Schematic({ M, x, y, z, ambient }) {
+  const paper = schematicSheet();
+  const paperArt = artwork(paper, ambient);
+  const pw = SHEET.PAPER.W * M;
+  const ph = SHEET.PAPER.H * M;
+  // the moulding: a wide outer run and a narrow inner lip standing proud of it
+  const rail = 0.045 * M;
+  const lip = 0.014 * M;
+  const deep = 0.03 * M;
+  const w = pw + rail * 2;
+  const h = ph + rail * 2;
+  const wood = { color: '#2c2318', roughness: 0.72, metalness: 0.06 };
+  const runs = [
+    [0, (h - rail) / 2, w, rail],
+    [0, -(h - rail) / 2, w, rail],
+    [-(w - rail) / 2, 0, rail, h - rail * 2],
+    [(w - rail) / 2, 0, rail, h - rail * 2],
+  ];
+
+  return (
+    <group position={[x, y, z]}>
+      {/* the back pan, which is what the sheet is actually mounted on and what
+          keeps the whole thing off the plaster */}
+      <mesh position={[0, 0, -deep / 2]} receiveShadow>
+        <boxGeometry args={[w, h, deep]} />
+        <meshStandardMaterial {...surfaceProps(SURFACES.iron, 0.9)} />
+      </mesh>
+      {runs.map(([rx, ry, rw, rh]) => (
+        <group key={`${rx},${ry}`}>
+          <mesh position={[rx, ry, deep * 0.4]} castShadow receiveShadow>
+            <boxGeometry args={[rw, rh, deep * 0.8]} />
+            <meshStandardMaterial {...wood} />
+          </mesh>
+          {/* the lip, turned in over the paper's edge */}
+          <mesh
+            position={[
+              rx - Math.sign(rx) * (rail - lip) / 2,
+              ry - Math.sign(ry) * (rail - lip) / 2,
+              deep * 0.8,
+            ]}
+            castShadow
+          >
+            <boxGeometry args={[rx ? lip : rw, ry ? lip : rh, deep * 0.5]} />
+            <meshStandardMaterial {...wood} />
+          </mesh>
+        </group>
+      ))}
+      {/* one bolt head at each corner — the frame is screwed to the wall, not
+          hung on a cord, which is what a works drawing gets */}
+      {[[-1, -1], [-1, 1], [1, -1], [1, 1]].map(([sx, sy]) => (
+        <mesh
+          key={`${sx}${sy}`}
+          position={[(sx * (w - rail)) / 2, (sy * (h - rail)) / 2, deep * 0.86]}
+          rotation={[Math.PI / 2, 0, 0]}
+        >
+          <cylinderGeometry args={[0.008 * M, 0.008 * M, 0.006 * M, 6]} />
+          <meshStandardMaterial {...surfaceProps(SURFACES.steel, 0.8)} />
+        </mesh>
+      ))}
+      <mesh position={[0, 0, deep * 0.42]}>
+        <planeGeometry args={[pw, ph]} />
+        {paperArt
+          ? <meshStandardMaterial {...paperArt} roughness={0.94} metalness={0} />
+          : <meshStandardMaterial color="#6e6446" roughness={0.94} />}
+      </mesh>
+      {/* the glass. It takes no shadow and writes no depth: its whole job is the
+          one flat sheen that says there is something between the eye and the
+          paper, and a pane that occludes is a pane that greys the drawing out. */}
+      <mesh position={[0, 0, deep * 0.78]}>
+        <planeGeometry args={[pw, ph]} />
+        <meshStandardMaterial
+          color="#9fb0b8"
+          transparent
+          opacity={0.055}
+          roughness={0.14}
+          metalness={0.5}
+          depthWrite={false}
+        />
+      </mesh>
+    </group>
+  );
+}
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 3. OG — the post box
@@ -1501,10 +1596,18 @@ function LandingProps({ idx, vw, vh, top, live = true }) {
         />
       )}
       {idx === 2 && (
-        <Crates
-          M={M} x={underColumn(vw, content, 0.52, cratesZ)} floorY={floorY} z={cratesZ}
-          ambient={ambient}
-        />
+        <>
+          <Crates
+            M={M} x={underColumn(vw, content, 0.52, cratesZ)} floorY={floorY} z={cratesZ}
+            ambient={ambient}
+          />
+          {/* In the gutter, where the rack hangs on the EG, at the height a
+              drawing gets hung at — eye level for someone standing. */}
+          <Schematic
+            M={M} x={bayX} y={floorY - 1.5 * M} z={back + 0.03 * M}
+            ambient={ambient}
+          />
+        </>
       )}
       {idx === 3 && (
         // Out toward the column's far edge and turned to face back across the

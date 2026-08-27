@@ -16,16 +16,9 @@ export const SKILL_GROUPS = [
   { label: 'Architektur', tech: 'N-Tier · DDD · REST' },
 ];
 
-// How many pages the Projekte console's PREV/NEXT run through. The plate above
-// them has read "01 / 06" since the frame was built; this is that six, made
-// live, so the two cannot drift apart. The gallery those pages will show is
-// still in preparation — what pages today is the counter itself, which is the
-// part that decides whether a button lights: PREV is lit while there is a page
-// behind you and NEXT while there is one ahead. See `buttonPulse.js`.
-export const PROJECT_PAGES = 6;
-
-// Where the console's GITHUB button goes. Null until there is an address to
-// send anyone to — the button still presses and still advertises itself, it
-// simply does not navigate, which is the honest state of it rather than a link
-// to a profile that may not be the right one.
-export const GITHUB_URL = null;
+// ── where the Projekte console's own content went ────────────────────────────
+// `PROJECT_PAGES` and `GITHUB_URL` stood here: a constant six pages the counter
+// counted to, and one address for the whole archive. Both are gone into
+// `projects.js`, which is now the single file to edit when a project appears —
+// the counter's length is the archive's own length, and the LINK button goes
+// wherever the loaded project goes. See the note at the head of that file.

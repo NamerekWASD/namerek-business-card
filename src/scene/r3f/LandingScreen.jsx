@@ -1,10 +1,16 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { MultiplyBlending } from 'three';
 import { worldY } from '../renderers/r3f/camera.js';
-import { screenGlow } from '../renderers/r3f/patterns.js';
+import { screenGlow, screenRaster } from '../renderers/r3f/patterns.js';
+import useScreenLife from '../renderers/r3f/screenLife.js';
 import {
   LOG, RUN, TERMINAL_ASPECT, clearTerminal, linesAt, paintTerminal, terminalSurface,
 } from '../renderers/r3f/terminal.js';
 import { invalidateScene } from '../renderers/r3f/frames.js';
+import {
+  gallerySurface, loadShot, paintSlide, paintStandby, readyShot,
+} from '../renderers/r3f/gallery.js';
+import { SLIDES } from '../../decks/projects.js';
 import ScreenFrame, { frameMetrics } from './ScreenFrame.jsx';
 
 // The wall screen every landing shares: a fluted glass panel recessed into a
@@ -26,14 +32,52 @@ import ScreenFrame, { frameMetrics } from './ScreenFrame.jsx';
 // ground floor's valve rack hangs in, and there is about twenty scene pixels
 // between the rack's right-hand edge and the screen's left one already. Take it
 // and the two props on this wall start overlapping.
-export const SCREEN_TUNING = {
-  outerMarginX: -186, // the screen runs out past the opening, onto wall the pier does not hide
-  innerMarginX: 196, // the gutter — do not narrow, see above
-  marginX: 46, // gap from the doorway's own edges — outer wall side and centre gutter alike
-  marginTop: 74, // gap under the cornice
-  marginBottom: 74, // gap above the skirting
-  screenFill: 0.94, // how much of the glass the terminal's own picture takes
-};
+export const SCREEN_TUNING = [
+  {
+    floor: 0, // ground floor, the terminal
+    tuning: {
+      outerMarginX: -196, // the screen runs out past the opening, onto wall the pier does not hide
+      innerMarginX: 176, // the gutter — do not narrow, see above
+      marginX: 46, // gap from the doorway's own edges — outer wall side and centre gutter alike
+      marginTop: 104, // gap under the cornice
+      marginBottom: 124, // gap above the skirting
+      screenFill: 0.94, // how much of the glass the terminal's own picture takes
+    }
+  },
+  {
+    floor: 1,
+    tuning: {
+      outerMarginX: -196, // the screen runs out past the opening, onto wall the pier does not hide
+      innerMarginX: 176, // the gutter — do not narrow, see above
+      marginX: 46, // gap from the doorway's own edges — outer wall side and centre gutter alike
+      marginTop: 104, // gap under the cornice
+      marginBottom: 124, // gap above the skirting
+      screenFill: 0.94, // how much of the glass the terminal's own picture takes
+    }
+  },
+  {
+    floor: 2,
+    tuning: {
+      outerMarginX: -196, // the screen runs out past the opening, onto wall the pier does not hide
+      innerMarginX: 76, // the gutter — do not narrow, see above
+      marginX: 46, // gap from the doorway's own edges — outer wall side and centre gutter alike
+      marginTop: 44, // gap under the cornice
+      marginBottom: 124, // gap above the skirting
+      screenFill: 0.94, // how much of the glass the terminal's own picture takes
+    }
+  },
+  {
+    floor: 3,
+    tuning: {
+      outerMarginX: -196, // the screen runs out past the opening, onto wall the pier does not hide
+      innerMarginX: 176, // the gutter — do not narrow, see above
+      marginX: 46, // gap from the doorway's own edges — outer wall side and centre gutter alike
+      marginTop: 104, // gap under the cornice
+      marginBottom: 124, // gap above the skirting
+      screenFill: 0.94, // how much of the glass the terminal's own picture takes
+    }
+  }
+];
 
 /**
  * The ground-floor screen's terminal, printing its log when the doors part.
@@ -136,6 +180,68 @@ function TerminalLog({ y, z, w, h, open, shut }) {
 }
 
 /**
+ * The 2. OG screen's picture tube: whichever shot of the archive the console has
+ * paged to.
+ *
+ * ── it inherits the terminal's rules whole ──────────────────────────────────
+ * Built once and never unbuilt, the canvas carrying the state, and every paint
+ * asking the *scene* for a frame rather than this canvas. All three are written
+ * out at length on `TerminalLog` above and none of them is a style: the mount
+ * that was removed there was a shader compiled on the frame the leaves finish
+ * parting, and it would be the same mount and the same frame here.
+ *
+ * ── what is new is that the picture arrives late ────────────────────────────
+ * A shot is a file, and a file is not there on the commit that asks for it. So
+ * the tube is painted twice when it has to be: once immediately, with the
+ * picture's own box empty, and again when the image lands. `readyShot` is what
+ * keeps that from being the common case — paging back to something already
+ * looked at paints once, on the same commit the counter moved, because the
+ * decoded image is still in hand.
+ *
+ * With nothing in the archive at all there is no shot to wait for and the glass
+ * shows a test card. See `paintStandby`.
+ */
+function ProjectSlide({ y, z, w, h, page, aspect }) {
+  const [surface] = useState(() => (typeof document === 'undefined' ? null : gallerySurface()));
+
+  useEffect(() => {
+    if (!surface) return undefined;
+    const show = () => {
+      surface.texture.needsUpdate = true;
+      // The whole scene, not this canvas — both canvases are on demand and the
+      // near one holds the doors. See `frames.js`, and the flicker it names.
+      invalidateScene();
+    };
+    const slide = SLIDES[page] ?? null;
+    if (!slide) {
+      paintStandby(surface.canvas, aspect);
+      show();
+      return undefined;
+    }
+    const held = readyShot(slide.src);
+    paintSlide(surface.canvas, held, slide, aspect);
+    show();
+    if (held) return undefined;
+
+    let live = true;
+    loadShot(slide.src)
+      .then((img) => { if (live) { paintSlide(surface.canvas, img, slide, aspect); show(); } })
+      .catch(() => {
+        if (live) { paintSlide(surface.canvas, null, slide, aspect, 'BILD FEHLT'); show(); }
+      });
+    return () => { live = false; };
+  }, [surface, page, aspect]);
+
+  if (!surface) return null;
+  return (
+    <mesh position={[0, y, z]}>
+      <planeGeometry args={[w, h]} />
+      <meshBasicMaterial map={surface.texture} transparent depthWrite={false} toneMapped={false} />
+    </mesh>
+  );
+}
+
+/**
  * One landing's wall screen: a dark cast frame set into the back wall, and a
  * fluted glass panel recessed inside it. Floor 0 carries the terminal; the rest
  * are bare glow until there is something to put on them.
@@ -147,9 +253,24 @@ function TerminalLog({ y, z, w, h, open, shut }) {
  * that width, `side` picking which: the page content takes the other half,
  * see `SCREEN_SIDE` in `lift/decks.js`.
  */
-function LandingScreen({ floor, side, left, w, floorY, ceilingY, back, doorOpen, doorShut }) {
-  const t = SCREEN_TUNING;
+function LandingScreen({
+  floor, side, left, w, floorY, ceilingY, back, live, doorOpen, doorShut,
+}) {
+  const t = SCREEN_TUNING.find((t) => t.floor === floor)?.tuning ?? SCREEN_TUNING[0].tuning;
   const half = w / 2;
+  // ── the console's state, held here and nowhere else ────────────────────────
+  // Which picture of the archive is loaded. It belongs to the landing rather
+  // than to the frame because *both* halves of the console read it: the counter
+  // and the name plate are on the frame, the picture is on the glass, and a
+  // number owned by one of them is a number the other has to be told about.
+  // Kept across a visit — the lift comes back to a floor often, and a gallery
+  // that rewinds itself every time the doors shut is a gallery nobody gets to
+  // the end of. The terminal downstairs reprints on purpose; this is the other
+  // case, and the difference is that one is an event and the other is a place.
+  const [page, setPage] = useState(0);
+  const pages = SLIDES.length;
+  const slide = SLIDES[page] ?? null;
+  const step = (delta) => setPage((p) => Math.min(Math.max(0, p + delta), Math.max(0, pages - 1)));
   const slotLeft = side === 'left' ? left : left + half;
   const frameLeft = slotLeft + (side === 'left' ? t.outerMarginX : t.innerMarginX);
   const frameW = half - t.outerMarginX - t.innerMarginX;
@@ -164,6 +285,30 @@ function LandingScreen({ floor, side, left, w, floorY, ceilingY, back, doorOpen,
   const m = frameMetrics(frameW, frameH, variant === 'console');
 
   const glow = screenGlow(40);
+
+  // ── the screen is running, not printed ──────────────────────────────────────
+  // Three slots handed to `useScreenLife`: the panel's own material, the eight
+  // pieces of bead `ScreenFrame` hands back, and the frame bar's map. The
+  // waveform is one, deliberately — the bead is lit *by* the glass, so the two
+  // flickering off separate clocks would be the same fault `useRideMotion` was
+  // written to end.
+  const panel = useRef([]);
+  const spill = useRef([]);
+  const lit = useMemo(() => [panel, spill], []);
+  // Cloned per landing so the bar's phase belongs to this screen. `bake` caches
+  // by key, and several landings are furnished at once during a ride — sharing
+  // the texture would have two drivers writing one offset, and both would win
+  // every other tick. A clone shares the image, so this is a descriptor rather
+  // than a second upload.
+  const rasterSrc = screenRaster();
+  const raster = useMemo(() => {
+    if (!rasterSrc) return null;
+    const map = rasterSrc.clone();
+    map.needsUpdate = true;
+    return map;
+  }, [rasterSrc]);
+  useEffect(() => () => raster?.dispose(), [raster]);
+  useScreenLife(lit, raster, live);
 
   // the biggest box of the terminal's own shape that fits inside the glass
   const fitW = m.glassW * t.screenFill;
@@ -180,10 +325,15 @@ function LandingScreen({ floor, side, left, w, floorY, ceilingY, back, doorOpen,
       {/* `live` gates the buttons' invitation on the doors actually being
           open, the same way the patch bay's lamps are gated — see
           `buttonPulse.js` for why a demand-driven scene cares. */}
-      <ScreenFrame w={frameW} h={frameH} variant={variant} live={doorOpen} />
+      <ScreenFrame
+        w={frameW} h={frameH} variant={variant} live={doorOpen} spill={spill}
+        gallery={{ page, pages, title: slide?.title ?? '', url: slide?.url ?? null }}
+        onPage={step}
+      />
       <mesh position={[0, m.glassY, m.glassZ]}>
         <planeGeometry args={[m.glassW, m.glassH]} />
         <meshStandardMaterial
+          ref={(mat) => { panel.current[0] = mat; }}
           userData={{ selfLit: true }}
           color="#120f0c"
           emissive="#ffe6c4"
@@ -202,6 +352,43 @@ function LandingScreen({ floor, side, left, w, floorY, ceilingY, back, doorOpen,
           w={termW} h={termH}
           open={doorOpen} shut={doorShut}
         />
+      )}
+      {floor === 2 && (
+        // Stretched to the glass rather than fitted to a box inside it, which
+        // is the opposite of the terminal's rule and for the opposite reason:
+        // there is no type on this canvas whose letterforms a stretch would
+        // give away, and a picture fitted inside a *second* rectangle inside a
+        // portrait screen ends up the size of a stamp. The canvas is told the
+        // glass's own aspect instead and lays the photograph out against it —
+        // see `fitShot`.
+        <ProjectSlide
+          y={m.glassY} z={m.glassZ + 0.5}
+          w={m.glassW * t.screenFill} h={m.glassH * t.screenFill}
+          page={page} aspect={m.glassW / m.glassH}
+        />
+      )}
+      {raster && (
+        // The frame bar, laid over the whole panel — the print included, which
+        // is the point: a bar that stops at the edge of the text is a shadow on
+        // the glass, and one that crosses it is the tube redrawing. Multiply
+        // rather than additive, because a roll bar is the field that has *not*
+        // been drawn yet; there is nothing there to add. `renderOrder` because
+        // it and the terminal are both transparent and both write no depth, and
+        // which of the two lands first should not be left to a sort.
+        <mesh position={[0, m.glassY, m.glassZ + 1.1]} renderOrder={1}>
+          <planeGeometry args={[m.glassW, m.glassH]} />
+          <meshBasicMaterial
+            map={raster}
+            transparent
+            // three refuses `MultiplyBlending` without it, and it costs nothing
+            // here: the mask is fully opaque, so premultiplying by its own alpha
+            // leaves every value exactly where it was baked.
+            premultipliedAlpha
+            depthWrite={false}
+            blending={MultiplyBlending}
+            toneMapped={false}
+          />
+        </mesh>
       )}
     </group>
   );

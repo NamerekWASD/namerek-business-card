@@ -515,7 +515,7 @@ const Landing = memo(function Landing({ vw, vh, top, floor, furnished, shown, do
         <LandingScreen
           floor={floor} side={SCREEN_SIDE[floor]} left={left} w={w}
           floorY={floorY} ceilingY={ceilingY} back={back}
-          doorOpen={doorOpen} doorShut={doorShut}
+          live={furnished} doorOpen={doorOpen} doorShut={doorShut}
         />
       </group>
     </Room>

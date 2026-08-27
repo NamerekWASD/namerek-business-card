@@ -1444,3 +1444,401 @@ export const counterPlate = (text) => bake(`screen:counter:${text}`, 256, 88, (c
   ctx.fillText(text, w / 2, h / 2 + 1);
   ctx.globalAlpha = 1;
 });
+
+/**
+ * The plate on the console that names what is loaded.
+ *
+ * ── why the console needs one at all ─────────────────────────────────────────
+ * The counter above the glass walks *pictures*, not projects, because a counter
+ * that sits still through three presses of NEXT looks stuck. The cost of that
+ * is the question Mykolai asked before it was built: three shots of one job in
+ * a row read as three different jobs. This is the answer — the project's name,
+ * on its own lit window, standing still while the pictures change under it.
+ *
+ * A separate legend rather than a caption on the glass, and separate is the
+ * point: something that does not change cannot be part of what is changing.
+ *
+ * ── the type is fitted, not trusted ─────────────────────────────────────────
+ * A title is whatever the archive says it is, and a plate whose legend runs off
+ * both ends is worse than no plate. So the face is measured and stepped down
+ * until it fits, with a floor — under which the name is cut and closed with an
+ * ellipsis, because a name too long to read at this size is a name that has to
+ * be shortened by hand in `projects.js`.
+ *
+ * @param {string} text
+ */
+export const namePlate = (text) => bake(`screen:name:${text}`, 640, 80, (ctx, w, h) => {
+  const rnd = seeded(0x4e5);
+  ctx.fillStyle = '#17130e';
+  ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = '#080605';
+  ctx.fillRect(9, 11, w - 18, h - 22);
+  for (let i = 0; i < 500; i += 1) {
+    ctx.globalAlpha = 0.05 + rnd() * 0.09;
+    ctx.fillStyle = rnd() > 0.5 ? '#2e281f' : '#000000';
+    ctx.beginPath();
+    ctx.arc(rnd() * w, rnd() * h, 0.6 + rnd() * 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 0.4;
+  ctx.strokeStyle = '#8a6a2e';
+  ctx.lineWidth = 2.2;
+  ctx.strokeRect(9, 11, w - 18, h - 22);
+  ctx.globalAlpha = 1;
+
+  const room = w - 46;
+  let size = 44;
+  let shown = (text || '').toUpperCase();
+  const set = () => { ctx.font = `700 ${size}px "Space Mono", "Consolas", monospace`; };
+  set();
+  while (size > 28 && ctx.measureText(shown).width > room) { size -= 2; set(); }
+  while (shown.length > 3 && ctx.measureText(shown).width > room) {
+    shown = `${shown.slice(0, -2)}…`;
+  }
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  // struck, then lit — the same two strokes every engraved legend in this file
+  // uses, so the plate is still readable with the lamp behind it out
+  ctx.fillStyle = '#0b0906';
+  ctx.fillText(shown, w / 2, h / 2 - 1.5);
+  ctx.shadowColor = 'rgba(255,166,74,0.55)';
+  ctx.shadowBlur = 12;
+  ctx.fillStyle = '#f0bd6c';
+  ctx.fillText(shown, w / 2, h / 2 + 1.5);
+  ctx.shadowBlur = 0;
+});
+
+// ── the framed schematic on the 2. OG landing ────────────────────────────────
+// A works drawing hung in the gutter beside the deck's text: the amplifier one
+// stage of the counting rack is built from. It is the same treaty the valve
+// rack is built on — `SHEET` is written in fractions of the sheet and knows no
+// metres, `LandingProps.jsx` knows metres and never opens this canvas — so a
+// symbol that would fall off the paper is caught by `schematic.test.js` rather
+// than by looking at the wall.
+export const SHEET = {
+  // the paper's size in metres, which is the *frame's* business; kept here so
+  // the two halves cannot disagree about the aspect the canvas is painted at
+  PAPER: { W: 0.6, H: 0.42 },
+  CANVAS: [512, 358],
+  MARGIN: 0.06,
+  // the title block, as a fraction of the ruled frame, pinned to its lower right
+  BLOCK: { W: 0.42, H: 0.24 },
+  // the two horizontal rails the whole circuit hangs between: HT and earth
+  RAILS: [0.22, 0.6],
+  // where each valve stands across the sheet
+  STAGES: [0.2, 0.42, 0.64],
+  // how much room a valve's envelope needs either side of its stage line
+  ENVELOPE: 0.1,
+  // the input and output transformers, at the two ends of the run
+  ENDS: [0.07, 0.82],
+};
+
+const [SHEET_W, SHEET_H] = SHEET.CANVAS;
+
+/** The ruled frame, in canvas fractions — a drawing's margin is equal all round
+ * in *paper*, so the horizontal one is narrower in canvas fractions. */
+export const sheetFrame = () => {
+  const mx = (SHEET.MARGIN * SHEET_H) / SHEET_W;
+  return { x: mx, y: SHEET.MARGIN, w: 1 - mx * 2, h: 1 - SHEET.MARGIN * 2 };
+};
+
+/** The title block, in canvas fractions. */
+export const sheetBlock = () => {
+  const f = sheetFrame();
+  return {
+    x: f.x + f.w * (1 - SHEET.BLOCK.W),
+    y: f.y + f.h * (1 - SHEET.BLOCK.H),
+    w: f.w * SHEET.BLOCK.W,
+    h: f.h * SHEET.BLOCK.H,
+  };
+};
+
+// Paper under a tungsten pendant, not paper in daylight. A sheet this size
+// painted at its daylight value out-values the room and reads as a lit rectangle
+// pasted onto the wall — the same fault the post box was carrying.
+const PAPER_TONE = '#6e6446';
+const INK = '#241d12';
+const FOX = '#6b3f1c';
+
+const pen = (ctx, weight = 1) => {
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = weight;
+  ctx.lineCap = 'round';
+};
+
+const line = (ctx, x1, y1, x2, y2) => {
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+};
+
+/** A period resistance symbol — the zigzag, not the post-war box. */
+const resistor = (ctx, x, y, len, vertical) => {
+  const teeth = 6;
+  const step = len / teeth;
+  const amp = step * 0.55;
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  for (let i = 0; i < teeth; i += 1) {
+    const s = (i % 2 ? -1 : 1) * amp;
+    const d = (i + 0.5) * step;
+    if (vertical) ctx.lineTo(x + s, y + d);
+    else ctx.lineTo(x + d, y + s);
+  }
+  if (vertical) ctx.lineTo(x, y + len);
+  else ctx.lineTo(x + len, y);
+  ctx.stroke();
+};
+
+const capacitor = (ctx, x, y, span, vertical) => {
+  const half = span * 0.18;
+  if (vertical) {
+    line(ctx, x, y, x, y + span * 0.5 - 2);
+    line(ctx, x - half, y + span * 0.5 - 2, x + half, y + span * 0.5 - 2);
+    line(ctx, x - half, y + span * 0.5 + 2, x + half, y + span * 0.5 + 2);
+    line(ctx, x, y + span * 0.5 + 2, x, y + span);
+  } else {
+    line(ctx, x, y, x + span * 0.5 - 2, y);
+    line(ctx, x + span * 0.5 - 2, y - half, x + span * 0.5 - 2, y + half);
+    line(ctx, x + span * 0.5 + 2, y - half, x + span * 0.5 + 2, y + half);
+    line(ctx, x + span * 0.5 + 2, y, x + span, y);
+  }
+};
+
+const earth = (ctx, x, y, w) => {
+  for (let i = 0; i < 3; i += 1) {
+    const half = (w / 2) * (1 - i * 0.3);
+    line(ctx, x - half, y + i * 3.2, x + half, y + i * 3.2);
+  }
+};
+
+/** A triode: envelope, anode bar, dashed grid, cathode over its heater. */
+const valve = (ctx, x, y, r) => {
+  pen(ctx, 1.3);
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.stroke();
+  // anode
+  line(ctx, x - r * 0.5, y - r * 0.45, x + r * 0.5, y - r * 0.45);
+  line(ctx, x, y - r * 0.45, x, y - r);
+  // grid
+  ctx.setLineDash([3, 3]);
+  line(ctx, x - r * 0.62, y, x + r * 0.62, y);
+  ctx.setLineDash([]);
+  line(ctx, x - r * 0.62, y, x - r, y);
+  // cathode and heater
+  line(ctx, x - r * 0.42, y + r * 0.34, x + r * 0.42, y + r * 0.34);
+  ctx.beginPath();
+  ctx.moveTo(x - r * 0.3, y + r * 0.72);
+  ctx.lineTo(x, y + r * 0.44);
+  ctx.lineTo(x + r * 0.3, y + r * 0.72);
+  ctx.stroke();
+  line(ctx, x, y + r * 0.34, x, y + r);
+};
+
+/** One transformer winding — the period's arc stack, drawn vertically. */
+const winding = (ctx, x, y, len, side) => {
+  const coils = 4;
+  const step = len / coils;
+  for (let i = 0; i < coils; i += 1) {
+    ctx.beginPath();
+    ctx.arc(x, y + step * (i + 0.5), step * 0.5, -Math.PI / 2, Math.PI / 2, side < 0);
+    ctx.stroke();
+  }
+};
+
+const transformer = (ctx, x, y, len) => {
+  pen(ctx, 1.3);
+  winding(ctx, x - 5, y, len, -1);
+  winding(ctx, x + 5, y, len, 1);
+  line(ctx, x, y - 2, x, y + len + 2);
+};
+
+const node = (ctx, x, y) => {
+  ctx.fillStyle = INK;
+  ctx.beginPath();
+  ctx.arc(x, y, 2.2, 0, Math.PI * 2);
+  ctx.fill();
+};
+
+const lettered = (ctx, text, x, y, size, align = 'left', alpha = 0.85) => {
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = INK;
+  ctx.textAlign = align;
+  ctx.textBaseline = 'middle';
+  ctx.font = `${size}px "Space Mono", "Consolas", monospace`;
+  ctx.fillText(text, x, y);
+  ctx.globalAlpha = 1;
+};
+
+/**
+ * The sheet itself: a three-stage resistance-coupled amplifier, drawn the way a
+ * works office of 1937 would have drawn it, on paper that has been on a wall
+ * ever since.
+ */
+export const schematicSheet = () => bake('schematic:sheet', SHEET_W, SHEET_H, (ctx, w, h) => {
+  const rnd = seeded(0x5c3e);
+  const F = sheetFrame();
+  const fx = F.x * w;
+  const fy = F.y * h;
+  const fw = F.w * w;
+  const fh = F.h * h;
+
+  ctx.fillStyle = PAPER_TONE;
+  ctx.fillRect(0, 0, w, h);
+
+  // paper fibre — the tooth that stops it reading as a flat swatch
+  for (let i = 0; i < 2600; i += 1) {
+    ctx.globalAlpha = 0.03 + rnd() * 0.06;
+    ctx.fillStyle = rnd() > 0.45 ? '#8a7f5c' : '#4c452f';
+    ctx.fillRect(rnd() * w, rnd() * h, 1 + rnd() * 2, 1);
+  }
+  ctx.globalAlpha = 1;
+
+  // handled edges: a sheet is gripped at its rim, and that is where it darkens
+  for (let i = 0; i < 900; i += 1) {
+    const x = rnd() * w;
+    const y = rnd() * h;
+    const e = edgeness(x, y, w, h);
+    if (e < 0.55) continue;
+    ctx.globalAlpha = (e - 0.55) * 0.5 * rnd();
+    ctx.fillStyle = '#39331f';
+    ctx.beginPath();
+    ctx.arc(x, y, 1 + rnd() * 5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // the ruled frame
+  pen(ctx, 2);
+  ctx.globalAlpha = 0.8;
+  ctx.strokeRect(fx, fy, fw, fh);
+  ctx.lineWidth = 0.8;
+  ctx.strokeRect(fx + 4, fy + 4, fw - 8, fh - 8);
+  ctx.globalAlpha = 1;
+
+  const railY = SHEET.RAILS.map((r) => fy + fh * r);
+  const [htY, gndY] = railY;
+  const stageX = SHEET.STAGES.map((s) => fx + fw * s);
+  const [inX, outX] = SHEET.ENDS.map((s) => fx + fw * s);
+  const B = sheetBlock();
+  const bx = B.x * w;
+
+  // the two rails. The HT rail runs the full width; earth stops short of the
+  // title block, which is why the block's left edge is a clause in the test.
+  pen(ctx, 1.5);
+  ctx.globalAlpha = 0.9;
+  line(ctx, inX - 14, htY, fx + fw - 10, htY);
+  line(ctx, inX - 14, gndY, bx - 10, gndY);
+  earth(ctx, inX - 14, gndY + 4, 16);
+  lettered(ctx, '+250V', fx + fw - 12, htY - 10, 11, 'right');
+  lettered(ctx, '0', bx - 14, gndY - 10, 11, 'right');
+
+  // input transformer, off the signal terminals
+  transformer(ctx, inX, htY + 14, gndY - htY - 28);
+  line(ctx, inX - 5, htY + 12, fx + 12, htY + 12);
+  line(ctx, inX - 5, gndY - 12, fx + 12, gndY - 12);
+  lettered(ctx, 'EING.', fx + 12, htY + 2, 10);
+
+  const midY = (htY + gndY) / 2;
+  const r = fh * 0.09;
+
+  stageX.forEach((sx, i) => {
+    valve(ctx, sx, midY, r);
+    pen(ctx, 1.3);
+    // anode load up to HT
+    line(ctx, sx, midY - r, sx, midY - r - 8);
+    resistor(ctx, sx, midY - r - 8, htY - (midY - r - 8) - 6, true);
+    line(ctx, sx, htY - 6, sx, htY);
+    node(ctx, sx, htY);
+    // cathode bias down to earth
+    line(ctx, sx, midY + r, sx, midY + r + 6);
+    resistor(ctx, sx, midY + r + 6, gndY - (midY + r + 6) - 6, true);
+    line(ctx, sx, gndY - 6, sx, gndY);
+    node(ctx, sx, gndY);
+    // the coupling into this grid: a capacitor from the stage before, and a
+    // grid leak down to earth
+    const from = i === 0 ? inX + 5 : stageX[i - 1] + r * 0.6;
+    const gx = sx - r;
+    capacitor(ctx, from, midY - r * 0.35, gx - 10 - from, false);
+    line(ctx, gx - 10, midY - r * 0.35, gx - 10, midY);
+    line(ctx, gx - 10, midY, gx, midY);
+    node(ctx, gx - 10, midY - r * 0.35);
+    line(ctx, gx - 10, midY - r * 0.35, gx - 10, midY - r * 0.35 + 6);
+    resistor(ctx, gx - 10, midY - r * 0.35 + 6, gndY - (midY - r * 0.35) - 12, true);
+    line(ctx, gx - 10, gndY - 6, gx - 10, gndY);
+    lettered(ctx, `V${i + 1}`, sx + r + 4, midY + r * 0.9, 11);
+  });
+
+  // output transformer and the terminals it feeds
+  transformer(ctx, outX, midY - r * 1.2, r * 2.4);
+  line(ctx, stageX[2] + r * 0.6, midY - r * 0.35, outX - 5, midY - r * 0.35);
+  line(ctx, outX + 5, midY - r, fx + fw - 30, midY - r);
+  line(ctx, outX + 5, midY + r, fx + fw - 30, midY + r);
+  pen(ctx, 1.3);
+  [midY - r, midY + r].forEach((ty) => {
+    ctx.beginPath();
+    ctx.arc(fx + fw - 26, ty, 3.4, 0, Math.PI * 2);
+    ctx.stroke();
+  });
+  lettered(ctx, 'AUSG.', fx + fw - 34, midY, 10, 'right');
+
+  // the parts list — ruled and struck, the way a legend reads at this size
+  const lx = fx + 10;
+  const ly = fy + 10;
+  lettered(ctx, 'STÜCKLISTE', lx, ly + 6, 10, 'left', 0.75);
+  pen(ctx, 0.7);
+  ctx.globalAlpha = 0.5;
+  for (let i = 0; i < 5; i += 1) {
+    const y = ly + 20 + i * 8;
+    line(ctx, lx, y, lx + 26 + rnd() * 34, y);
+  }
+  ctx.globalAlpha = 1;
+
+  // title block
+  pen(ctx, 1.4);
+  ctx.globalAlpha = 0.85;
+  ctx.strokeRect(bx, B.y * h, B.w * w, B.h * h);
+  line(ctx, bx, B.y * h + B.h * h * 0.42, bx + B.w * w, B.y * h + B.h * h * 0.42);
+  line(ctx, bx + B.w * w * 0.62, B.y * h + B.h * h * 0.42, bx + B.w * w * 0.62, B.y * h + B.h * h);
+  ctx.globalAlpha = 1;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.globalAlpha = 0.9;
+  ctx.fillStyle = INK;
+  ctx.font = '14px "Archivo Black", "Space Mono", monospace';
+  ctx.fillText('NAMEREK RECHENWERKE', bx + 8, B.y * h + B.h * h * 0.22);
+  ctx.globalAlpha = 1;
+  lettered(ctx, 'RECHENWERK · STUFE III', bx + 8, B.y * h + B.h * h * 0.62, 10);
+  lettered(ctx, 'Bl. 3', bx + 8, B.y * h + B.h * h * 0.85, 9, 'left', 0.7);
+  lettered(ctx, 'M 1:1', bx + B.w * w * 0.68, B.y * h + B.h * h * 0.62, 9, 'left', 0.7);
+  lettered(ctx, '1937', bx + B.w * w * 0.68, B.y * h + B.h * h * 0.85, 9, 'left', 0.7);
+
+  // foxing
+  for (let i = 0; i < 40; i += 1) {
+    ctx.globalAlpha = 0.05 + rnd() * 0.12;
+    ctx.fillStyle = FOX;
+    ctx.beginPath();
+    ctx.arc(rnd() * w, rnd() * h, 2 + rnd() * 9, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // two folds: a sheet that lived in a pocket before it lived on a wall. The
+  // dark stroke is the valley, the light one beside it the ridge that caught
+  // the light — the one place on this canvas painting light is honest, because
+  // it is a permanent deformation of the paper and not the pendant's doing.
+  [0.34, 0.68].forEach((f) => {
+    const x = f * w;
+    ctx.globalAlpha = 0.16;
+    ctx.strokeStyle = '#2a2417';
+    ctx.lineWidth = 1.6;
+    line(ctx, x, 0, x + (rnd() - 0.5) * 6, h);
+    ctx.globalAlpha = 0.1;
+    ctx.strokeStyle = '#9a8f68';
+    line(ctx, x + 2.5, 0, x + 2.5 + (rnd() - 0.5) * 6, h);
+    ctx.globalAlpha = 1;
+  });
+});
