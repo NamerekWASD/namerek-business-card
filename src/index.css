@@ -55,6 +55,15 @@ button {
   color: var(--accent-deep);
 }
 
+/* The default browser ring is a near-black hairline — invisible against the
+   scene's own dark walls. Warm amber, the colour the scene already uses for
+   an active/live state, so a keyboard visitor can find it everywhere: nav
+   buttons, Kontakt's links, the fullscreen modal's own buttons. */
+:focus-visible {
+  outline: 2px solid var(--glow, #ffb454);
+  outline-offset: 2px;
+}
+
 .fullscreen-modal-overlay {
   position: fixed;
   inset: 0;
