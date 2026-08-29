@@ -5,10 +5,8 @@
 
 import { DECKS } from './decks.js';
 
-// The three depth planes travel at different rates, which is what sells "the
-// camera moved" instead of "a div slid": the side walls are nearest so they
-// sweep past fastest, the content plane is the reference, the backdrop drifts.
-export const WALL_PARALLAX = 1.28;
+// The backdrop is a further depth plane than the content, so it drifts slower
+// — that difference is what sells "the camera moved" instead of "a div slid".
 export const BG_PARALLAX = 0.42;
 
 // Dead shaft between two decks, as a fraction of the viewport. The decks used

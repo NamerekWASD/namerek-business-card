@@ -3,16 +3,11 @@ import Grain from '../ui/Grain.jsx';
 
 import { cssVariables } from '../theme/tokens.js';
 import { LAYERS } from '../scene/layers.js';
-import { ironFace } from '../scene/renderers/css3d/surfaceStyle.js';
+import { ironFace } from '../ui/surfaceStyle.js';
 import { CAM_PERSPECTIVE, CAM_ORIGIN_Y, BACK_WALL_SCALE } from '../scene/model/camera.js';
-import { lampsAt } from '../scene/model/lighting.js';
 import {
   CAGE_FAR, DOORWAY_H_FRAC, DOORWAY_W_FRAC, LANDING_WALL_SCALE, cageInset,
 } from '../scene/model/geometry.js';
-import Shaft from '../scene/shaft/Shaft.jsx';
-import Doorways from '../scene/shaft/Doorways.jsx';
-import CageFront from '../scene/cage/CageFront.jsx';
-import { markContextLost, useIsR3F } from '../scene/renderers/active.js';
 import SceneCanvas from '../scene/renderers/r3f/SceneCanvas.jsx';
 import ShaftScene from '../scene/r3f/ShaftScene.jsx';
 import NearScene from '../scene/r3f/NearScene.jsx';
@@ -20,8 +15,8 @@ import { DEBUG_PANEL, useBlurBudget } from '../scene/effects/quality.js';
 import Lighting from '../scene/effects/Lighting.jsx';
 import MotionBlurDef from '../scene/effects/MotionBlurDef.jsx';
 import { CONTENT_RISE, DECKS, SCREEN_SIDE } from '../lift/decks.js';
-import { WALL_PARALLAX, BG_PARALLAX, DECK_GAP, doorClosure } from '../lift/ride.js';
-import { DOOR_TOTAL_MS, introClosure, introDim, introShake } from '../lift/intro.js';
+import { BG_PARALLAX, DECK_GAP, doorClosure } from '../lift/ride.js';
+import { DOOR_TOTAL_MS, introClosure, introDim } from '../lift/intro.js';
 import useLift from '../lift/useLift.js';
 import useRideFrame from '../lift/useRideFrame.js';
 import { RideTickerProvider } from '../lift/RideTickerContext.js';
@@ -43,8 +38,6 @@ export default function Dieselpunk() {
     floorPos, deckIndex, moving, velocity, rideTo, scrub, setScrub, ride, ridePhase, ticker,
   } = useLift();
   const { vw, vh } = useViewport();
-  // which backend is actually drawing — see scene/renderers/active.js
-  const r3f = useIsR3F();
   // Nothing is shown until the scene is genuinely ready to be shown — every
   // tile decoded, every shader compiled, every canvas drawn at least once. The
   // boot screen holds a black rectangle with a pair of gears on it in the
@@ -78,7 +71,7 @@ export default function Dieselpunk() {
     [page, step, openFullscreenImage],
   );
 
-  const boot = useBoot(r3f);
+  const boot = useBoot();
   const booted = boot.phase === 'fade' || boot.phase === 'done';
   const { t, setT, playing, play } = useIntroClock(DOOR_TOTAL_MS, booted);
   // The supply coming up: one scalar handed to every source in both canvases,
@@ -91,7 +84,6 @@ export default function Dieselpunk() {
   // These are the same distance three times over and used to be called `step`,
   // `floorPxWall` and `contentStep`, which said nothing about how they relate.
   const floorPitch = vh + vh * DECK_GAP;
-  const wallFloorPitch = floorPitch * WALL_PARALLAX;
   // **The content travels at the landing wall's rate, because that is what it
   // is standing on.** It used to travel at the *doorway's* — welded to the
   // leaves that frame it rather than to the plaster behind it — and those are
@@ -109,7 +101,6 @@ export default function Dieselpunk() {
   // shut wins — that also makes the very first frame a shut door rather than a
   // scene that has to be covered up by something else
   const closure = Math.max(doorClosure(ridePhase), introClosure(t));
-  const shake = introShake(t);
 
   // Where the doorway lands on screen. A plane square to the camera is only a
   // uniform scale, so this is exact — which is what lets the content stay a flat,
@@ -137,21 +128,6 @@ export default function Dieselpunk() {
   // sharing.
   const dprCeiling = blurAllowed ? 1.5 : 1.25;
   const blurAmount = blurAllowed ? Math.round(Math.min(16, speed * 5.5) / 2) * 2 : 0;
-  // The lamps, for this position of the shaft. Everything that gets lit is
-  // handed this same list, so the cage, the fixtures and the haze cannot
-  // disagree about where the light is coming from — which is the entire reason
-  // for computing it once rather than painting it three times.
-  //
-  // Memoized, and not for the arithmetic — that is a handful of multiplications.
-  // It is for the *identity*: this array is handed to `Shaft`, `CageFront` and
-  // `Lighting`, and a fresh one on every render defeats every `memo` underneath
-  // them. At rest that is where it bites hardest, because the intro clock
-  // re-renders this component at 60Hz for two seconds while nothing in the shaft
-  // has moved at all.
-  const lamps = useMemo(
-    () => lampsAt(vw, vh, floorPos, floorPitch),
-    [vw, vh, floorPos, floorPitch],
-  );
   // the decks get a touch of the same vertical smear — razor-sharp text flying
   // past at speed is the giveaway that nothing is really moving
   const contentSmear = blurAllowed ? Math.round(Math.min(3.2, speed * 1.1)) : 0;
@@ -239,42 +215,26 @@ export default function Dieselpunk() {
         }}
       />
 
-      {/* The far half of the scene. Under `?renderer=r3f` it is WebGL and the
-          CSS shaft stands down; the flag exists so the two can be compared in
-          one build rather than across two branches, and CSS stays the default
-          until the comparison says otherwise. */}
-      {r3f ? (
-        <SceneCanvas vw={vw} vh={vh} zIndex={LAYERS.shaft} name="shaft" dprCeiling={dprCeiling} moving={moving} interactive onLost={markContextLost}>
-          <ShaftScene
-            vw={vw} vh={vh} pos={floorPos} floorPx={floorPitch}
-            ticker={ticker} ride={ride} deck={deckIndex}
-            intro={introClosure(t)}
-            // While the black rectangle is up, the shaft is held in the state
-            // that needs the most work drawn: every landing shown, every fitting
-            // in place, every light on. That is what the boot screen is for —
-            // `CanvasBoot` compiles what it can see, and what it cannot see it
-            // leaves for the frame someone is looking at. See `ShaftScene`.
-            warm={!booted}
-            dim={dim} onSettle={boot.settle}
-          />
-        </SceneCanvas>
-      ) : (
-        <Shaft
-          vw={vw} vh={vh} pos={floorPos}
-          floorPx={wallFloorPitch} backFloorPx={floorPitch}
-          blurPx={blurAmount}
-          lamps={lamps}
-          ride={ride} deck={deckIndex} intro={introClosure(t)}
+      {/* The far half of the scene: everything behind the doors. */}
+      <SceneCanvas vw={vw} vh={vh} zIndex={LAYERS.shaft} name="shaft" dprCeiling={dprCeiling} moving={moving} interactive>
+        <ShaftScene
+          vw={vw} vh={vh} pos={floorPos} floorPx={floorPitch}
+          ticker={ticker} ride={ride} deck={deckIndex}
+          intro={introClosure(t)}
+          // While the black rectangle is up, the shaft is held in the state
+          // that needs the most work drawn: every landing shown, every fitting
+          // in place, every light on. That is what the boot screen is for —
+          // `CanvasBoot` compiles what it can see, and what it cannot see it
+          // leaves for the frame someone is looking at. See `ShaftScene`.
+          warm={!booted}
+          dim={dim} onSettle={boot.settle}
         />
-      )}
+      </SceneCanvas>
 
       {DEBUG_PANEL && (
         <div style={{ pointerEvents: 'auto' }}>
           <DebugPanel t={t} setT={setT} playing={playing} play={play} scrub={scrub} setScrub={setScrub} blurEnabled={blurAllowed} />
-          {/* Only under WebGL: the CSS scene shades itself arithmetically from
-              `model/lighting.js` and none of these knobs reach it, so showing
-              them there would be a panel that lies about what it controls. */}
-          {r3f && <LightingPanel />}
+          <LightingPanel />
         </div>
       )}
 
@@ -347,30 +307,18 @@ export default function Dieselpunk() {
         </div>
       </div>
 
-      {/* the doors, in front of the content: the content sits on the landing,
-          so leaves that cannot cover it are not doors */}
-      {!r3f && (
-        <Doorways
-          vw={vw} vh={vh} pos={floorPos} floorPx={floorPitch}
-          deck={deckIndex} intro={introClosure(t)}
-          shake={shake} blurPx={blurAmount}
-        />
-      )}
-
-      {/* The near canvas: everything in WebGL that has to stand in front of the
-          decks — the doorway frames, the leaves and the cage. A second context
-          on purpose: the decks are genuinely *between* the two halves of this
+      {/* The near canvas: everything that has to stand in front of the decks —
+          the doorway frames, the leaves and the cage. A second context on
+          purpose: the decks are genuinely *between* the two halves of this
           scene, and no z-index inside one canvas can express that. */}
-      {r3f && (
-        <SceneCanvas vw={vw} vh={vh} zIndex={LAYERS.cage} name="near" dprCeiling={dprCeiling} moving={moving} onLost={markContextLost}>
-          <NearScene
-            vw={vw} vh={vh} pos={floorPos} floorPx={floorPitch}
-            deck={deckIndex} intro={introClosure(t)} ticker={ticker}
-            ride={ride}
-            dim={dim} onSettle={boot.settle}
-          />
-        </SceneCanvas>
-      )}
+      <SceneCanvas vw={vw} vh={vh} zIndex={LAYERS.cage} name="near" dprCeiling={dprCeiling} moving={moving}>
+        <NearScene
+          vw={vw} vh={vh} pos={floorPos} floorPx={floorPitch}
+          deck={deckIndex} intro={introClosure(t)} ticker={ticker}
+          ride={ride}
+          dim={dim} onSettle={boot.settle}
+        />
+      </SceneCanvas>
 
       {/* The blanket of black that used to be laid over everything mid-ride has
           gone. It was there because the shaft had no lights, so "between floors
@@ -378,11 +326,7 @@ export default function Dieselpunk() {
           scene darkens and brightens on its own, and painting over it would only
           hide the thing we just built. */}
 
-      {/* the cage rides with us, not with the shaft, and draws in front of the
-          content because it is nearer than the landing the content sits on */}
-      {!r3f && <CageFront vw={vw} vh={vh} lamps={lamps} />}
-
-      <Lighting aperture={aperture} closure={closure} pos={floorPos} floorPx={floorPitch} vw={vw} vh={vh} dim={r3f ? dim : 1} />
+      <Lighting aperture={aperture} closure={closure} pos={floorPos} floorPx={floorPitch} vw={vw} vh={vh} dim={dim} />
 
       {/* The selector is mounted on the cage, not above the landing door. A lift's
           floor buttons live in the cabin — and had they gone on the shaft wall

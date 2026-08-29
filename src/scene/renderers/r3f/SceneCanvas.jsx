@@ -145,26 +145,24 @@ function SceneProbe({ name }) {
 /**
  * @param {{
  *   vw: number, vh: number, zIndex: number, name: string,
- *   dprCeiling?: number, onLost?: () => void, children: React.ReactNode,
+ *   dprCeiling?: number, children: React.ReactNode,
  * }} props
  */
 function SceneCanvas({
   vw, vh, zIndex, name, dprCeiling = 2, moving = false, antialias = true, interactive = false,
-  onLost, children,
+  children,
 }) {
-  // A WebGL context can be taken away at any moment — a driver reset, the tab
-  // backgrounded for long enough, too many contexts open across tabs. The
-  // browser fires an event and then simply stops drawing, so a scene that does
-  // not listen for it does not crash; it silently goes blank, which is worse.
-  // Here it hands the frame back to the CSS backend, which needs no context at
-  // all.
   const handleCreated = ({ gl }) => {
     // per-material clipping planes: this backend's `overflow: hidden`, and the
     // only way a door leaf can slide out of its opening and stop existing
     gl.localClippingEnabled = true;
+    // A WebGL context can be taken away at any moment — a driver reset, the tab
+    // backgrounded for long enough, too many contexts open across tabs. Calling
+    // `preventDefault()` here is what lets the browser attempt to hand a fresh
+    // context back on `webglcontextrestored`, rather than leaving the canvas
+    // permanently blank.
     gl.domElement.addEventListener('webglcontextlost', (event) => {
       event.preventDefault();
-      onLost?.();
     });
   };
 

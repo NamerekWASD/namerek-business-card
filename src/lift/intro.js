@@ -3,7 +3,6 @@
 // of its own, opening giant ones to reveal a lift with its own shut doors made
 // no sense at all; the arrival we already animate on every ride is the arrival.
 
-export const DOOR_HOLD_END = 420;
 export const DOOR_SHAKE_END = 660;
 export const DOOR_TOTAL_MS = 2200;
 export const INTRO_OPEN_END = 1720;
@@ -21,19 +20,6 @@ export function introClosure(t) {
   return 1 - Math.pow(p, 0.55);
 }
 
-// the shudder before the leaves break apart: the gear engaging against a door
-// that has been shut a long time
-/**
- * @param {number} t milliseconds since the intro began
- * @returns {number} horizontal offset in pixels
- */
-export function introShake(t) {
-  if (t < DOOR_HOLD_END || t > DOOR_SHAKE_END) return 0;
-  const local = t - DOOR_HOLD_END;
-  const span = DOOR_SHAKE_END - DOOR_HOLD_END;
-  return Math.sin(local / 21) * 2.4 * (1 - local / span);
-}
-
 // The shaft coming on, once the boot screen has let go.
 //
 // This is the join between the two halves of the arrival, and it exists because
@@ -42,9 +28,8 @@ export function introShake(t) {
 // behind a black rectangle. A supply that hunts before it holds says the
 // opposite: the lamps were off, and something just closed a contactor.
 //
-// Deliberately front-loaded. The strikes are over before `DOOR_HOLD_END`, so
-// the light has settled by the time the gear takes up and the leaves shudder;
-// two mechanical events at once read as one confused one.
+// Deliberately front-loaded: the strikes are over well before the doors start
+// to move, so the light has already settled by the time the leaves do.
 const STRIKES = [
   // [ms, how far it gets before falling back]
   [0, 0.0], [60, 0.75], [95, 0.08], [150, 0.95], [205, 0.22], [250, 0.6], [300, 1.0],

@@ -6,8 +6,8 @@
 //
 // The workflow it exists for:
 //
-//   1. run the dev server with `?renderer=r3f`, dial the panel on the right
-//      until the scene looks the way you want it;
+//   1. run the dev server, dial the panel on the right until the scene looks
+//      the way you want it;
 //   2. press `copy setup` — the clipboard now holds this object, in full, with
 //      your values in it (it is also printed to the console, for the case where
 //      the clipboard is refused);

@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { DEBUG_PANEL } from '../scene/effects/quality.js';
 import {
-  BOOT_JOBS, BOOT_MIN_MS, CSS_JOBS, FADE_MS, SPIN_MS, fractionDone,
+  BOOT_JOBS, BOOT_MIN_MS, FADE_MS, SPIN_MS, fractionDone,
 } from './plan.js';
 
 // The state machine behind the boot screen. Four phases and three transitions,
@@ -26,19 +26,14 @@ const now = () => (typeof performance === 'undefined' ? Date.now() : performance
  */
 
 /**
- * @param {boolean} r3f whether the WebGL backend is the one drawing
  * @returns {{
  *   phase: BootPhase,
  *   settle: (name: string) => void,
  *   screen: { fraction: number, phase: BootPhase, spinStart: number, t0: number },
  * }}
  */
-export default function useBoot(r3f) {
-  // The CSS backend compiles no shaders, so waiting on two canvases that do not
-  // exist would hold a black screen until the hard timeout fired.
-  const jobs = useMemo(() => (
-    r3f ? BOOT_JOBS : Object.fromEntries(CSS_JOBS.map((k) => [k, BOOT_JOBS[k]]))
-  ), [r3f]);
+export default function useBoot() {
+  const jobs = BOOT_JOBS;
 
   const [phase, setPhase] = useState(/** @type {BootPhase} */ ('loading'));
   const settled = useRef(new Set());

@@ -1,13 +1,14 @@
-// The WebGL half of a material — `css3d/surfaceStyle.js`'s opposite number,
-// reading the very same `SURFACES` catalogue and returning something three.js
-// can draw instead of something a browser can paint.
+// The WebGL half of a material, reading the `SURFACES` catalogue and
+// returning something three.js can draw. `ui/surfaceStyle.js` is the same
+// catalogue's CSS half, still used to paint real DOM chrome.
 //
-// The one real decision in here is what happens to the vertical gradient. In
-// CSS, `from` → `to` down a plane *is* the lighting: there are no lights, so a
-// wall is drawn darker at the bottom because that is where the light isn't.
-// In WebGL there are real lights, and baking that gradient into the albedo as
-// well would darken every surface twice — the classic sign of a scene ported by
-// eye. So the gradient is dropped and its midpoint kept: the map carries the
+// The one real decision in here is what happens to the vertical gradient.
+// Painted flat as a CSS gradient, `from` → `to` down a plane *was* the
+// lighting: no lights, so a wall was drawn darker at the bottom because that
+// is where the light wasn't. In WebGL there are real lights, and baking that
+// gradient into the albedo as well would darken every surface twice — the
+// classic sign of a scene ported by eye. So the gradient is dropped and its
+// midpoint kept: the map carries the
 // surface's grain, the colour carries its colour, the lights carry the falloff.
 //
 // ── why the tiles were invisible, and what the bake is now ───────────────────

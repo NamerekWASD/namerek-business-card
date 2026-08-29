@@ -2,12 +2,12 @@
 
 An interactive business-card site built as a small dieselpunk elevator scene:
 you ride a lift between floors (Home / Services / Projects / Contacts)
-through a hand-built CSS 3D shaft, cage and corridor set.
+through a WebGL shaft, cage and corridor set.
 
 ## Stack
 
 - React 19 + Vite
-- Plain CSS 3D transforms for the scene (no WebGL/R3F)
+- react-three-fiber / three.js for the scene
 - Vitest + Testing Library for tests
 - oxlint for linting
 

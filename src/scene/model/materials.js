@@ -6,9 +6,9 @@
 // 1 is the raw tile, 0 is flat colour, and the sensible range is 0.1–0.4.
 //
 // This file is the *catalogue*, not the paint. Turning a `Surface` into
-// something a browser can draw is `scene/renderers/css3d/surfaceStyle.js`; a
-// three.js backend would read the same entries and build a `MeshStandardMaterial`
-// from them. Nothing here knows what CSS is.
+// something three.js can draw is `scene/renderers/r3f/surfaceMaterial.js`,
+// which reads these same entries and builds a `MeshStandardMaterial` from
+// them. Nothing here knows what a shader is.
 
 import rustBrass from '../../assets/textures/rust-brass.jpg';
 import bronzeWorn from '../../assets/textures/bronze-worn.jpg';

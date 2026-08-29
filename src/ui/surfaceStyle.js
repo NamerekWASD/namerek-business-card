@@ -1,15 +1,12 @@
 // The CSS half of a material: this is where a `Surface` from the model becomes
-// something a browser can paint. It is the first piece of the renderer seam —
-// an R3F backend would have a `surfaceMaterial.js` sitting beside this one,
-// reading the very same `SURFACES` catalogue and returning a
-// `MeshStandardMaterial` instead of a style object.
+// something a browser can paint.
 //
 // Nothing above this file may know that a surface is a gradient. Nothing in
 // `scene/model/` may import it.
 
-import { SURFACES, TILES, shadedRgb, shadedRgba } from '../../model/materials.js';
+import { SURFACES, TILES, shadedRgb, shadedRgba } from '../scene/model/materials.js';
 
-/** @import { Surface, Shade } from '../../model/types.js' */
+/** @import { Surface, Shade } from '../scene/model/types.js' */
 
 // Composites one surface. The texture is muted by washing a flat coat of the
 // surface's own shadow colour back over it — a genuine scalar, where blend modes
@@ -17,12 +14,11 @@ import { SURFACES, TILES, shadedRgb, shadedRgba } from '../../model/materials.js
 //
 // `shade` is folded into the colours rather than applied as
 // `filter: brightness()`, and that is not a stylistic preference. A filter puts
-// its element into a rasterisation buffer of its own; there were a hundred and
-// seventy-six of them standing in this scene at rest, every one re-rastered on
-// every frame of a ride. It also forces the used value of transform-style to
-// flat, which is the trap that quietly flattened the counterweight, the old
-// guide rail and the landing props for weeks. Multiplying the stops costs
-// nothing and cannot do either.
+// its element into a rasterisation buffer of its own — it also forces the used
+// value of transform-style to flat, which is the trap that quietly flattened
+// the counterweight, the old guide rail and the landing props for weeks, back
+// when this scene still had CSS-3D solids to flatten. Multiplying the stops
+// costs nothing and cannot do either.
 //
 // The tile follows along for free: it sits under the gradient in multiply, so
 // scaling the gradient scales the product.
@@ -42,14 +38,6 @@ export function surfaceStyle(s, shade = 1) {
     backgroundBlendMode: 'normal, multiply, multiply',
   };
 }
-
-// Flat, near-even steel. The old version had a strong specular band down the
-// middle, which is how you fake a cylinder on a single plane — exactly the
-// wrong cue now that the solids are built from real faces, because it made the
-// rail read as a pipe. Volume comes from the faces differing in tone (`shade`),
-// not from a highlight painted inside one of them.
-/** @param {number} [scale] @param {Shade} [shade] */
-export const steelFace = (scale = 46, shade = 1) => surfaceStyle({ ...SURFACES.steel, scale }, shade);
 
 /** @param {number} [scale] @param {Shade} [shade] */
 export const ironFace = (scale = 70, shade = 1) => surfaceStyle({ ...SURFACES.iron, scale }, shade);

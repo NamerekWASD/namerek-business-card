@@ -32,17 +32,6 @@ export const BOOT_JOBS = {
   near: 3,
 };
 
-/**
- * What the CSS backend waits for: the fonts, and nothing else.
- *
- * It compiles no shaders, and it never touches `bakeSurface` or the mark strip
- * either — its surfaces are CSS gradients over a tile the browser fetches as an
- * ordinary background image. Listing jobs here that only the WebGL half ever
- * reports would hold a black screen over a scene that was ready immediately,
- * until the hard timeout fired.
- */
-export const CSS_JOBS = ['fonts'];
-
 // How long the screen is guaranteed to be up. A warm reload finishes every job
 // in under a tenth of a second, and a black screen that appears and vanishes
 // inside two frames does not read as a loading screen — it reads as a flash of

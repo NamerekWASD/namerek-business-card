@@ -1,8 +1,4 @@
-import ArcadeCabinet from '../ui/ArcadeCabinet.jsx';
-import { useIsR3F } from '../scene/renderers/active.js';
-
 function StartDeck() {
-  const r3f = useIsR3F();
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '2.5rem', flexWrap: 'wrap' }}>
       <div style={{ minWidth: 300 }}>
@@ -31,16 +27,6 @@ function StartDeck() {
         Offen f&uuml;r neue Aufgaben im Ruhrgebiet / NRW.
       </p>
       </div>
-            {/* Under the WebGL backend the cabinet is a real object standing on the
-          landing rather than a picture of one laid out in the deck's flow, so
-          the deck stands its own copy down. It is the one piece of this scene
-          that moved *out* of the DOM on purpose: everything else that left was
-          structure, this is the object the mark lives on. */}
-      {!r3f && (
-        <div style={{ flex: '1 1 340px', display: 'flex', justifyContent: 'center' }}>
-          <ArcadeCabinet pitch={-2} />
-        </div>
-      )}
     </div>
   );
 }

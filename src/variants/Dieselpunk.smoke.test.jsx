@@ -15,6 +15,17 @@ import { describe, expect, it, beforeAll, afterEach, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import Dieselpunk from './Dieselpunk.jsx';
 
+// jsdom has no WebGL context, so the real `Canvas` would throw trying to build
+// a renderer (and, before that, on the missing `ResizeObserver` it measures
+// itself with). Nothing under it — `useThree`, `useFrame`, the whole R3F scene
+// graph — only ever runs once mounted *inside* a real `Canvas`, so replacing it
+// with a component that renders no children is enough to keep the rest of the
+// module untouched.
+vi.mock('@react-three/fiber', async (importOriginal) => ({
+  ...(await importOriginal()),
+  Canvas: () => null,
+}));
+
 beforeAll(() => {
   // jsdom leaves these at zero, which makes every floor zero pixels tall and
   // sends the lamp loop looking for fixtures in an empty shaft.

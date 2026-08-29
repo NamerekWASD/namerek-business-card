@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SURFACES, scaleChannels, shadedRgb, shadedRgba } from '../../model/materials.js';
+import { SURFACES, scaleChannels, shadedRgb, shadedRgba } from '../scene/model/materials.js';
 import { ironFace, surfaceStyle } from './surfaceStyle.js';
 
 describe('colour maths', () => {
