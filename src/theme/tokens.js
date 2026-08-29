@@ -4,7 +4,7 @@ export const cssVariables = {
   '--panel': '#2c2015',
   '--screen': '#100f0a',
   '--ink': '#ECE1C8',
-  '--muted': '#a3906d',
+  '--muted': '#d0b895',
   '--line': '#5c4530',
   '--brass': '#c2903f',
   '--brass-deep': '#8b5e22',

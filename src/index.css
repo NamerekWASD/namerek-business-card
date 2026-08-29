@@ -116,13 +116,13 @@ button {
 
 .fullscreen-modal-caption-text {
   font-size: 0.95rem;
-  color: var(--muted, #a3906d);
+  color: var(--muted, #d0b895);
 }
 
 .fullscreen-modal-counter {
   font-family: var(--mono, monospace);
   font-size: 0.85rem;
-  color: var(--muted, #a3906d);
+  color: var(--muted, #d0b895);
 }
 
 .fullscreen-modal-close {
@@ -169,7 +169,7 @@ button {
   font-size: 0.75rem;
   letter-spacing: 0.02em;
   text-transform: uppercase;
-  color: var(--muted, #a3906d);
+  color: var(--muted, #d0b895);
   text-align: center;
 }
 
