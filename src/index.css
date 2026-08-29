@@ -70,8 +70,10 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 1rem;
-  padding: 2rem;
+  /* Nav chevrons are pinned to the viewport edges (see `.fullscreen-modal-nav`)
+     rather than laid out in this row, so this padding is what keeps a wide
+     photo from rendering underneath them. */
+  padding: 2rem clamp(4rem, 9vw, 6rem);
   background: rgba(0, 0, 0, 0.85);
   /* The image is sized off its own width, never squeezed to fit the
      viewport's height — see `.fullscreen-modal-image`. When that leaves it
@@ -139,17 +141,34 @@ button {
   cursor: pointer;
 }
 
+/* Pinned to the viewport edge, not laid out beside the figure — a wide photo
+   used to push these outward and a narrow one pulled them in, so a visitor
+   stepping through the archive without watching the cursor would land on the
+   overlay's backdrop instead of the next chevron. Fixed positioning plus a
+   fixed glyph box (below) makes the glyph's own position independent of both
+   the photo's width and whether the project-title label is present. */
 .fullscreen-modal-nav {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 0.3rem;
-  flex-shrink: 0;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
   border: none;
   background: transparent;
   color: #fff;
   cursor: pointer;
-  padding: 0.5rem 0.75rem;
+  padding: 0;
+}
+
+.fullscreen-modal-nav--prev {
+  left: clamp(0.75rem, 3vw, 2rem);
+}
+
+.fullscreen-modal-nav--next {
+  right: clamp(0.75rem, 3vw, 2rem);
 }
 
 .fullscreen-modal-nav-glyph {
@@ -163,7 +182,12 @@ button {
   color: var(--glow, #ffb454);
 }
 
+/* Absolutely positioned against the fixed-size glyph box above, so it never
+   adds height to `.fullscreen-modal-nav` and never shifts the glyph. */
 .fullscreen-modal-nav-label {
+  position: absolute;
+  bottom: 100%;
+  margin-bottom: 0.4rem;
   max-width: 9rem;
   font-family: var(--display, sans-serif);
   font-size: 0.75rem;
