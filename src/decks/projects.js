@@ -49,12 +49,25 @@
  */
 export const PROJECTS = [
   {
+    id: 'game-store',
+    title: 'Game Store',
+    url: 'https://github.com/NamerekWASD/GameStore',
+    shots: [
+      { src: '/projects/game-store/1.png', caption: 'Homepage' },
+      { src: '/projects/game-store/2.png', caption: 'Game details' },
+      { src: '/projects/game-store/3.png', caption: 'Authorization' },
+      { src: '/projects/game-store/4.png', caption: 'Payment' },
+      { src: '/projects/game-store/5.png', caption: 'Order confirmation' },
+      { src: '/projects/game-store/6.png', caption: 'Game managment page' },
+    ],
+  },
+  {
     id: 'paperless-ocr-cascade',
     title: 'Paperless OCR Cascade',
-    url: 'https://example.org',        // optional — the LINK button's address
+    url: 'https://github.com/NamerekWASD/PaperSorter',
     shots: [
-      '/projects/paperless_ocr_cascade/1.png',
-      { src: '/projects/paperless-ocr-cascade/2.jpg', caption: 'Datenmodell' },
+      { src: '/projects/paperless-ocr-cascade/1.png', caption: 'Paperless webhook config' },
+      { src: '/projects/paperless-ocr-cascade/2.png', caption: 'Logs' },
     ],
   }
 ];
