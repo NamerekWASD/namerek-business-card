@@ -309,9 +309,17 @@ export default function Dieselpunk() {
             // landing) stands on `SCREEN_SIDE[i]`; the content takes the other
             // half so the two never fight for the same wall.
             const contentSide = SCREEN_SIDE[i] === 'left' ? 'right' : 'left';
+            // Up to three of these are mounted at once — this floor and the
+            // neighbour peeking in above or below it mid-ride — but only the
+            // one the visitor is standing on should answer to Tab or a screen
+            // reader. `inert` on the rest is what keeps the other two out of
+            // both.
+            const isActiveDeck = i === deckIndex;
             return (
               <div
                 key={d.id}
+                inert={!isActiveDeck}
+                aria-hidden={!isActiveDeck}
                 style={{
                   position: 'absolute', left: 0, right: 0, top: -i * contentFloorPitch, height: aperture.height,
                   display: 'flex', flexDirection: 'column', justifyContent: 'center',
