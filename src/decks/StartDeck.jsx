@@ -1,3 +1,5 @@
+import { PERSON } from './content.js';
+
 function StartDeck() {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '2.5rem', flexWrap: 'wrap' }}>
@@ -10,9 +12,9 @@ function StartDeck() {
           textShadow: '0 2px 0 rgba(0,0,0,0.5)',
         }}
       >
-        Mykolai
+        {PERSON.given}
         <br />
-        Tymchenko
+        {PERSON.family}
       </h1>
       <p
         style={{
@@ -20,11 +22,10 @@ function StartDeck() {
           color: 'var(--glow)', margin: '1rem 0 0', textShadow: '0 0 10px rgba(255,180,84,0.5)',
         }}
       >
-        .NET / C# &mdash; Backend &amp; Fullstack
+        {PERSON.role}
       </p>
       <p style={{ fontSize: 15, lineHeight: 1.7, color: 'var(--muted)', maxWidth: 340, margin: '1rem 0 0' }}>
-        Baue Systeme, die tragen &mdash; von der Datenbank bis zur Oberfl&auml;che.
-        Offen f&uuml;r neue Aufgaben im Ruhrgebiet / NRW.
+        {PERSON.intro.join(' ')}
       </p>
       </div>
     </div>
