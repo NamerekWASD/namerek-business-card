@@ -30,4 +30,7 @@ export const LAYERS = {
   /** the boot screen, over everything including the debug panel — while it is
       up there is no scene yet to debug */
   boot: 300,
+  /** the fullscreen image preview, over even the boot screen — it is a modal
+      the visitor opened, not part of the scene's own sequencing */
+  fullscreenImage: 400,
 };

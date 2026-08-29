@@ -12,6 +12,7 @@ import {
 } from '../renderers/r3f/gallery.js';
 import { SLIDES } from '../../decks/projects.js';
 import ScreenFrame, { frameMetrics } from './ScreenFrame.jsx';
+import { useFullscreenGallery } from './fullscreenImage.js';
 
 // The wall screen every landing shares: a fluted glass panel recessed into a
 // frame on the back wall, the same ribbing the arcade cabinet's own screen
@@ -201,15 +202,13 @@ function TerminalLog({ y, z, w, h, open, shut }) {
  * With nothing in the archive at all there is no shot to wait for and the glass
  * shows a test card. See `paintStandby`.
  */
-function ProjectSlide({ y, z, w, h, page, aspect }) {
+function ProjectSlide({ y, z, w, h, page, aspect, onImageClick }) {
   const [surface] = useState(() => (typeof document === 'undefined' ? null : gallerySurface()));
 
   useEffect(() => {
     if (!surface) return undefined;
     const show = () => {
       surface.texture.needsUpdate = true;
-      // The whole scene, not this canvas — both canvases are on demand and the
-      // near one holds the doors. See `frames.js`, and the flicker it names.
       invalidateScene();
     };
     const slide = SLIDES[page] ?? null;
@@ -232,9 +231,36 @@ function ProjectSlide({ y, z, w, h, page, aspect }) {
     return () => { live = false; };
   }, [surface, page, aspect]);
 
+  // Paging off this floor mid-hover unmounts this mesh without ever firing
+  // `onPointerOut` — three.js has nothing left to raycast against, so the
+  // pointer leaving is never detected. Left uncleared the cursor would stay
+  // `zoom-in` everywhere else in the scene. Unconditional, ahead of the
+  // `surface` guard below — a hook cannot follow an early return.
+  useEffect(() => () => { document.body.style.cursor = ''; }, []);
+
   if (!surface) return null;
+
+  const slide = SLIDES[page] ?? null;
+  const imageSrc = slide?.src ?? null;
+
+  const handlePointerOver = () => {
+    if (imageSrc) document.body.style.cursor = 'zoom-in';
+  };
+  const handlePointerOut = () => {
+    document.body.style.cursor = '';
+  };
+  const handleClick = (e) => {
+    e.stopPropagation();
+    if (imageSrc && onImageClick) onImageClick();
+  };
+
   return (
-    <mesh position={[0, y, z]}>
+    <mesh
+      position={[0, y, z]}
+      onPointerOver={handlePointerOver}
+      onPointerOut={handlePointerOut}
+      onClick={handleClick}
+    >
       <planeGeometry args={[w, h]} />
       <meshBasicMaterial map={surface.texture} transparent depthWrite={false} toneMapped={false} />
     </mesh>
@@ -258,19 +284,17 @@ function LandingScreen({
 }) {
   const t = SCREEN_TUNING.find((t) => t.floor === floor)?.tuning ?? SCREEN_TUNING[0].tuning;
   const half = w / 2;
-  // ── the console's state, held here and nowhere else ────────────────────────
-  // Which picture of the archive is loaded. It belongs to the landing rather
-  // than to the frame because *both* halves of the console read it: the counter
-  // and the name plate are on the frame, the picture is on the glass, and a
-  // number owned by one of them is a number the other has to be told about.
-  // Kept across a visit — the lift comes back to a floor often, and a gallery
+  // ── the console's state, and where it actually lives now ───────────────────
+  // Which picture of the archive is loaded. It used to be `useState` here, kept
+  // across a visit because the lift comes back to a floor often and a gallery
   // that rewinds itself every time the doors shut is a gallery nobody gets to
-  // the end of. The terminal downstairs reprints on purpose; this is the other
-  // case, and the difference is that one is an event and the other is a place.
-  const [page, setPage] = useState(0);
+  // the end of. It still is kept — `Dieselpunk` outlives every visit just as
+  // this component did — but it moved up there because the fullscreen modal
+  // pages the same number, and a modal rendered outside the Canvas cannot
+  // reach state held inside it. See `fullscreenImage.js`.
+  const { page, step, openFullscreenImage } = useFullscreenGallery();
   const pages = SLIDES.length;
   const slide = SLIDES[page] ?? null;
-  const step = (delta) => setPage((p) => Math.min(Math.max(0, p + delta), Math.max(0, pages - 1)));
   const slotLeft = side === 'left' ? left : left + half;
   const frameLeft = slotLeft + (side === 'left' ? t.outerMarginX : t.innerMarginX);
   const frameW = half - t.outerMarginX - t.innerMarginX;
@@ -365,6 +389,7 @@ function LandingScreen({
           y={m.glassY} z={m.glassZ + 0.5}
           w={m.glassW * t.screenFill} h={m.glassH * t.screenFill}
           page={page} aspect={m.glassW / m.glassH}
+          onImageClick={openFullscreenImage}
         />
       )}
       {raster && (

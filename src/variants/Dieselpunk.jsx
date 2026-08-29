@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import Grain from '../ui/Grain.jsx';
 
 import { cssVariables } from '../theme/tokens.js';
@@ -25,6 +25,8 @@ import { DOOR_TOTAL_MS, introClosure, introDim, introShake } from '../lift/intro
 import useLift from '../lift/useLift.js';
 import useRideFrame from '../lift/useRideFrame.js';
 import { RideTickerProvider } from '../lift/RideTickerContext.js';
+import { FullscreenImageProvider } from '../scene/r3f/fullscreenImage.js';
+import FullscreenImageModal from '../scene/r3f/FullscreenImageModal.jsx';
 import useIntroClock from '../lift/useIntroClock.js';
 import useBoot from '../boot/useBoot.js';
 import BootScreen from '../boot/BootScreen.jsx';
@@ -34,6 +36,7 @@ import LightingPanel from '../debug/LightingPanel.jsx';
 import useShotStates from '../debug/shots.js';
 import FloorSelector from '../ui/FloorSelector.jsx';
 import { DECK_BODIES } from '../decks/index.js';
+import { SLIDES } from '../decks/projects.js';
 
 export default function Dieselpunk() {
   const {
@@ -53,6 +56,28 @@ export default function Dieselpunk() {
   // the fade is still finishing, and the leaves shudder just as it clears. The
   // clock is autoplayed from `fade`, not from `done`, precisely so those two
   // overlap rather than queue.
+  // The Projekte console's page — which shot of the flat archive is loaded.
+  // Held here, above the Canvas, rather than in `LandingScreen`: the
+  // fullscreen modal pages this same counter (its PREV/NEXT are the console's
+  // own, not a copy), and a DOM overlay outside the Canvas can only reach a
+  // number that lives outside it too. See `fullscreenImage.js`.
+  const [page, setPage] = useState(0);
+  const pages = SLIDES.length;
+  const step = useCallback(
+    (delta) => setPage((p) => Math.min(Math.max(0, p + delta), Math.max(0, pages - 1))),
+    [pages],
+  );
+  // The gallery's zoomed-in view. Held here, above the Canvas, because the
+  // click that opens it fires from deep inside the R3F tree — see
+  // `fullscreenImage.js` for why the modal itself cannot live there too.
+  const [fullscreenOpen, setFullscreenOpen] = useState(false);
+  const openFullscreenImage = useCallback(() => setFullscreenOpen(true), []);
+  const closeFullscreenImage = useCallback(() => setFullscreenOpen(false), []);
+  const gallery = useMemo(
+    () => ({ page, step, openFullscreenImage }),
+    [page, step, openFullscreenImage],
+  );
+
   const boot = useBoot(r3f);
   const booted = boot.phase === 'fade' || boot.phase === 'done';
   const { t, setT, playing, play } = useIntroClock(DOOR_TOTAL_MS, booted);
@@ -183,6 +208,7 @@ export default function Dieselpunk() {
 
   return (
     <RideTickerProvider value={ticker}>
+    <FullscreenImageProvider value={gallery}>
     <div
       style={{
         ...cssVariables, background: 'var(--bg)', color: 'var(--ink)', fontFamily: "'Inter', sans-serif",
@@ -368,7 +394,13 @@ export default function Dieselpunk() {
           paint order, which means no z-index accident can put a fitting in
           front of it. */}
       <BootScreen screen={boot.screen} />
+      <FullscreenImageModal
+        open={fullscreenOpen} page={page}
+        onClose={closeFullscreenImage}
+        onPrev={() => step(-1)} onNext={() => step(1)}
+      />
     </div>
+    </FullscreenImageProvider>
     </RideTickerProvider>
   );
 }

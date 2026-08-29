@@ -427,8 +427,8 @@ function PressButton({
   // The bezel, and the glow plane laid over it — one size, so the bake knows
   // exactly how much of itself the cap covers and the bright part of the ring
   // lands in the reveal rather than behind the button.
-  const bezelW = w + (h * (GAP + SHOULDER)) * 1.2;
-  const bezelH = h + (h * (GAP + SHOULDER)) * 1.2;
+  const bezelW = w + (h * (GAP + SHOULDER)) * 0.4;
+  const bezelH = h + (h * (GAP + SHOULDER)) * 0.5;
   const glow = buttonRecess(w / bezelW, h / bezelH);
 
   // The cursor is the other half of "it presses". A cap that goes down under a
@@ -870,7 +870,7 @@ function Counter({ y, m, iron, z, page = 0, pages = 0 }) {
       </mesh>
       {plate && (
         <mesh position={[0, 0, z.vent + m.band * 0.22]}>
-          <planeGeometry args={[m.vent * 1.78, m.band * 0.62]} />
+          <planeGeometry args={[m.vent * 1.78, m.band * 0.75]} />
           <meshStandardMaterial
             map={plate}
             emissiveMap={plate}
@@ -908,7 +908,7 @@ function Cheek({ x, y, z, drop, reach, thick, material }) {
     s.lineTo(0, -drop);
     s.lineTo(-reach, -drop);
     s.closePath();
-    const bevel = thick * 0.16;
+    const bevel = thick * 0.01;
     const g = new ExtrudeGeometry(s, {
       depth: thick - bevel * 2,
       bevelEnabled: true,
