@@ -215,6 +215,11 @@ export default function Dieselpunk() {
         position: 'fixed', inset: 0, overflow: 'hidden',
       }}
     >
+      {/* Everything but the modal itself. `inert` while it is open keeps focus
+          from leaking into a scene the visitor can no longer see past the
+          overlay — the other half of the trap `FullscreenImageModal` builds
+          on its own side. */}
+      <div inert={fullscreenOpen} aria-hidden={fullscreenOpen}>
       <MotionBlurDef amount={blurAmount} contentAmount={contentSmear} />
       <Grain opacity={0.06} />
 
@@ -394,6 +399,7 @@ export default function Dieselpunk() {
           paint order, which means no z-index accident can put a fitting in
           front of it. */}
       <BootScreen screen={boot.screen} />
+      </div>
       <FullscreenImageModal
         open={fullscreenOpen} page={page}
         onClose={closeFullscreenImage}

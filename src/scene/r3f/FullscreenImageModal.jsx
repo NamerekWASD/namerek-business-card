@@ -1,6 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { LAYERS } from '../layers.js';
 import { SLIDES } from '../../decks/projects.js';
+
+const FOCUSABLE_SELECTOR = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
 // Mounted from `Dieselpunk` as a DOM sibling of the scene's `<Canvas>`, never
 // as its descendant — see `fullscreenImage.js` for why that boundary matters.
@@ -20,13 +22,54 @@ export default function FullscreenImageModal({
   open, page, onClose, onPrev, onNext,
 }) {
   const slide = open ? SLIDES[page] ?? null : null;
+  const dialogRef = useRef(null);
+  const closeButtonRef = useRef(null);
+  const openedFromRef = useRef(null);
+
+  // Focus moves in on open and comes back out on close — the trigger is a
+  // click on a mesh inside the R3F canvas, not a focusable DOM element, so
+  // whatever had focus before (usually `body`) is what "back" means here.
+  useEffect(() => {
+    if (!slide) return undefined;
+    openedFromRef.current = document.activeElement;
+    closeButtonRef.current?.focus();
+    return () => {
+      const target = openedFromRef.current;
+      if (target instanceof HTMLElement && document.contains(target)) target.focus();
+    };
+  }, [slide]);
 
   useEffect(() => {
     if (!slide) return undefined;
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') onClose();
-      else if (e.key === 'ArrowLeft') onPrev();
-      else if (e.key === 'ArrowRight') onNext();
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+      if (e.key === 'ArrowLeft') {
+        onPrev();
+        return;
+      }
+      if (e.key === 'ArrowRight') {
+        onNext();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      // The trap: Tab and Shift+Tab both stay inside the dialog's own
+      // focusable elements, wrapping at either end rather than escaping to
+      // whatever the background left focusable — see NAM-19 for why the
+      // background needs its own answer to that too.
+      const focusable = Array.from(dialogRef.current?.querySelectorAll(FOCUSABLE_SELECTOR) ?? []);
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
@@ -41,6 +84,7 @@ export default function FullscreenImageModal({
 
   return (
     <div
+      ref={dialogRef}
       className="fullscreen-modal-overlay"
       style={{ zIndex: LAYERS.fullscreenImage }}
       role="dialog"
@@ -49,6 +93,7 @@ export default function FullscreenImageModal({
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <button
+        ref={closeButtonRef}
         className="fullscreen-modal-close"
         onClick={onClose}
         aria-label="Close preview"
