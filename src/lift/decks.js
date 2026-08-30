@@ -4,7 +4,13 @@
 // Named the way the building names them, not the way an array indexes them: the
 // ground floor plate already reads EG, so 01..04 alongside it was the site
 // inventing a second numbering for the same four floors. `tick` is the short
-// form for the dial, where a full "1. OG" would not fit between the marks.
+// form for the dial, where a full "1. UG" would not fit between the marks.
+//
+// NAM-59: this is a lift that only goes down — the visitor descends from EG
+// into the shaft, they do not climb — so the floors below it are `UG`
+// (Untergeschoss, basement) rather than `OG` (Obergeschoss, a floor above
+// ground). Nothing here is baked into a texture; every plate and reading in
+// both the scene and the flat card draws its number from this file.
 
 /**
  * @typedef {{ id: string, label: string, no: string, tick: string }} Deck
@@ -13,9 +19,9 @@
 /** @type {Deck[]} */
 export const DECKS = [
   { id: 'start', label: 'Start', no: 'EG', tick: 'EG' },
-  { id: 'leistungen', label: 'Leistungen', no: '1. OG', tick: '1' },
-  { id: 'projekte', label: 'Projekte', no: '2. OG', tick: '2' },
-  { id: 'kontakt', label: 'Kontakt', no: '3. OG', tick: '3' },
+  { id: 'leistungen', label: 'Leistungen', no: '1. UG', tick: '1' },
+  { id: 'projekte', label: 'Projekte', no: '2. UG', tick: '2' },
+  { id: 'kontakt', label: 'Kontakt', no: '3. UG', tick: '3' },
 ];
 
 /**
