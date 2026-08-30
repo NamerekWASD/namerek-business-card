@@ -346,6 +346,20 @@ export default function Dieselpunk() {
           <FloorSelector pos={floorPos} deck={deckIndex} moving={moving} go={rideTo} />
         </div>
       </div>
+      {/* Quiet, and deliberately so — this is an escape hatch, not a call to
+          action. NAM-48's other half is `FloorKontakt`'s link back here. */}
+      <a
+        href="?flat"
+        style={{
+          position: 'absolute', right: 14, bottom: 10, zIndex: LAYERS.selector,
+          fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em',
+          color: 'var(--muted)', textDecoration: 'none', opacity: 0.5,
+          textTransform: 'uppercase',
+        }}
+      >
+        Flache Ansicht ↗
+      </a>
+
       {/* Over everything, including the debug panel: while this is up there is
           no scene to debug. It is the last child so it is also last in the
           paint order, which means no z-index accident can put a fitting in
