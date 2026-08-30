@@ -17,11 +17,11 @@ import FloorKontakt from './FloorKontakt.jsx';
 // the light reaching that surface — and this page has no lights, so it takes
 // the palette straight through the CSS classes in `flat.css` instead.
 //
-// **Two known defects are ported here on purpose**, so that the move and the
-// corrections stay separate commits: the keyboard is dead until something in
-// the page is focused (the handler is on this scroller and a cold load leaves
-// focus on `body`), and `.floor` clips rather than yields when its content is
-// taller than the viewport. NAM-49 owns both.
+// NAM-49 fixed both defects the transplant carried on purpose: the keyboard
+// listener is bound to `document` rather than to this scroller, because a
+// cold load leaves focus on `body` and a handler on an unfocused element
+// never fires; and `.floor` yields (`overflow-y: auto`) instead of clipping
+// when a section's content is taller than the viewport — see `flat.css`.
 export default function FlatCard() {
   const scrollerRef = useRef(null);
   const [active, setActive] = useState(0);
@@ -59,22 +59,35 @@ export default function FlatCard() {
     el.scrollTo({ top: clamped * el.clientHeight, behavior: 'smooth' });
   }, []);
 
-  const onKeyDown = (event) => {
-    // The fullscreen viewer pages the archive with the same arrows this uses to
-    // change floors, so while it is open the floors do not answer to them.
-    if (event.target.closest?.('[role="dialog"]')) return;
-    const next = {
-      ArrowDown: active + 1,
-      PageDown: active + 1,
-      ArrowUp: active - 1,
-      PageUp: active - 1,
-      Home: 0,
-      End: FLOORS.length - 1,
-    }[event.key];
-    if (next === undefined) return;
-    event.preventDefault();
-    goTo(next);
-  };
+  // Bound to `document`, not to `.bld`: a cold load leaves focus on `body`,
+  // and a handler that only listens on the scroller never fires until
+  // something inside it has been clicked or tabbed into. `active` is read off
+  // a ref so the listener does not have to be torn down and rebound on every
+  // floor change.
+  const activeRef = useRef(active);
+  activeRef.current = active;
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      // The fullscreen viewer pages the archive with the same arrows this
+      // uses to change floors, so while it is open the floors do not answer
+      // to them.
+      if (event.target.closest?.('[role="dialog"]')) return;
+      const current = activeRef.current;
+      const next = {
+        ArrowDown: current + 1,
+        PageDown: current + 1,
+        ArrowUp: current - 1,
+        PageUp: current - 1,
+        Home: 0,
+        End: FLOORS.length - 1,
+      }[event.key];
+      if (next === undefined) return;
+      event.preventDefault();
+      goTo(next);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [goTo]);
 
   // The wrapper is not decoration: it is what the palette is declared on, and
   // the rail is a fixed sibling of the scroller rather than a child of it, so
@@ -82,7 +95,7 @@ export default function FlatCard() {
   return (
     <div className="flat">
       <Rail active={active} progress={progress} onSelect={goTo} />
-      <main className="bld" ref={scrollerRef} onKeyDown={onKeyDown} tabIndex={-1}>
+      <main className={`bld${import.meta.env.PROD ? ' bld--prod' : ''}`} ref={scrollerRef}>
         <FloorStart />
         <FloorLeistungen />
         <FloorProjekte />

@@ -25,7 +25,11 @@
   --enamel-green: #1e4034;
   --enamel-cream: #e9dfc6;
 
-  --rail-w: 132px;
+  /* NAM-62: 132px was not enough room for "1. OG" beside its label without
+     wrapping — the mark's own left padding (clearance for the guide and the
+     car) alone was 40px, leaving under 72px for an enamel plate and a name
+     side by side. */
+  --rail-w: 184px;
   --mono: "Space Mono", ui-monospace, monospace;
   --display: "Archivo Black", "Space Grotesk", system-ui, sans-serif;
 }
@@ -46,6 +50,28 @@
 .bld *::before,
 .bld *::after {
   box-sizing: border-box;
+}
+
+/* NAM-61: the native scrollbar is the useful thing to see while working on
+   this page — it is the only honest signal that `.bld`, not the document, is
+   what actually scrolls — so it only disappears in a production build. The
+   rail is real `<nav>` with links to every section, so nothing is lost when
+   it goes: nothing here is the *only* way to move between floors. */
+.bld--prod {
+  scrollbar-width: none;
+}
+.bld--prod::-webkit-scrollbar {
+  display: none;
+}
+
+/* The a11y trap NAM-49 was filed over applies to the *snap itself* too, not
+   only to a floor's own overflow: below a viewport short enough that a
+   zoomed-in or landscape-phone visitor cannot see a floor's controls without
+   scrolling inside it, a mandatory snap keeps yanking them back before they
+   can act on what they found. Proximity still guides a normal scroll without
+   fighting one that has stopped short of a snap point. */
+@media (max-height: 480px) {
+  .bld { scroll-snap-type: y proximity; }
 }
 
 .bld :focus-visible {
@@ -80,13 +106,49 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  /* `safe center` degrades to start-aligned once the content is taller than
+     the floor instead of centring it off both edges — plain `center` here is
+     the a11y trap NAM-49 was filed over: at a browser zoom, in a short
+     landscape window or with a large minimum font size, the top of an
+     overflowing floor became permanently unreachable because the mandatory
+     snap kept yanking the scroller back to a point that centred content past
+     the fold. */
+  justify-content: safe center;
   padding: clamp(16px, 3vw, 40px);
   padding-left: calc(var(--rail-w) + clamp(12px, 3vw, 44px));
-  overflow: hidden;
+  /* The floor yields instead of clipping: content taller than the viewport
+     scrolls inside its own section rather than disappearing past `hidden`. */
+  overflow-y: auto;
+  overflow-x: hidden;
   background:
     radial-gradient(120% 90% at 20% 0%, rgba(255, 180, 84, 0.07), transparent 60%),
     linear-gradient(160deg, var(--bg-2), var(--bg) 65%);
+}
+
+/* The riveted seam between two floors — a structural beam standing in for
+   what used to be an unbroken gradient repeating at every viewport height
+   and reading as a banding artefact at the join. Absent on the first floor:
+   there is nothing above EG to be spliced to.
+   One pseudo-element, not two: `.floor` already owns `::after` for the grain
+   layer, and a second `::after` rule of higher specificity would replace it
+   outright rather than layer over it, losing the grain on every floor but
+   the first. The beam and its rivets are two `background` layers on the same
+   `::before` instead. */
+.floor + .floor::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 22px;
+  z-index: 2;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 3px 3px, #7a5f3f 0 1.6px, #241a11 1.9px, transparent 2.4px) var(--rail-w) 5px / 46px 12px repeat-x,
+    linear-gradient(180deg, #0b0805, #241a11 55%, #0b0805);
+  border-top: 1px solid rgba(236, 225, 200, 0.14);
+  border-bottom: 1px solid #060402;
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.45);
 }
 
 .floor::after {
@@ -287,6 +349,12 @@
   pointer-events: none;
   will-change: transform;
   z-index: 2;
+  /* A settling overshoot when the car lands, mirroring the brakes in
+     `lift/ride.js`. Most of a scroll gesture updates this every frame — a
+     moving target interrupts its own transition each time — so the bounce
+     only has room to show once the scroll actually stops and the last write
+     is the one left to settle toward. */
+  transition: transform 260ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .rail-car {
@@ -317,18 +385,20 @@
   z-index: 3;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 2px 0 2px 40px;
+  gap: 10px;
+  padding: 4px 6px 4px 38px;
   background: none;
   border: 0;
   cursor: pointer;
   font-family: var(--mono);
   text-align: left;
+  text-decoration: none;
 }
 
 .rail-mark .enamel {
   opacity: 0.5;
   transition: opacity 200ms linear;
+  white-space: nowrap;
 }
 .rail-mark[aria-current="true"] .enamel {
   opacity: 1;
@@ -341,10 +411,11 @@
 }
 
 .rail-mark-name {
-  font-size: 9px;
-  letter-spacing: 0.16em;
+  font-size: 11px;
+  letter-spacing: 0.1em;
   color: var(--line);
   text-transform: uppercase;
+  white-space: nowrap;
 }
 .rail-mark[aria-current="true"] .rail-mark-name { color: var(--glow); }
 
@@ -641,58 +712,10 @@
   transform: rotate(-3deg);
 }
 
-/* ---------- viewer ---------- */
-
-.viewer {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-  background: rgba(10, 7, 4, 0.94);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: clamp(40px, 8vw, 90px);
-}
-.viewer img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-  border: 1px solid var(--line);
-}
-.viewer-nav {
-  position: fixed;
-  top: 50%;
-  transform: translateY(-50%);
-  background: #241a11;
-  border: 1px solid var(--line);
-  color: var(--ink);
-  width: 48px;
-  height: 60px;
-  cursor: pointer;
-}
-.viewer-prev { left: 8px; }
-.viewer-next { right: 8px; }
-.viewer-close {
-  position: fixed;
-  top: 12px;
-  right: 12px;
-  min-height: 44px;
-  padding: 10px 14px;
-  background: #241a11;
-  border: 1px solid var(--line);
-  color: var(--ink);
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.2em;
-  cursor: pointer;
-}
-.viewer-cap {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 14px;
-  text-align: center;
-}
+/* The flat page's own fullscreen viewer used to live here. It rendered as
+   `Viewer.jsx`, a second implementation of `FullscreenImageModal` — NAM-53
+   decided that modal wins, and `FloorProjekte` now portals the shared one in
+   instead, styled by `.fullscreen-modal-*` in `index.css`. */
 
 /* ---------- responsive ---------- */
 
@@ -724,7 +747,7 @@
     scroll-snap-type: y proximity;
     scroll-behavior: auto;
   }
-  .rail-car { transition: none; }
+  .rail-shuttle { transition: none; }
   .floor-inner { opacity: 1; animation: none !important; }
   .needle { animation: none !important; }
   .crt-roll { display: none; }
