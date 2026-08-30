@@ -19,16 +19,26 @@ function Rail({ active, progress, onSelect }) {
           <div className="rail-car" />
         </div>
         {FLOORS.map((floor) => (
-          <button
+          // A real link to the section's own id, not a bare button: this is
+          // the page's skip navigation as much as it is the lift's dial, and
+          // it has to keep working with the click handler stripped out —
+          // right-click-to-open-in-a-tab, a screen reader's link list, JS
+          // disabled entirely. `goTo` is still what runs on a plain click, so
+          // the ride keeps its own smooth-scroll and settle rather than
+          // falling back to the browser's bare jump.
+          <a
             key={floor.id}
-            type="button"
+            href={`#${floor.id}`}
             className="rail-mark"
             aria-current={active === floor.index ? 'true' : 'false'}
-            onClick={() => onSelect(floor.index)}
+            onClick={(event) => {
+              event.preventDefault();
+              onSelect(floor.index);
+            }}
           >
             <span className="enamel">{floor.code}</span>
             <span className="rail-mark-name">{floor.label}</span>
-          </button>
+          </a>
         ))}
       </div>
     </nav>
