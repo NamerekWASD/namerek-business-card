@@ -198,21 +198,65 @@
   min-height: 0;
 }
 
-/* lamp strike: opacity only */
-.floor-inner {
-  opacity: 0.18;
+/* ---------- arrival ---------- */
+
+/* NBC-63. The old arrival ran `.floor-inner` from opacity 0.18 through four
+   hard `steps(1, end)` jumps, and it failed on three counts at once. It was
+   the *content* that blinked, which reads as a page that has not finished
+   loading rather than as a room being lit. The strobe was untuned — five
+   changes across 1.15s over the whole section is above the three-flashes-a-
+   second line that exists for photosensitive visitors, so it had to change
+   whatever anyone thought of it. And a hard flicker with nothing else in it
+   is the cheapest possible reading of "lamp": real ones do not chop between
+   two values, they strike once and then take a moment to come up.
+
+   So: the light is its own layer over the floor, the text underneath it is at
+   full strength from the first frame, and the arrival is three things rather
+   than one strobe —
+
+   1. *the contactor*: one hard beat, the scrim gone in 50ms and most of the
+      way back in 70ms. One flash, in the right place, and no more;
+   2. *the warm-up*: the tube coming up over the next three-quarters of a
+      second, on an ease that is fast at first and slow to settle;
+   3. *the cascade*: the floor's own things taking the light in the order they
+      are stacked, 70ms apart, so the room resolves instead of switching on.
+
+   Opacity only, as `NAM-55` requires: this page exists for machines with no
+   working GPU. */
+
+.floor-lamp {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  /* Not flat black: the lamp is up and to the left of every floor, so what
+     lifts is warm where the lamp is and cold in the far corner. */
+  background:
+    radial-gradient(120% 95% at 18% 0%, rgba(90, 52, 18, 0.55), transparent 62%),
+    rgba(8, 5, 3, 0.9);
 }
-.floor.is-lit .floor-inner {
-  animation: strike 1.15s steps(1, end) forwards;
+.floor.is-lit .floor-lamp {
+  animation: lamp-strike 880ms cubic-bezier(0.16, 0.8, 0.3, 1) forwards;
 }
-@keyframes strike {
-  0% { opacity: 0.18; }
-  8% { opacity: 1; }
-  22% { opacity: 0.35; }
-  36% { opacity: 0.95; }
-  52% { opacity: 0.45; }
-  70% { opacity: 1; }
-  100% { opacity: 1; }
+@keyframes lamp-strike {
+  0% { opacity: 1; }
+  6% { opacity: 0.06; }
+  14% { opacity: 0.66; }
+  100% { opacity: 0; }
+}
+
+/* The cascade. Four steps is as many as the floors have top-level parts; a
+   fifth would be arriving after the lamp has finished, which reads as a lag
+   rather than as an order. */
+.floor.is-lit .floor-inner > * {
+  animation: lamp-reach 420ms ease-out backwards;
+}
+.floor.is-lit .floor-inner > *:nth-child(2) { animation-delay: 70ms; }
+.floor.is-lit .floor-inner > *:nth-child(3) { animation-delay: 140ms; }
+.floor.is-lit .floor-inner > *:nth-child(n + 4) { animation-delay: 210ms; }
+@keyframes lamp-reach {
+  from { opacity: 0.45; }
+  to { opacity: 1; }
 }
 
 .floor-tag {
@@ -871,7 +915,10 @@
     scroll-behavior: auto;
   }
   .rail-shuttle { transition: none; }
-  .floor-inner { opacity: 1; animation: none !important; }
+  /* No strike, no cascade, and the floor simply arrives lit. What is left has
+     to look finished on its own — see NAM-55. */
+  .floor-lamp { display: none; }
+  .floor.is-lit .floor-inner > * { animation: none !important; }
   .needle { animation: none !important; }
   .crt-roll { display: none; }
   .crt img { animation: none !important; }

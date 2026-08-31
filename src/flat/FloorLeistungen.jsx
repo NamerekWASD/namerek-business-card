@@ -45,7 +45,6 @@ function FloorLeistungen() {
 
   return (
     <Floor meta={FLOORS[1]}>
-      <DialDefs />
       <p className="label">1. Untergeschoss</p>
       <h2 style={{ fontSize: 'clamp(26px, 4.6vw, 54px)', marginTop: 8 }}>Leistungen</h2>
       <div className="panel" style={{ marginTop: 'clamp(14px, 2.4vh, 28px)' }}>
@@ -76,6 +75,10 @@ function FloorLeistungen() {
       <p className="stencil stencil--sm" style={{ marginTop: 12 }}>
         Anzeigen dienen der Beschriftung — keine Bewertung, keine Prozentwerte.
       </p>
+      {/* Last, and not first: the arrival lights this floor's parts in the
+          order they are stacked (NBC-63), and an invisible one at the head of
+          the queue would take a step of the cascade with it. */}
+      <DialDefs />
     </Floor>
   );
 }
