@@ -898,6 +898,18 @@
      enough for the car, which is the one thing that still has to be readable
      at a glance. */
   .flat { --rail-w: 58px; }
+  /* NBC-66, measured on a Pixel 6a at 411px: the rail is *drawn* 58px wide but
+     only 37 of them answered a finger. The trough sits inside the rail's own
+     10px side padding, and the rail is `position: fixed` — so the two 10px
+     strips beside it were the one place on the page where a drag did nothing
+     at all: not a scrub, because the trough is not under the finger, and not a
+     scroll, because the scroller is behind a fixed element. A thumb reaching
+     for the left edge — which is where a thumb goes — landed on 5% of the
+     screen that reads as a frozen page. The desktop layout keeps the padding;
+     there a pointer is precise and the strip is a margin, not a target.
+     Verified by dragging at 3, 8, 15, 29, 45, 53 and 57px on the device. */
+  .rail { padding: 8px 0; }
+  .rail-track { margin: 0; }
   .rail-mark-name,
   .rail-title { display: none; }
   .rail-mark { padding: 0; align-items: center; }
