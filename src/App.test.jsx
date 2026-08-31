@@ -7,6 +7,7 @@ import { describe, expect, it, beforeAll, afterEach, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 
 const webglAvailable = vi.fn();
+const sceneRendered = vi.fn();
 vi.mock('./scene/renderers/flag.js', () => ({ webglAvailable: (...args) => webglAvailable(...args) }));
 
 // The scene itself is not what this file tests — `Dieselpunk.smoke.test.jsx`
@@ -15,7 +16,7 @@ vi.mock('./scene/renderers/flag.js', () => ({ webglAvailable: (...args) => webgl
 // at all in the other test, proof that a WebGL-less machine never pays for
 // importing it.
 vi.mock('./variants/Dieselpunk', () => ({
-  default: () => { throw new Error('scene exploded'); },
+  default: () => { sceneRendered(); throw new Error('scene exploded'); },
 }));
 
 import App from './App.jsx';
@@ -29,6 +30,8 @@ beforeAll(() => {
 afterEach(() => {
   cleanup();
   webglAvailable.mockReset();
+  sceneRendered.mockReset();
+  window.localStorage.clear();
 });
 
 describe('App', () => {
@@ -46,5 +49,34 @@ describe('App', () => {
     render(<App />);
     expect(screen.getByRole('link', { name: PERSON.email })).toBeDefined();
     spy.mockRestore();
+  });
+
+  // NBC-56: the override has to outlive the URL it was made in. Both links
+  // that switch between the two renderings hand out the bare address on the
+  // next visit, so without this a visitor's choice lasts one page load.
+  it('honours a view chosen on an earlier visit, without reaching the scene', () => {
+    webglAvailable.mockReturnValue(true);
+    window.localStorage.setItem('namerek:view', 'flat');
+    render(<App />);
+    expect(screen.getByRole('link', { name: PERSON.email })).toBeDefined();
+    expect(sceneRendered).not.toHaveBeenCalled();
+  });
+
+  it('writes the choice down when it arrives in the query string', () => {
+    webglAvailable.mockReturnValue(true);
+    const search = window.location.search;
+    Object.defineProperty(window, 'location', {
+      value: { ...window.location, search: '?flat' },
+      writable: true,
+      configurable: true,
+    });
+    render(<App />);
+    expect(window.localStorage.getItem('namerek:view')).toBe('flat');
+    expect(sceneRendered).not.toHaveBeenCalled();
+    Object.defineProperty(window, 'location', {
+      value: { ...window.location, search },
+      writable: true,
+      configurable: true,
+    });
   });
 });
