@@ -207,19 +207,17 @@
    changes across 1.15s over the whole section is above the three-flashes-a-
    second line that exists for photosensitive visitors, so it had to change
    whatever anyone thought of it. And a hard flicker with nothing else in it
-   is the cheapest possible reading of "lamp": real ones do not chop between
-   two values, they strike once and then take a moment to come up.
+   is the cheapest possible reading of "lamp".
 
-   So: the light is its own layer over the floor, the text underneath it is at
-   full strength from the first frame, and the arrival is three things rather
-   than one strobe —
-
-   1. *the contactor*: one hard beat, the scrim gone in 50ms and most of the
-      way back in 70ms. One flash, in the right place, and no more;
-   2. *the warm-up*: the tube coming up over the next three-quarters of a
-      second, on an ease that is fast at first and slow to settle;
-   3. *the cascade*: the floor's own things taking the light in the order they
-      are stacked, 70ms apart, so the room resolves instead of switching on.
+   So the light is its own layer over the floor and the text underneath it is
+   at full strength from its first frame. Of the arrivals put up for the call,
+   the cascade was the one chosen, and it is now the whole of the motion: the
+   floor's own parts take the light in the order they are stacked, 70ms apart,
+   so the room resolves rather than switches on. The contactor beat that used
+   to open it — scrim gone in 50ms, most of the way back in 70ms — is gone
+   with it: a hit is a flash however well aimed, and nothing here needs one.
+   What is left of the whole-floor layer only thins, once, never rising again;
+   `Floor.test.jsx` holds that curve monotonic.
 
    Opacity only, as `NAM-55` requires: this page exists for machines with no
    working GPU. */
@@ -235,28 +233,34 @@
     radial-gradient(120% 95% at 18% 0%, rgba(90, 52, 18, 0.55), transparent 62%),
     rgba(8, 5, 3, 0.9);
 }
+/* Clear of the floor before the cascade has finished crossing it — the dark
+   has to be thin enough to see the order the parts arrive in, or the cascade
+   is a thing that happened behind a curtain. */
 .floor.is-lit .floor-lamp {
-  animation: lamp-strike 880ms cubic-bezier(0.16, 0.8, 0.3, 1) forwards;
+  animation: lamp-lift 820ms cubic-bezier(0.33, 0, 0.2, 1) forwards;
 }
-@keyframes lamp-strike {
+@keyframes lamp-lift {
   0% { opacity: 1; }
-  6% { opacity: 0.06; }
-  14% { opacity: 0.66; }
+  45% { opacity: 0.22; }
   100% { opacity: 0; }
 }
 
 /* The cascade. Four steps is as many as the floors have top-level parts; a
    fifth would be arriving after the lamp has finished, which reads as a lag
-   rather than as an order. */
+   rather than as an order. It ends on the part's own resting opacity, not on
+   1: stencilled paint sits at 0.82, and an animation that finishes at full
+   strength drops it back afterwards — one part of the floor blinking on the
+   last frame, which is the exact thing this issue is about. Anything with an
+   opacity of its own declares it as `--rest-opacity` too. */
 .floor.is-lit .floor-inner > * {
-  animation: lamp-reach 420ms ease-out backwards;
+  animation: lamp-reach 480ms ease-out backwards;
 }
 .floor.is-lit .floor-inner > *:nth-child(2) { animation-delay: 70ms; }
 .floor.is-lit .floor-inner > *:nth-child(3) { animation-delay: 140ms; }
 .floor.is-lit .floor-inner > *:nth-child(n + 4) { animation-delay: 210ms; }
 @keyframes lamp-reach {
-  from { opacity: 0.45; }
-  to { opacity: 1; }
+  from { opacity: calc(var(--rest-opacity, 1) * 0.42); }
+  to { opacity: var(--rest-opacity, 1); }
 }
 
 .floor-tag {
@@ -343,12 +347,15 @@
 /* ---------- stencils ---------- */
 
 .stencil {
+  /* Both the resting value and where the arrival cascade lands — see
+     `lamp-reach`. */
+  --rest-opacity: 0.82;
   font-family: var(--mono);
   text-transform: uppercase;
   letter-spacing: 0.22em;
   font-size: 11px;
   color: var(--muted);
-  opacity: 0.82;
+  opacity: var(--rest-opacity);
   background-image: repeating-linear-gradient(
     92deg,
     transparent 0 7px,
@@ -928,8 +935,8 @@
     scroll-behavior: auto;
   }
   .rail-shuttle { transition: none; }
-  /* No strike, no cascade, and the floor simply arrives lit. What is left has
-     to look finished on its own — see NAM-55. */
+  /* No cascade, no lifting dark, and the floor simply arrives lit. What is
+     left has to look finished on its own — see NAM-55. */
   .floor-lamp { display: none; }
   .floor.is-lit .floor-inner > * { animation: none !important; }
   .needle { animation: none !important; }
