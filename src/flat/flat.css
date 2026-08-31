@@ -145,10 +145,12 @@
   pointer-events: none;
   /* The tile is the *spacing*, not the rivet: the asset has a viewBox and no
      intrinsic size, so `xMidYMid meet` scales it to the tile's short side and
-     centres it — a 15px head every 76px along the beam rather than a solid
-     bead of them. */
+     centres it — a small head every 60px along the beam rather than a solid
+     bead of them. The beam is a splice plate, not a floor plate: its bolts are
+     the smallest in the building, and at the size the plates' corner rivets
+     use they took the seam over entirely. */
   background:
-    var(--rivet-iron, none) var(--rail-w) 3px / 76px 16px repeat-x,
+    var(--rivet-iron, none) var(--rail-w) 6px / 60px 11px repeat-x,
     linear-gradient(180deg, #0b0805, #241a11 55%, #0b0805);
   border-top: 1px solid rgba(236, 225, 200, 0.14);
   border-bottom: 1px solid #060402;
@@ -486,7 +488,7 @@
 }
 .chevrons svg:last-child { opacity: 0.45; }
 
-/* ---------- 1. OG instruments ---------- */
+/* ---------- 1. UG instruments ---------- */
 
 .instrument-board {
   display: grid;
@@ -502,15 +504,25 @@
   padding: clamp(10px, 1.4vw, 18px);
 }
 
+/* The gauge is round now (NBC-64), so it no longer needs a square's worth of
+   width to show the same face. */
 .dial {
   width: 100%;
-  max-width: 190px;
+  max-width: 172px;
   height: auto;
   display: block;
 }
 
+/* The shared gradients `Dial` refers to. Rendered once and never seen. */
+.dial-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
 .needle {
-  transform-origin: 100px 104px;
+  transform-origin: 100px 100px;
   transform: rotate(calc(-120deg + var(--needle-deg, 0deg)));
 }
 .is-lit .needle {
@@ -525,11 +537,38 @@
 .tech-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 12px;
+  gap: 9px 8px;
   justify-content: center;
   list-style: none;
-  margin: 0;
+  margin: 2px 0 0;
   padding: 0;
+}
+
+/* NBC-64: one small plate per technology, each hung a little off true — the
+   angle comes from the board (`--tilt`), the depth from here.
+   The depth is two inset lines and a drop shadow, not a gradient: a pressed
+   tag catches the lamp on its top edge and shades on its bottom one, and that
+   pair is the whole of what makes a flat rectangle read as a thing with an
+   edge. `transform` is what carries the tilt, so nothing here costs a layout.
+   `stencil` is deliberately not used on these: a stencil is sprayed onto
+   something consumable, and a tag screwed to an instrument board outlives the
+   board. */
+.tech {
+  transform: rotate(var(--tilt, 0deg));
+  font-family: var(--mono);
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--brass);
+  padding: 6px 9px 5px;
+  border-radius: 1px;
+  background: linear-gradient(178deg, #33251a, #20180f);
+  border: 1px solid #100b06;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 220, 170, 0.16),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.65),
+    0 3px 5px rgba(0, 0, 0, 0.5);
 }
 
 /* ---------- 2. OG CRT ---------- */
@@ -747,7 +786,7 @@
 @media (max-width: 560px) {
   .eg-grid { grid-template-columns: 1fr; }
   .instrument-board { grid-template-columns: repeat(2, 1fr); gap: 6px; }
-  .dial { max-width: 108px; }
+  .dial { max-width: 104px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
