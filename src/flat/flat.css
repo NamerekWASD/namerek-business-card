@@ -143,8 +143,12 @@
   height: 22px;
   z-index: 2;
   pointer-events: none;
+  /* The tile is the *spacing*, not the rivet: the asset has a viewBox and no
+     intrinsic size, so `xMidYMid meet` scales it to the tile's short side and
+     centres it — a 15px head every 76px along the beam rather than a solid
+     bead of them. */
   background:
-    radial-gradient(circle at 3px 3px, #7a5f3f 0 1.6px, #241a11 1.9px, transparent 2.4px) var(--rail-w) 5px / 46px 12px repeat-x,
+    var(--rivet-iron, none) var(--rail-w) 3px / 76px 16px repeat-x,
     linear-gradient(180deg, #0b0805, #241a11 55%, #0b0805);
   border-top: 1px solid rgba(236, 225, 200, 0.14);
   border-bottom: 1px solid #060402;
@@ -214,22 +218,26 @@
     0 10px 24px rgba(0, 0, 0, 0.5);
 }
 
+/* NBC-65: four bolts, one per corner — not a dotted rule round the edge.
+   What was here was a 3px disc of one colour repeated every 34px along all
+   four sides, and at that size and that spacing a rivet has no chance of
+   reading as anything but a decorative border. The asset is `ui/rivet.js`;
+   `FlatCard` hands it in on `--rivet` because a stylesheet with no build step
+   cannot build a data URL itself.
+
+   `inset` and `background-size` together are what places them: the head is
+   `RIVET_HEAD` (22/32) of the asset's box, the rest being room for its own
+   shadow, so a 26px box puts an 18px head centred 26px in from the plate's
+   corner. */
 .panel::before {
-  /* rivet row, inset from edge */
   content: "";
   position: absolute;
-  inset: 9px;
-  border-radius: 1px;
+  inset: 13px;
   pointer-events: none;
-  background-image:
-    radial-gradient(circle at 3px 3px, #6b5236 0 1.6px, #241a11 1.9px, transparent 2.4px),
-    radial-gradient(circle at 3px 3px, #6b5236 0 1.6px, #241a11 1.9px, transparent 2.4px),
-    radial-gradient(circle at 3px 3px, #6b5236 0 1.6px, #241a11 1.9px, transparent 2.4px),
-    radial-gradient(circle at 3px 3px, #6b5236 0 1.6px, #241a11 1.9px, transparent 2.4px);
-  background-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
-  background-size: 34px 6px, 34px 6px, 6px 34px, 6px 34px;
-  background-position: left top, left bottom, left top, right top;
-  opacity: 0.85;
+  background-image: var(--rivet, none), var(--rivet, none), var(--rivet, none), var(--rivet, none);
+  background-repeat: no-repeat;
+  background-size: 26px 26px;
+  background-position: left top, right top, left bottom, right bottom;
 }
 
 .panel-body {
