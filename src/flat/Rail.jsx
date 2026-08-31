@@ -99,14 +99,22 @@ function Rail({ active, progress, onSelect, onScrubStart, onScrub, onScrubEnd, o
             key={floor.id}
             href={`#${floor.id}`}
             className="rail-mark"
+            // Named on the link rather than left to whatever is visible
+            // inside it: below 900px the floor's name is not drawn and the
+            // plate shows the short form, and a link reading "1" is not a
+            // floor anyone can navigate by.
+            aria-label={`${floor.code} — ${floor.label}`}
             aria-current={active === floor.index ? 'true' : 'false'}
             onClick={(event) => {
               event.preventDefault();
               onSelect(floor.index);
             }}
           >
-            <span className="enamel">{floor.code}</span>
-            <span className="rail-mark-name">{floor.label}</span>
+            <span className="enamel" aria-hidden="true">
+              <span className="rail-code">{floor.code}</span>
+              <span className="rail-tick">{floor.tick}</span>
+            </span>
+            <span className="rail-mark-name" aria-hidden="true">{floor.label}</span>
           </a>
         ))}
       </div>

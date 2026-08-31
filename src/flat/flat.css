@@ -299,18 +299,22 @@
 .panel::before {
   content: "";
   position: absolute;
-  inset: 13px;
+  inset: clamp(7px, 1.2vw, 13px);
   pointer-events: none;
   background-image: var(--rivet, none), var(--rivet, none), var(--rivet, none), var(--rivet, none);
   background-repeat: no-repeat;
-  background-size: 26px 26px;
+  background-size: clamp(15px, 2.2vw, 26px) clamp(15px, 2.2vw, 26px);
   background-position: left top, right top, left bottom, right bottom;
 }
 
+/* The padding has to clear the bolts, at every width: a rivet reaches
+   `inset + size` in from the corner, and text under a bolt head is the one
+   way four corner rivets can look worse than the dotted rule they replaced.
+   Kept a few pixels ahead of that reach at both ends of the clamp. */
 .panel-body {
   position: relative;
   z-index: 1;
-  padding: clamp(16px, 2.4vw, 34px);
+  padding: clamp(26px, 3.6vw, 44px);
 }
 
 /* ---------- enamel plates ---------- */
@@ -511,6 +515,12 @@
   text-decoration: none;
 }
 
+/* The plate carries the full floor number where there is room for it and the
+   short form where there is not — the rail's own version of the swap the
+   scene's dial makes. Both are `aria-hidden`; the link is named by its
+   `aria-label`, so neither is what a screen reader reads. */
+.rail-tick { display: none; }
+
 .rail-mark .enamel {
   font-size: 13px;
   padding: 8px 12px;
@@ -675,6 +685,7 @@
   line-height: 1;
   letter-spacing: 0.14em;
   text-transform: uppercase;
+  white-space: nowrap;
   color: var(--brass);
   padding: 6px 9px 5px;
   border-radius: 1px;
@@ -890,7 +901,9 @@
   .rail-mark-name,
   .rail-title { display: none; }
   .rail-mark { padding: 0; align-items: center; }
-  .rail-mark .enamel { font-size: 11px; padding: 7px 9px; }
+  .rail-code { display: none; }
+  .rail-tick { display: inline; }
+  .rail-mark .enamel { font-size: 13px; padding: 8px 10px; letter-spacing: 0; }
   .rail-mark:not([aria-current="true"]) .enamel { opacity: 0.32; }
   .rail-guide { left: 50%; margin-left: -15px; }
   .rail-car { left: 50%; margin-left: -18px; }
