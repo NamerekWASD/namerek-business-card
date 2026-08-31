@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import './flat.css';
 import { FLOORS } from './floors.js';
 import Rail from './Rail.jsx';
+import { rivetImage } from '../ui/rivet.js';
 import FloorStart from './FloorStart.jsx';
 import FloorLeistungen from './FloorLeistungen.jsx';
 import FloorProjekte from './FloorProjekte.jsx';
@@ -22,6 +23,15 @@ import FloorKontakt from './FloorKontakt.jsx';
 // cold load leaves focus on `body` and a handler on an unfocused element
 // never fires; and `.floor` yields (`overflow-y: auto`) instead of clipping
 // when a section's content is taller than the viewport — see `flat.css`.
+// The bolt head, handed to the stylesheet. `flat.css` has no build step and
+// cannot construct a data URL, and the alternative — pasting the SVG into the
+// CSS by hand — is a second copy of `ui/rivet.js` that will drift from the
+// first. See NBC-65.
+const RIVETS = {
+  '--rivet': rivetImage('brass'),
+  '--rivet-iron': rivetImage('iron'),
+};
+
 export default function FlatCard() {
   const scrollerRef = useRef(null);
   const [active, setActive] = useState(0);
@@ -59,6 +69,41 @@ export default function FlatCard() {
     el.scrollTo({ top: clamped * el.clientHeight, behavior: 'smooth' });
   }, []);
 
+  // NBC-62: the rail is the scrollbar now, so it has to be able to drive the
+  // scroller and not only read it.
+  //
+  // The snap is why this is three callbacks rather than one. `.bld` snaps
+  // mandatorily — that is the whole spine of the page — and a drag that writes
+  // `scrollTop` every frame against a mandatory snap is a fight the drag
+  // loses. `is-scrubbing` lifts the snap for exactly as long as a pointer is
+  // down; the release rides to whichever floor the car was left over, which is
+  // the same landing a flung scroll gets. Written to the node, not to state: a
+  // drag would otherwise re-render four floors several times a second to
+  // change one class.
+  const onScrubStart = useCallback(() => {
+    scrollerRef.current?.classList.add('is-scrubbing');
+  }, []);
+
+  const onScrub = useCallback((fraction) => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    el.scrollTop = fraction * Math.max(0, el.scrollHeight - el.clientHeight);
+  }, []);
+
+  const onScrubEnd = useCallback(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    el.classList.remove('is-scrubbing');
+    goTo(Math.round(el.scrollTop / Math.max(1, el.clientHeight)));
+  }, [goTo]);
+
+  // The rail is a fixed sibling of the scroller, so a wheel over it reaches
+  // nothing on its own. Forwarded rather than ignored: a strip a fifth of the
+  // window wide that swallows the wheel is a worse bug than no rail at all.
+  const onWheel = useCallback((event) => {
+    scrollerRef.current?.scrollBy({ top: event.deltaY, behavior: 'auto' });
+  }, []);
+
   // Bound to `document`, not to `.bld`: a cold load leaves focus on `body`,
   // and a handler that only listens on the scroller never fires until
   // something inside it has been clicked or tabbed into. `active` is read off
@@ -93,9 +138,17 @@ export default function FlatCard() {
   // the rail is a fixed sibling of the scroller rather than a child of it, so
   // both have to sit inside the element that carries the custom properties.
   return (
-    <div className="flat">
-      <Rail active={active} progress={progress} onSelect={goTo} />
-      <main className={`bld${import.meta.env.PROD ? ' bld--prod' : ''}`} ref={scrollerRef}>
+    <div className="flat" style={RIVETS}>
+      <Rail
+        active={active}
+        progress={progress}
+        onSelect={goTo}
+        onScrubStart={onScrubStart}
+        onScrub={onScrub}
+        onScrubEnd={onScrubEnd}
+        onWheel={onWheel}
+      />
+      <main className="bld" ref={scrollerRef}>
         <FloorStart />
         <FloorLeistungen />
         <FloorProjekte />

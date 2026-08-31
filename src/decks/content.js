@@ -29,7 +29,7 @@ export const PERSON = {
   city: 'Duisburg',
   availability: 'Verfügbar ab sofort',
   email: 'nykolai.tymchenko@gmail.com',
-  linkedin: 'https://linkedin.com/in/mykolai-tymchenko',
+  linkedin: 'https://www.linkedin.com/in/mykolai-tymchenko-ab3ab724a/',
   github: 'https://github.com/NamerekWASD',
   portrait: null,
 };

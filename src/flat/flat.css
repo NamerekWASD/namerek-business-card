@@ -25,11 +25,23 @@
   --enamel-green: #1e4034;
   --enamel-cream: #e9dfc6;
 
-  /* NAM-62: 132px was not enough room for "1. OG" beside its label without
-     wrapping — the mark's own left padding (clearance for the guide and the
-     car) alone was 40px, leaving under 72px for an enamel plate and a name
-     side by side. */
-  --rail-w: 184px;
+  /* NBC-62: the rail has to hold, on one line and inside its own edge, the
+     clearance for the guide and the car, an enamel plate reading "1. UG", and
+     the longest floor name in the building. At 184px it did not: the names
+     ran out over the content beside it, which is what made the rail look
+     unfinished however the rest of it was drawn. This is measured against
+     LEISTUNGEN — the longest — at the size below.
+
+     Beside the plate it would not fit under 270px, which is a fifth of a
+     laptop window given over to chrome on a business card. Stacked under the
+     plate it needs the widest of the two, not their sum, and the name gets to
+     be bigger rather than smaller. That is the layout in `.rail-mark`.
+
+     `--mark-h` is the floor sign's own height, declared rather than left to
+     the content, because the car's travel is the distance between the top and
+     bottom signs' *centres* and `Rail` measures that off this. */
+  --rail-w: 178px;
+  --mark-h: 62px;
   --mono: "Space Mono", ui-monospace, monospace;
   --display: "Archivo Black", "Space Grotesk", system-ui, sans-serif;
 }
@@ -52,16 +64,25 @@
   box-sizing: border-box;
 }
 
-/* NAM-61: the native scrollbar is the useful thing to see while working on
-   this page — it is the only honest signal that `.bld`, not the document, is
-   what actually scrolls — so it only disappears in a production build. The
-   rail is real `<nav>` with links to every section, so nothing is lost when
-   it goes: nothing here is the *only* way to move between floors. */
-.bld--prod {
+/* NAM-61 kept the native scrollbar in development, on the grounds that it was
+   the only honest signal that `.bld` and not the document is what scrolls.
+   NBC-62 removes it everywhere, because that stopped being true: the rail is
+   draggable now and reports the same scroller continuously. Two scrollbars
+   for one scroller, one of them on each edge of the window, is worse than
+   either alone. */
+.bld {
   scrollbar-width: none;
 }
-.bld--prod::-webkit-scrollbar {
+.bld::-webkit-scrollbar {
   display: none;
+}
+
+/* While the rail is being dragged. A mandatory snap re-snaps on every frame a
+   drag writes `scrollTop`, so for as long as a pointer is down there is no
+   snap at all and the release does the landing — see `Rail.jsx`. */
+.bld.is-scrubbing {
+  scroll-snap-type: none;
+  scroll-behavior: auto;
 }
 
 /* The a11y trap NAM-49 was filed over applies to the *snap itself* too, not
@@ -143,8 +164,14 @@
   height: 22px;
   z-index: 2;
   pointer-events: none;
+  /* The tile is the *spacing*, not the rivet: the asset has a viewBox and no
+     intrinsic size, so `xMidYMid meet` scales it to the tile's short side and
+     centres it — a small head every 60px along the beam rather than a solid
+     bead of them. The beam is a splice plate, not a floor plate: its bolts are
+     the smallest in the building, and at the size the plates' corner rivets
+     use they took the seam over entirely. */
   background:
-    radial-gradient(circle at 3px 3px, #7a5f3f 0 1.6px, #241a11 1.9px, transparent 2.4px) var(--rail-w) 5px / 46px 12px repeat-x,
+    var(--rivet-iron, none) var(--rail-w) 6px / 60px 11px repeat-x,
     linear-gradient(180deg, #0b0805, #241a11 55%, #0b0805);
   border-top: 1px solid rgba(236, 225, 200, 0.14);
   border-bottom: 1px solid #060402;
@@ -171,21 +198,65 @@
   min-height: 0;
 }
 
-/* lamp strike: opacity only */
-.floor-inner {
-  opacity: 0.18;
+/* ---------- arrival ---------- */
+
+/* NBC-63. The old arrival ran `.floor-inner` from opacity 0.18 through four
+   hard `steps(1, end)` jumps, and it failed on three counts at once. It was
+   the *content* that blinked, which reads as a page that has not finished
+   loading rather than as a room being lit. The strobe was untuned — five
+   changes across 1.15s over the whole section is above the three-flashes-a-
+   second line that exists for photosensitive visitors, so it had to change
+   whatever anyone thought of it. And a hard flicker with nothing else in it
+   is the cheapest possible reading of "lamp": real ones do not chop between
+   two values, they strike once and then take a moment to come up.
+
+   So: the light is its own layer over the floor, the text underneath it is at
+   full strength from the first frame, and the arrival is three things rather
+   than one strobe —
+
+   1. *the contactor*: one hard beat, the scrim gone in 50ms and most of the
+      way back in 70ms. One flash, in the right place, and no more;
+   2. *the warm-up*: the tube coming up over the next three-quarters of a
+      second, on an ease that is fast at first and slow to settle;
+   3. *the cascade*: the floor's own things taking the light in the order they
+      are stacked, 70ms apart, so the room resolves instead of switching on.
+
+   Opacity only, as `NAM-55` requires: this page exists for machines with no
+   working GPU. */
+
+.floor-lamp {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  /* Not flat black: the lamp is up and to the left of every floor, so what
+     lifts is warm where the lamp is and cold in the far corner. */
+  background:
+    radial-gradient(120% 95% at 18% 0%, rgba(90, 52, 18, 0.55), transparent 62%),
+    rgba(8, 5, 3, 0.9);
 }
-.floor.is-lit .floor-inner {
-  animation: strike 1.15s steps(1, end) forwards;
+.floor.is-lit .floor-lamp {
+  animation: lamp-strike 880ms cubic-bezier(0.16, 0.8, 0.3, 1) forwards;
 }
-@keyframes strike {
-  0% { opacity: 0.18; }
-  8% { opacity: 1; }
-  22% { opacity: 0.35; }
-  36% { opacity: 0.95; }
-  52% { opacity: 0.45; }
-  70% { opacity: 1; }
-  100% { opacity: 1; }
+@keyframes lamp-strike {
+  0% { opacity: 1; }
+  6% { opacity: 0.06; }
+  14% { opacity: 0.66; }
+  100% { opacity: 0; }
+}
+
+/* The cascade. Four steps is as many as the floors have top-level parts; a
+   fifth would be arriving after the lamp has finished, which reads as a lag
+   rather than as an order. */
+.floor.is-lit .floor-inner > * {
+  animation: lamp-reach 420ms ease-out backwards;
+}
+.floor.is-lit .floor-inner > *:nth-child(2) { animation-delay: 70ms; }
+.floor.is-lit .floor-inner > *:nth-child(3) { animation-delay: 140ms; }
+.floor.is-lit .floor-inner > *:nth-child(n + 4) { animation-delay: 210ms; }
+@keyframes lamp-reach {
+  from { opacity: 0.45; }
+  to { opacity: 1; }
 }
 
 .floor-tag {
@@ -214,28 +285,36 @@
     0 10px 24px rgba(0, 0, 0, 0.5);
 }
 
+/* NBC-65: four bolts, one per corner — not a dotted rule round the edge.
+   What was here was a 3px disc of one colour repeated every 34px along all
+   four sides, and at that size and that spacing a rivet has no chance of
+   reading as anything but a decorative border. The asset is `ui/rivet.js`;
+   `FlatCard` hands it in on `--rivet` because a stylesheet with no build step
+   cannot build a data URL itself.
+
+   `inset` and `background-size` together are what places them: the head is
+   `RIVET_HEAD` (22/32) of the asset's box, the rest being room for its own
+   shadow, so a 26px box puts an 18px head centred 26px in from the plate's
+   corner. */
 .panel::before {
-  /* rivet row, inset from edge */
   content: "";
   position: absolute;
-  inset: 9px;
-  border-radius: 1px;
+  inset: clamp(7px, 1.2vw, 13px);
   pointer-events: none;
-  background-image:
-    radial-gradient(circle at 3px 3px, #6b5236 0 1.6px, #241a11 1.9px, transparent 2.4px),
-    radial-gradient(circle at 3px 3px, #6b5236 0 1.6px, #241a11 1.9px, transparent 2.4px),
-    radial-gradient(circle at 3px 3px, #6b5236 0 1.6px, #241a11 1.9px, transparent 2.4px),
-    radial-gradient(circle at 3px 3px, #6b5236 0 1.6px, #241a11 1.9px, transparent 2.4px);
-  background-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
-  background-size: 34px 6px, 34px 6px, 6px 34px, 6px 34px;
-  background-position: left top, left bottom, left top, right top;
-  opacity: 0.85;
+  background-image: var(--rivet, none), var(--rivet, none), var(--rivet, none), var(--rivet, none);
+  background-repeat: no-repeat;
+  background-size: clamp(15px, 2.2vw, 26px) clamp(15px, 2.2vw, 26px);
+  background-position: left top, right top, left bottom, right bottom;
 }
 
+/* The padding has to clear the bolts, at every width: a rivet reaches
+   `inset + size` in from the corner, and text under a bolt head is the one
+   way four corner rivets can look worse than the dotted rule they replaced.
+   Kept a few pixels ahead of that reach at both ends of the clamp. */
 .panel-body {
   position: relative;
   z-index: 1;
-  padding: clamp(16px, 2.4vw, 34px);
+  padding: clamp(26px, 3.6vw, 44px);
 }
 
 /* ---------- enamel plates ---------- */
@@ -313,39 +392,59 @@
 }
 
 .rail-title {
-  font-size: 9px;
-  letter-spacing: 0.28em;
+  font-size: 10px;
+  letter-spacing: 0.34em;
   color: var(--brass-deep);
   text-transform: uppercase;
   text-align: center;
 }
 
+/* The trough. Pressing it rides there and dragging it scrolls, so it says so
+   with the cursor and refuses to select text under a drag. */
 .rail-track {
   position: relative;
   flex: 1;
-  margin: 14px 0 6px;
+  margin: 16px 0 8px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   align-items: stretch;
+  cursor: pointer;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  overflow: hidden;
 }
+.rail.is-dragging .rail-track { cursor: grabbing; }
 
+/* Two guides, not one: a lift car runs between a pair of them, and one alone
+   read as a progress bar with a token on it. The graduations between the
+   floors are what give the travel a length you can see. */
 .rail-guide {
   position: absolute;
-  left: 15px;
+  left: 13px;
   top: 0;
   bottom: 0;
-  width: 6px;
-  background: linear-gradient(90deg, #0d0906, #4a3623 55%, #0d0906);
-  border-radius: 1px;
+  width: 26px;
+  background:
+    linear-gradient(90deg, #0d0906 0 1px, #453221 1px 5px, #0d0906 5px 6px, transparent 6px)
+      left top / 26px 100% no-repeat,
+    linear-gradient(90deg, transparent 0 20px, #0d0906 20px 21px, #453221 21px 25px, #0d0906 25px)
+      left top / 26px 100% no-repeat,
+    repeating-linear-gradient(180deg, transparent 0 47px, rgba(122, 95, 63, 0.16) 47px 48px)
+      left top / 26px 100% repeat-y;
 }
 
 .rail-shuttle {
   position: absolute;
   left: 0;
   right: 0;
-  top: 0;
-  bottom: 0;
+  /* The car's travel is between the top and bottom plates' centres, and the
+     plates are laid out `space-between` — so half a plate is out of reach at
+     each end. `Rail` measures the same half off the plate itself when it maps
+     a pointer back to a scroll position. */
+  top: calc(var(--mark-h) / 2);
+  bottom: calc(var(--mark-h) / 2);
   pointer-events: none;
   will-change: transform;
   z-index: 2;
@@ -356,14 +455,17 @@
      is the one left to settle toward. */
   transition: transform 260ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+/* Nothing settles while a finger is on the rail: the car is under the pointer
+   and a 260ms spring behind it reads as lag, not as brakes. */
+.rail.is-dragging .rail-shuttle { transition: none; }
 
 .rail-car {
   position: absolute;
-  left: 6px;
+  left: 10px;
   top: 0;
-  width: 24px;
-  height: 30px;
-  margin-top: -15px;
+  width: 32px;
+  height: 34px;
+  margin-top: -17px;
   border-radius: 1px;
   background: linear-gradient(180deg, #6d5231, #33261a);
   border: 1px solid #0f0a06;
@@ -371,22 +473,40 @@
   will-change: transform;
   z-index: 2;
 }
+/* The hoist rope, running up out of sight. Clipped by the track's own
+   `overflow`, so it costs one pseudo-element and no measurement. */
+.rail-car::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  width: 2px;
+  height: 200vh;
+  margin-left: -1px;
+  background: linear-gradient(180deg, rgba(74, 54, 35, 0), #4a3623 30%);
+}
 .rail-car::after {
   content: "";
   position: absolute;
-  inset: 8px 6px;
+  inset: 9px 7px;
   background: var(--glow);
   opacity: 0.55;
   border-radius: 1px;
 }
 
+/* The floor sign: the plate, and the floor's name under it. Stacked rather
+   than side by side because side by side is what made the names run out over
+   the content — see `--rail-w`. */
 .rail-mark {
   position: relative;
   z-index: 3;
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 4px 6px 4px 38px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 7px;
+  min-height: var(--mark-h);
+  padding: 0 8px 0 52px;
   background: none;
   border: 0;
   cursor: pointer;
@@ -395,8 +515,17 @@
   text-decoration: none;
 }
 
+/* The plate carries the full floor number where there is room for it and the
+   short form where there is not — the rail's own version of the swap the
+   scene's dial makes. Both are `aria-hidden`; the link is named by its
+   `aria-label`, so neither is what a screen reader reads. */
+.rail-tick { display: none; }
+
 .rail-mark .enamel {
-  opacity: 0.5;
+  font-size: 13px;
+  padding: 8px 12px;
+  letter-spacing: 0.16em;
+  opacity: 0.62;
   transition: opacity 200ms linear;
   white-space: nowrap;
 }
@@ -410,14 +539,20 @@
     3px 3px 0 rgba(0, 0, 0, 0.55);
 }
 
+/* The names were 11px in `--line` — the colour the hairlines are drawn in —
+   which put them under the contrast floor the rest of the page was raised to
+   in NAM-27. A floor name you cannot read is a floor name that is not there. */
 .rail-mark-name {
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.1em;
-  color: var(--line);
+  color: var(--muted);
+  opacity: 0.55;
+  transition: opacity 200ms linear, color 200ms linear;
   text-transform: uppercase;
   white-space: nowrap;
 }
-.rail-mark[aria-current="true"] .rail-mark-name { color: var(--glow); }
+.rail-mark:hover .rail-mark-name { opacity: 0.85; }
+.rail-mark[aria-current="true"] .rail-mark-name { color: var(--glow); opacity: 1; }
 
 /* ---------- EG ---------- */
 
@@ -478,7 +613,7 @@
 }
 .chevrons svg:last-child { opacity: 0.45; }
 
-/* ---------- 1. OG instruments ---------- */
+/* ---------- 1. UG instruments ---------- */
 
 .instrument-board {
   display: grid;
@@ -494,15 +629,25 @@
   padding: clamp(10px, 1.4vw, 18px);
 }
 
+/* The gauge is round now (NBC-64), so it no longer needs a square's worth of
+   width to show the same face. */
 .dial {
   width: 100%;
-  max-width: 190px;
+  max-width: 172px;
   height: auto;
   display: block;
 }
 
+/* The shared gradients `Dial` refers to. Rendered once and never seen. */
+.dial-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
 .needle {
-  transform-origin: 100px 104px;
+  transform-origin: 100px 100px;
   transform: rotate(calc(-120deg + var(--needle-deg, 0deg)));
 }
 .is-lit .needle {
@@ -517,11 +662,39 @@
 .tech-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 12px;
+  gap: 9px 8px;
   justify-content: center;
   list-style: none;
-  margin: 0;
+  margin: 2px 0 0;
   padding: 0;
+}
+
+/* NBC-64: one small plate per technology, each hung a little off true — the
+   angle comes from the board (`--tilt`), the depth from here.
+   The depth is two inset lines and a drop shadow, not a gradient: a pressed
+   tag catches the lamp on its top edge and shades on its bottom one, and that
+   pair is the whole of what makes a flat rectangle read as a thing with an
+   edge. `transform` is what carries the tilt, so nothing here costs a layout.
+   `stencil` is deliberately not used on these: a stencil is sprayed onto
+   something consumable, and a tag screwed to an instrument board outlives the
+   board. */
+.tech {
+  transform: rotate(var(--tilt, 0deg));
+  font-family: var(--mono);
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--brass);
+  padding: 6px 9px 5px;
+  border-radius: 1px;
+  background: linear-gradient(178deg, #33251a, #20180f);
+  border: 1px solid #100b06;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 220, 170, 0.16),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.65),
+    0 3px 5px rgba(0, 0, 0, 0.5);
 }
 
 /* ---------- 2. OG CRT ---------- */
@@ -720,13 +893,20 @@
 /* ---------- responsive ---------- */
 
 @media (max-width: 900px) {
-  .flat { --rail-w: 46px; }
+  /* The names go and the shaft stays: below this there is no room for a floor
+     name that is legible, and an illegible one is not a compromise. Wide
+     enough for the car, which is the one thing that still has to be readable
+     at a glance. */
+  .flat { --rail-w: 58px; }
   .rail-mark-name,
   .rail-title { display: none; }
-  .rail-mark { padding-left: 0; justify-content: center; }
-  .rail-mark:not([aria-current="true"]) .enamel { opacity: 0.28; }
-  .rail-guide { left: 50%; margin-left: -3px; }
-  .rail-car { left: 50%; margin-left: -12px; }
+  .rail-mark { padding: 0; align-items: center; }
+  .rail-code { display: none; }
+  .rail-tick { display: inline; }
+  .rail-mark .enamel { font-size: 13px; padding: 8px 10px; letter-spacing: 0; }
+  .rail-mark:not([aria-current="true"]) .enamel { opacity: 0.32; }
+  .rail-guide { left: 50%; margin-left: -15px; }
+  .rail-car { left: 50%; margin-left: -18px; }
   .instrument-board { grid-template-columns: repeat(2, 1fr); }
   .crt-grid,
   .eg-grid { grid-template-columns: 1fr; }
@@ -739,7 +919,7 @@
 @media (max-width: 560px) {
   .eg-grid { grid-template-columns: 1fr; }
   .instrument-board { grid-template-columns: repeat(2, 1fr); gap: 6px; }
-  .dial { max-width: 108px; }
+  .dial { max-width: 104px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -748,7 +928,10 @@
     scroll-behavior: auto;
   }
   .rail-shuttle { transition: none; }
-  .floor-inner { opacity: 1; animation: none !important; }
+  /* No strike, no cascade, and the floor simply arrives lit. What is left has
+     to look finished on its own — see NAM-55. */
+  .floor-lamp { display: none; }
+  .floor.is-lit .floor-inner > * { animation: none !important; }
   .needle { animation: none !important; }
   .crt-roll { display: none; }
   .crt img { animation: none !important; }
