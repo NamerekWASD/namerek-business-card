@@ -15,6 +15,11 @@ import { chooseView } from './view/choice.js';
 // a default it replaces, so no remembered choice can ever end in
 // `WebGLRenderer` throwing in its constructor and taking the whole root down.
 //
+// The width is the second floor under the same default, and NBC-56's answer:
+// under `SCENE_MIN_WIDTH` the scene clips its own card, so the flat one is
+// what a phone gets — with the despatch desk's link back up to the scene for
+// anyone who came for it.
+//
 // The error boundary is the second belt: a context that is granted and then
 // lost, or any other render-time throw inside the scene, lands on the flat
 // card rather than on white.
@@ -27,6 +32,7 @@ function App() {
       search,
       storage: typeof window === 'undefined' ? null : window.localStorage,
       capable: webglAvailable(),
+      width: typeof window === 'undefined' ? null : window.innerWidth,
     }),
     [search],
   );

@@ -1,11 +1,22 @@
 // Which of the two renderings of the card a visitor gets, and — the part that
 // needed a file of its own — how a visitor who disagrees makes that stick.
 //
-// NBC-56 leaves the *default* for phones open: it has to be judged on a real
-// handset, not argued. What it does not leave open is the escape hatch. "The
-// visitor must always be able to override it, and the override must survive a
-// reload" is a requirement of whichever of the three outcomes is chosen, so it
-// is built now and the default rule below is the one that was already here.
+// NBC-56 asked for that default to be judged on a real handset rather than
+// argued, and it now has been — a Pixel 6a on a cable, the production build,
+// portrait. The scene does not present the card there: at 411px the name is
+// cut to "MYKOLA / TYMCHE", every line of the intro is clipped, and the deck
+// navigation runs 343px past the right edge. Sweeping the viewport width on
+// that same device puts the point where nothing clips any more at 820px —
+// which is `SCENE_MIN_WIDTH` below, and is a measurement rather than the
+// `max-width` guess the ticket warned against. The speed was the weaker half
+// of the case and pointed the same way: the scene freezes the main thread for
+// between five and nine seconds on arrival and then holds about 30fps, where
+// the flat card settles in 0.6s at a flat 60.
+//
+// So the width is a *floor under the default*, not a rule about phones. A
+// desktop window narrowed past 820px clips exactly as badly as a handset and
+// gets the same answer, and nothing here asks what kind of device is holding
+// the viewport.
 //
 // `?flat` / `?scene` were doing half of that job: they force a path, but they
 // live in the URL, so the choice lasts exactly as long as nobody types the bare
@@ -25,6 +36,23 @@ export const KEY = 'namerek:view';
 
 /** @type {View[]} */
 const VIEWS = ['scene', 'flat'];
+
+/**
+ * The narrowest viewport that shows the scene's card whole, measured on the
+ * device rather than chosen: at 480px the heading is still 2px short, at 760px
+ * the deck navigation still hangs 6px off the edge, and at 820px neither does.
+ */
+export const SCENE_MIN_WIDTH = 820;
+
+/**
+ * Whether the scene has the room to present its content. An unmeasurable width
+ * — no window, a stub, a zero — is not evidence that it will clip, so it does
+ * not gate.
+ * @param {number | null | undefined} width
+ */
+export function sceneFits(width) {
+  return !Number.isFinite(width) || width <= 0 || width >= SCENE_MIN_WIDTH;
+}
 
 /**
  * The flag in the URL, if there is one. `?flat` wins over `?scene` when both
@@ -62,10 +90,20 @@ export function rememberChoice(view, storage) {
 }
 
 /**
- * @param {{ search?: string, storage?: Storage | null, capable: boolean }} input
+ * The width only ever moves the *default*. A flag and a remembered preference
+ * both still win over it — someone who asks for the scene on a phone gets the
+ * scene, clipped and all, because that is what "the visitor must always be
+ * able to override it" means — and nothing about a narrow viewport is written
+ * down as a choice, so the same visitor on a desktop is back to the scene.
+ * @param {{
+ *   search?: string,
+ *   storage?: Storage | null,
+ *   capable: boolean,
+ *   width?: number | null,
+ * }} input
  * @returns {View}
  */
-export function chooseView({ search, storage, capable }) {
+export function chooseView({ search, storage, capable, width }) {
   const override = readOverride(search);
   if (override) {
     rememberChoice(override, storage);
@@ -73,5 +111,5 @@ export function chooseView({ search, storage, capable }) {
   }
   const stored = storedChoice(storage);
   if (stored) return stored === 'scene' && !capable ? 'flat' : stored;
-  return capable ? 'scene' : 'flat';
+  return capable && sceneFits(width) ? 'scene' : 'flat';
 }

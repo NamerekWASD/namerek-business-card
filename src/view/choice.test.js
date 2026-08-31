@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { chooseView, readOverride, rememberChoice, storedChoice } from './choice.js';
+import {
+  SCENE_MIN_WIDTH,
+  chooseView,
+  readOverride,
+  rememberChoice,
+  sceneFits,
+  storedChoice,
+} from './choice.js';
 
 function fakeStorage(initial = {}) {
   const map = new Map(Object.entries(initial));
@@ -68,5 +75,50 @@ describe('chooseView', () => {
   it('works with no storage at all', () => {
     expect(chooseView({ search: '', storage: null, capable: true })).toBe('scene');
     expect(chooseView({ search: '?flat', storage: undefined, capable: true })).toBe('flat');
+  });
+});
+
+describe('sceneFits', () => {
+  it('is the measured width and nothing device-shaped', () => {
+    expect(sceneFits(SCENE_MIN_WIDTH)).toBe(true);
+    expect(sceneFits(SCENE_MIN_WIDTH - 1)).toBe(false);
+    expect(sceneFits(411)).toBe(false);
+    expect(sceneFits(1440)).toBe(true);
+  });
+
+  it('does not gate on a width it could not measure', () => {
+    // Server rendering, a stubbed window, anything that hands back nothing:
+    // an unknown width is not evidence that the scene will clip.
+    expect(sceneFits(undefined)).toBe(true);
+    expect(sceneFits(null)).toBe(true);
+    expect(sceneFits(0)).toBe(true);
+    expect(sceneFits(Number.NaN)).toBe(true);
+  });
+});
+
+describe('chooseView on a viewport the scene cannot fill', () => {
+  it('hands a phone the flat card even though its GPU is willing', () => {
+    const storage = fakeStorage();
+    expect(chooseView({ search: '', storage, capable: true, width: 411 })).toBe('flat');
+    expect(chooseView({ search: '', storage, capable: true, width: 1440 })).toBe('scene');
+  });
+
+  it('does not write that default down as a choice the visitor made', () => {
+    // Nobody chose it, so nothing is remembered: a phone that is later opened
+    // on a desktop, or rotated into a window wide enough, gets the scene back.
+    const storage = fakeStorage();
+    chooseView({ search: '', storage, capable: true, width: 411 });
+    expect(storedChoice(storage)).toBe(null);
+  });
+
+  it('still lets the visitor ask for the scene on a phone, and keeps it', () => {
+    const storage = fakeStorage();
+    expect(chooseView({ search: '?scene', storage, capable: true, width: 411 })).toBe('scene');
+    expect(chooseView({ search: '', storage, capable: true, width: 411 })).toBe('scene');
+  });
+
+  it('keeps the capability probe as the floor under all of it', () => {
+    const storage = fakeStorage();
+    expect(chooseView({ search: '?scene', storage, capable: false, width: 1440 })).toBe('flat');
   });
 });
