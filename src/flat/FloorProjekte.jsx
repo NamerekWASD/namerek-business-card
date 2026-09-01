@@ -84,6 +84,13 @@ function FloorProjekte() {
             {slide?.caption && (
               <h3 style={{ fontSize: 'clamp(18px, 2.4vw, 30px)', marginTop: 12 }}>{slide.caption}</h3>
             )}
+            {/* The same works notice the scene hangs on the landing wall, so
+                the two renderings of this card say the same thing about the
+                same picture. Here it can stand under the name plate rather
+                than a metre away from it. */}
+            {slide?.blurb && (
+              <p key={slide.project} style={{ marginTop: 10, lineHeight: 1.7 }}>{slide.blurb}</p>
+            )}
             {slide && (
               <p className="stencil" style={{ marginTop: 8 }}>
                 {`Aufnahme ${slide.shot} von ${slide.shots}`}

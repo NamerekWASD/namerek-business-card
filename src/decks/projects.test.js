@@ -8,10 +8,19 @@ import { PROJECTS, projectSlides } from './projects.js';
 // one after it.
 
 const fixture = [
-  { id: 'one', title: 'Eins', url: 'https://example.org', shots: ['/a.jpg'] },
+  {
+    id: 'one',
+    title: 'Eins',
+    url: 'https://example.org',
+    blurb: 'Was das erste Ding ist.',
+    stack: 'ASP.NET CORE',
+    shots: ['/a.jpg'],
+  },
   {
     id: 'two',
     title: 'Zwei',
+    blurb: 'Was das zweite Ding ist.',
+    stack: 'PYTHON',
     shots: ['/b.jpg', { src: '/c.jpg', caption: 'Datenmodell' }, '/d.jpg'],
   },
 ];
@@ -29,6 +38,23 @@ describe('the archive, flattened', () => {
     const [, ...rest] = projectSlides(fixture);
     for (const slide of rest.slice(0, 3)) expect(slide.title).toBe('Zwei');
     for (const slide of projectSlides(fixture)) expect(slide.title).toBeTruthy();
+  });
+
+  it('carries the wall notice and the crate stencil down with it', () => {
+    // The two halves of NBC-22/NBC-28's split: `blurb` is what the works notice
+    // on the wall says, `stack` is what is sprayed on the crate under it. Both
+    // ride the slide for the same reason `title` does — the surfaces that show
+    // them cannot look a project up, they only ever hold a page number.
+    const [, second] = projectSlides(fixture);
+    expect(second.blurb).toBe('Was das zweite Ding ist.');
+    expect(second.stack).toBe('PYTHON');
+  });
+
+  it('leaves both blank rather than undefined when a project has neither', () => {
+    // A wall that renders `undefined` is worse than a wall with nothing on it.
+    const [slide] = projectSlides([{ id: 'bare', title: 'Bloß', shots: ['/a.jpg'] }]);
+    expect(slide.blurb).toBe('');
+    expect(slide.stack).toBe('');
   });
 
   it('numbers a shot within its own project, not within the run', () => {
@@ -74,6 +100,24 @@ describe('the archive itself', () => {
   it('points every picture somewhere a browser can fetch', () => {
     for (const slide of projectSlides()) {
       expect(slide.src).toMatch(/^(\/|https?:|data:|blob:)/);
+    }
+  });
+
+  it('gives every project both a wall notice and a crate stencil', () => {
+    // The deck's left half is empty without the first and the crate is
+    // anonymous freight without the second, and neither failure throws.
+    for (const project of PROJECTS) {
+      expect(project.blurb, `${project.id} has no blurb`).toBeTruthy();
+      expect(project.stack, `${project.id} has no stack`).toBeTruthy();
+    }
+  });
+
+  it('keeps the wall notice out of the business of naming the project', () => {
+    // The name is already on the console's plate under the glass, and the
+    // stencil on the crate says it a second time. A blurb that opens with it
+    // says it a third — see NBC-22's collision with NBC-28.
+    for (const project of PROJECTS) {
+      expect(project.blurb.toLowerCase()).not.toContain(project.title.toLowerCase());
     }
   });
 });

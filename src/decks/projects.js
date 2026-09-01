@@ -11,6 +11,8 @@
 //   id: 'medienarchiv',
 //   title: 'Medienarchiv',
 //   url: 'https://example.org',        // optional — the LINK button's address
+//   blurb: 'Was es ist, in einem Satz.',
+//   stack: 'ASP.NET CORE · REACT',
 //   shots: [
 //     '/projects/medienarchiv-1.jpg',
 //     { src: '/projects/medienarchiv-2.jpg', caption: 'Datenmodell' },
@@ -21,6 +23,24 @@
 // A shot is a bare URL when there is nothing to say about it and an object when
 // there is. `src` is only ever a URL, so `import shot from '...'` works too —
 // the folder is simply the path of least resistance.
+//
+// ── one fact, one surface ───────────────────────────────────────────────────
+// `blurb` and `stack` look like two ways of saying the same thing and are not:
+// they are the two halves of a split that NBC-22 and NBC-28 were about to make
+// into a collision. The room shows one project on three surfaces at once, and
+// the rule that keeps it from stuttering is that each surface answers one
+// question and no question is answered twice:
+//
+//   the glass       — what it looks like            the picture and its caption
+//   the console     — which job this picture is     `title`, on its own plate
+//   the wall        — what it is and why            `blurb`, as selectable text
+//   the crate       — what was shipped              `stack`, sprayed on plywood
+//
+// So `blurb` is prose and must not open with the project's name — the plate
+// under the glass already said it, and the stencil on the crate says it again.
+// `stack` is a stencil and must stay short enough to spray through a card:
+// three words, upper case, separated by middots. `projects.test.js` holds both
+// of those to it.
 //
 // ── why the console pages shots and not projects ─────────────────────────────
 // One project is often several pictures, and a counter that sits on "02 / 05"
@@ -37,7 +57,10 @@
 
 /**
  * @typedef {{ src: string, caption?: string }} Shot
- * @typedef {{ id: string, title: string, url?: string | null, shots: Array<string | Shot> }} Project
+ * @typedef {{
+ *   id: string, title: string, url?: string | null,
+ *   blurb?: string, stack?: string, shots: Array<string | Shot>,
+ * }} Project
  */
 
 /**
@@ -52,6 +75,9 @@ export const PROJECTS = [
     id: 'game-store',
     title: 'Game Store',
     url: 'https://github.com/NamerekWASD/GameStore',
+    blurb: 'Ein Laden für Spiele: Katalog, Warenkorb, echte Bezahlung — und ein '
+      + 'Pult im Rücken, an dem der Betreiber seine Titel selbst pflegt.',
+    stack: 'ASP.NET CORE · REACT',
     shots: [
       { src: '/projects/game-store/1.png', caption: 'Homepage' },
       { src: '/projects/game-store/2.png', caption: 'Game details' },
@@ -65,6 +91,9 @@ export const PROJECTS = [
     id: 'paperless-ocr-cascade',
     title: 'Paperless OCR Cascade',
     url: 'https://github.com/NamerekWASD/PaperSorter',
+    blurb: 'Ein Fließband für Papier: jeder Scan läuft durch eine Texterkennung '
+      + 'in Stufen, wird eingeordnet, auf Fristen gelesen und beschriftet abgelegt.',
+    stack: 'PYTHON · FASTAPI · DOCKER',
     shots: [
       { src: '/projects/paperless-ocr-cascade/1.png', caption: 'Paperless webhook config' },
       { src: '/projects/paperless-ocr-cascade/2.png', caption: 'Logs' },
@@ -75,6 +104,7 @@ export const PROJECTS = [
 /**
  * @typedef {{
  *   key: string, project: string, title: string, url: string | null,
+ *   blurb: string, stack: string,
  *   src: string, caption: string, shot: number, shots: number,
  * }} Slide
  */
@@ -100,6 +130,8 @@ export function projectSlides(projects = PROJECTS) {
       project: project.id,
       title: project.title,
       url: project.url ?? null,
+      blurb: project.blurb ?? '',
+      stack: project.stack ?? '',
       src: shot.src,
       caption: shot.caption ?? '',
       shot: i + 1,
