@@ -397,6 +397,197 @@ export const cratePanel = (boards = 5, stencilled = false) => bake(
   },
 );
 
+// ── the artifact box ─────────────────────────────────────────────────────────
+// The 2. UG conveyor carries these, and the difference between one of them and
+// a crate is the whole of NBC-28. A crate is sawn boards and a sprayed number:
+// it says "something is packed in here". An artifact box is a flat plywood
+// case with a **package manifest** on it, and a manifest is what turns freight
+// into a build — a name, what it runs on, who shipped it and when. The
+// industry already describes itself in exactly these words: a pipeline is a
+// conveyor, what comes off it is an artifact, and `dotnet publish` produces a
+// package.
+//
+// So this face is authored the way a works despatch label is: a rule across
+// the middle, the mark large above it, the specification small below, and the
+// whole thing sprayed through a card so it haloes and skips.
+//
+// ── what it may say ─────────────────────────────────────────────────────────
+// `mark` and `spec` come down from the archive (`decks/projects.js`), and the
+// rule that keeps this from stuttering against the works notice on the wall is
+// written there: the notice carries the prose, this carries the stack. It is
+// deliberately the *only* place the stack appears.
+
+/** Plywood: not the crate's pine. A pressed sheet is flatter and greyer. */
+const PLY = ['#4c3f28', '#544526', '#453a25', '#584a2c'];
+
+/**
+ * One face of a box coming off the belt.
+ *
+ * @param {string} mark what shipped — the project's own name
+ * @param {string} spec what it runs on, in stencil case
+ * @param {boolean} labelled whether this is the face the manifest is on
+ */
+export const artifactFace = (mark, spec, labelled = true) => bake(
+  `artifact:${labelled ? `${mark}|${spec}` : 'blank'}`, 512, 384, (ctx, w, h) => {
+    const rnd = seeded(0x9c1f5 + (labelled ? mark.length * 37 + spec.length : 0));
+
+    // the sheet itself, and the long veneer streaks that say it is peeled
+    // rather than sawn — no gaps, no boards, which is the silhouette
+    // difference from `cratePanel` above
+    ctx.fillStyle = PLY[1];
+    ctx.fillRect(0, 0, w, h);
+    for (let i = 0; i < 140; i += 1) {
+      const y = rnd() * h;
+      ctx.globalAlpha = 0.06 + rnd() * 0.14;
+      ctx.strokeStyle = PLY[Math.floor(rnd() * PLY.length)];
+      ctx.lineWidth = 2 + rnd() * 12;
+      ctx.beginPath();
+      ctx.moveTo(-8, y);
+      ctx.bezierCurveTo(w * 0.35, y + (rnd() - 0.5) * 9, w * 0.7, y + (rnd() - 0.5) * 9, w + 8, y);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    // the ply edges, top and bottom: the laminations show as a striped band
+    for (const [ey, dir] of [[0, 1], [h - 9, 1]]) {
+      for (let i = 0; i < 5; i += 1) {
+        ctx.globalAlpha = 0.5;
+        ctx.fillStyle = i % 2 ? '#3a2f1c' : '#5b4b2b';
+        ctx.fillRect(0, ey + i * 1.8 * dir, w, 1.8);
+      }
+    }
+    ctx.globalAlpha = 1;
+
+    // handling: scuffed corners and the grime a box picks up standing on a belt
+    for (let i = 0; i < 160; i += 1) {
+      const x = rnd() * w;
+      const y = rnd() * h;
+      ctx.globalAlpha = edgeness(x, y, w, h) * (0.1 + rnd() * 0.25);
+      ctx.fillStyle = rnd() > 0.6 ? '#2a2114' : '#6b5c3c';
+      ctx.beginPath();
+      ctx.ellipse(x, y, 3 + rnd() * 16, 2 + rnd() * 7, rnd() * 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    if (!labelled) return;
+
+    // ── the manifest ─────────────────────────────────────────────────────────
+    // Sprayed: a soft dark halo under a harder pass, which is what a card held
+    // a centimetre off the timber does. Set large enough to be read at the
+    // distance the box actually stands at — this is the one piece of lettering
+    // in the room that is *supposed* to be legible, because it is the label
+    // that makes the object an artifact rather than a prop.
+    const spray = (text, y, size, alpha) => {
+      ctx.font = `700 ${size}px "Archivo Black", "Arial Black", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.globalAlpha = alpha * 0.3;
+      ctx.fillStyle = '#191207';
+      ctx.filter = 'blur(4px)';
+      ctx.fillText(text, w / 2, y);
+      ctx.filter = 'none';
+      ctx.globalAlpha = alpha;
+      ctx.fillText(text, w / 2, y);
+      ctx.globalAlpha = 1;
+    };
+
+    ctx.save();
+    ctx.translate(0, 0);
+    ctx.rotate(-0.008);
+
+    // the mark shrinks to fit rather than running off the plywood — the archive
+    // is hand-edited and a long project name must not silently walk off a box
+    let size = 62;
+    ctx.font = `700 ${size}px "Archivo Black", "Arial Black", sans-serif`;
+    while (size > 26 && ctx.measureText(mark.toUpperCase()).width > w - 72) {
+      size -= 3;
+      ctx.font = `700 ${size}px "Archivo Black", "Arial Black", sans-serif`;
+    }
+    spray(mark.toUpperCase(), h * 0.4, size, 0.82);
+
+    // the rule the despatch label is divided by
+    ctx.globalAlpha = 0.45;
+    ctx.fillStyle = '#1d1509';
+    ctx.fillRect(w * 0.14, h * 0.53, w * 0.72, 3.5);
+    ctx.globalAlpha = 1;
+
+    let sub = 30;
+    ctx.font = `700 ${sub}px "Archivo Black", "Arial Black", sans-serif`;
+    while (sub > 14 && ctx.measureText(spec.toUpperCase()).width > w - 60) {
+      sub -= 2;
+      ctx.font = `700 ${sub}px "Archivo Black", "Arial Black", sans-serif`;
+    }
+    spray(spec.toUpperCase(), h * 0.65, sub, 0.66);
+    spray('NAMEREK RECHENWERKE', h * 0.78, 20, 0.4);
+    ctx.restore();
+
+    // and the skips: paint does not sit evenly on a scuffed sheet
+    ctx.globalCompositeOperation = 'destination-out';
+    for (let i = 0; i < 22; i += 1) {
+      ctx.globalAlpha = 0.2 + rnd() * 0.5;
+      ctx.beginPath();
+      ctx.ellipse(rnd() * w, h * (0.32 + rnd() * 0.55), 4 + rnd() * 22, 1 + rnd() * 4, rnd(), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+  },
+);
+
+// ── the belt itself ──────────────────────────────────────────────────────────
+// A slat belt, because a smooth rubber band has nothing on it for the eye to
+// track and a conveyor that cannot be seen to be running is a table. The tile
+// repeats along the run and its offset is what is scrolled — see `Conveyor` in
+// `LandingProps.jsx`, and the note there about why it is not scrolled every
+// frame.
+export const beltBand = () => bake('belt:band', 128, 128, (ctx, w, h) => {
+  const rnd = seeded(0x5e17);
+  // ── the value it is painted at ─────────────────────────────────────────────
+  // Authored first at the black rubber actually is and it disappeared: this
+  // room's iron already sits near 0.03 linear and swallows the pendant whole,
+  // so a black belt under a black frame came back as one unreadable beam with
+  // boxes balanced on it. It is painted here at the value worn steel slats
+  // *are* under a tungsten pendant — the same argument the crates' pine and
+  // the post box's enamel are both painted by, two hundred lines up.
+  ctx.fillStyle = '#241d14';
+  ctx.fillRect(0, 0, w, h);
+
+  // the slats, running across the belt. Four to the tile, so the period is
+  // short enough that a slow scroll still reads as motion.
+  const pitch = w / 4;
+  for (let i = 0; i < 4; i += 1) {
+    const x = i * pitch;
+    ctx.fillStyle = '#33291a';
+    ctx.fillRect(x + 3, 0, pitch - 6, h);
+    // the arris along the leading edge, which is the only bright line on the
+    // whole belt and the thing the eye actually tracks
+    ctx.globalAlpha = 0.75;
+    ctx.fillStyle = '#7b6540';
+    ctx.fillRect(x + 3, 0, 2.5, h);
+    ctx.globalAlpha = 0.8;
+    ctx.fillStyle = '#0d0a07';
+    ctx.fillRect(x + pitch - 4, 0, 3, h);
+    ctx.globalAlpha = 1;
+  }
+
+  // the polish down the middle, where everything that ships has slid, and the
+  // dirt at the edges where nothing has
+  const g = ctx.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, 'rgba(0,0,0,0.42)');
+  g.addColorStop(0.5, 'rgba(150,126,86,0.22)');
+  g.addColorStop(1, 'rgba(0,0,0,0.42)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+
+  for (let i = 0; i < 90; i += 1) {
+    ctx.globalAlpha = 0.06 + rnd() * 0.18;
+    ctx.fillStyle = rnd() > 0.5 ? '#000000' : '#574833';
+    ctx.fillRect(rnd() * w, rnd() * h, 1 + rnd() * 9, 1 + rnd() * 2);
+  }
+  ctx.globalAlpha = 1;
+});
+
 // ── the valve rack ───────────────────────────────────────────────────────────
 // The one prop that is about the site's own subject. It used to state that with
 // a field of jacks and three cords bridged across it — a switched network,

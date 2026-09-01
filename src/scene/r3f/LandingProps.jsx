@@ -1,4 +1,8 @@
 import { useEffect, useMemo, useRef } from 'react';
+import { PROJECTS, SLIDES } from '../../decks/projects.js';
+import { BELT, bandOffset, beltSlide, beltSlots } from '../renderers/r3f/belt.js';
+import { useFullscreenGallery } from './fullscreenImage.js';
+import { invalidateScene } from '../renderers/r3f/frames.js';
 import {
   AdditiveBlending, BufferAttribute, BufferGeometry, CatmullRomCurve3, DoubleSide,
   LatheGeometry, Vector2, Vector3,
@@ -12,8 +16,9 @@ import { surfaceProps } from '../renderers/r3f/surfaceMaterial.js';
 import { worldY } from '../renderers/r3f/camera.js';
 import { useLightTuning } from '../renderers/r3f/tuning.js';
 import {
-  RACK, SHEET, TAPE_ASPECT, benchBand, benchTop, chestPanel, cratePanel, drawerFace,
-  postBoxCard, postBoxSkin, punchTape, rackCol, rackGap, schematicSheet, valveRackPlate,
+  RACK, SHEET, TAPE_ASPECT, artifactFace, beltBand, benchBand, benchTop, chestPanel,
+  drawerFace, postBoxCard, postBoxSkin, punchTape, rackCol, rackGap, schematicSheet,
+  valveRackPlate,
 } from '../renderers/r3f/propArt.js';
 import { lampGlow } from '../renderers/r3f/patterns.js';
 import usePilotLamps from '../renderers/r3f/pilotLamps.js';
@@ -474,8 +479,10 @@ const GLAND_X = 0.24;
  * has to disappear behind the masonry, the way the corridor itself does.
  *
  * @param {number} vw @param {number} z
+ * @param {1 | -1} [dir] which side to leave by; the cable goes right, the belt left
  */
-const offRoom = (vw, z) => vw / 2 + vw * 0.58 * ((CAM_PERSPECTIVE - z) / CAM_PERSPECTIVE);
+const offRoom = (vw, z, dir = 1) =>
+  vw / 2 + dir * vw * 0.58 * ((CAM_PERSPECTIVE - z) / CAM_PERSPECTIVE);
 
 /**
  * The cable the valve rack is fed by: up out of the gland, and away to the right
@@ -1211,90 +1218,349 @@ function Workbench({ M, x, floorY, z, ambient, yaw }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 2. OG — the crates
+// 2. UG — the conveyor, and what rides on it
 // ─────────────────────────────────────────────────────────────────────────────
-// Three at three depths, which is still the cheapest legible object there is —
-// the difference is that they are now crates rather than boxes. A crate is
-// sawn boards with gaps between them, battens on the corners, steel brackets
-// and a sprayed mark; a box is a rectangle. All of that is in `cratePanel`
-// except the battens and the brackets, which have to be geometry because their
-// whole contribution is a broken silhouette.
+// Three crates stood here in a pile, for looks. Mykolai's objection was that
+// the most *programmer* object a building can have was sitting in this room
+// doing nothing: the industry names itself after this machine. A pipeline is a
+// conveyor. What comes off one is an artifact. `dotnet publish` produces a
+// package. A container is a container. A message queue is items on a belt,
+// taken one at a time.
+//
+// It also fixes the building's own logic. This is a goods lift in a works and
+// the landings are loading bays — the lift carries people, the belt carries
+// product — so the room stops being a corridor with a box in it.
+//
+// ── the direction is the argument ────────────────────────────────────────────
+// The run comes out of a mouth in the back wall, where the thing is built and
+// which is never seen, and leaves to the left, into the corridor, shipped. The
+// delivery vector passes under the page's own column, which on this floor is
+// the left half. Nothing about that is decorative: a belt running the other way
+// would be a delivery *in*.
+//
+// ── what is on the boxes, and why it is not a name plate ─────────────────────
+// A project name sprayed on a box makes it a tag. A **package manifest** makes
+// it an artifact, and that is the whole difference — see `artifactFace` in
+// `propArt.js`, which owns the lettering. This file owns metres and never opens
+// that canvas.
+//
+// ── which box is which project ───────────────────────────────────────────────
+// The archive itself rides the belt, in its own order, one slot per project.
+// The box held at the stop gate is the project on the glass; behind it queues
+// what has not shipped yet, and ahead of it, already leaving, is what has. Two
+// things follow that are worth having: the belt is *about* the archive rather
+// than being scenery next to it, and pressing NEXT through six shots of one job
+// does not move it, because it moves by project — the fault the card itself
+// flagged ("if it changes on FRAME swap, a box with a project name lies inside
+// one project").
 
-function Crate({ M, w, h, d, boards, stencilled, ambient, ...rest }) {
-  const side = cratePanel(boards, false);
-  const face = cratePanel(boards, stencilled);
-  const sideArt = artwork(side, ambient);
+/**
+ * A box coming off the belt: plywood, with the manifest on the face turned
+ * toward the room. Flat sheets, so it does not read as another crate — the
+ * crate above is sawn boards with gaps and battens, and the silhouette is what
+ * separates the two at this distance.
+ */
+function ArtifactBox({ M, mark, spec, ambient, ...rest }) {
+  const { w, h, d } = BELT.BOX;
+  const face = artifactFace(mark, spec, true);
+  const side = artifactFace(mark, spec, false);
   const faceArt = artwork(face, ambient);
+  const sideArt = artwork(side, ambient);
   const lidArt = artwork(side, ambient, FACE.up);
   const underArt = artwork(side, ambient, FACE.down);
-  const fallback = surfaceProps(SURFACES.iron, 0.9);
-  const batten = 0.05 * M;
-  const timber = { color: '#463825', roughness: 0.88, metalness: 0.02 };
-
-  const panel = (art) => (art
-    ? <meshStandardMaterial {...art} roughness={0.88} metalness={0.02} />
-    : <meshStandardMaterial {...fallback} />);
+  const fallback = { color: '#4c3f28', roughness: 0.9, metalness: 0.02 };
+  const strap = { color: '#2b2419', roughness: 0.55, metalness: 0.45 };
+  // ── one material per face, and each of them says which face ────────────────
+  // A row of bare `<meshStandardMaterial>` children does **not** make a
+  // material array: R3F attaches every one of them to `material`, so the last
+  // one silently wins and all six faces come out identical. That is not a
+  // theory — it is why the crates that stood here for weeks never showed the
+  // `Nr. 001` their own canvas had painted on them, and it would have quietly
+  // thrown this box's whole manifest away. `attach="material-n"` is what
+  // actually builds the array. `BoxGeometry` orders its groups +X −X +Y −Y +Z
+  // −Z, and +Z is the face turned toward the camera.
+  const faces = [sideArt, sideArt, lidArt, underArt, faceArt, sideArt];
 
   return (
     <group {...rest}>
       <mesh castShadow receiveShadow>
-        <boxGeometry args={[w, h, d]} />
-        {panel(sideArt)}
-        {panel(sideArt)}
-        {panel(lidArt)}
-        {panel(underArt)}
-        {panel(faceArt)}
-        {panel(sideArt)}
+        <boxGeometry args={[w * M, h * M, d * M]} />
+        {faces.map((art, i) => (art
+          ? (
+            <meshStandardMaterial
+              key={i} attach={`material-${i}`} {...art} roughness={0.9} metalness={0.02}
+            />
+          )
+          : <meshStandardMaterial key={i} attach={`material-${i}`} {...fallback} />))}
       </mesh>
-      {/* the corner battens: four uprights standing proud of the boards, which
-          is what a crate is actually held together by */}
-      {[-1, 1].map((sx) => [-1, 1].map((sz) => (
-        <mesh
-          key={`${sx}${sz}`}
-          position={[(sx * (w - batten)) / 2, 0, (sz * (d - batten)) / 2]}
-          castShadow
-          receiveShadow
-        >
-          <boxGeometry args={[batten * 1.25, h + 0.006 * M, batten * 1.25]} />
-          <meshStandardMaterial {...timber} />
+      {/* Two steel bands round it. A plywood case is a rectangle without them,
+          and they say the thing is closed and going somewhere rather than open
+          and being packed. They run *round* it rather than up it: the first cut
+          had them vertical and they went straight through the middle of the
+          manifest, which is the one thing on this box that has to be read. */}
+      {[-0.41, 0.41].map((f) => (
+        <mesh key={f} position={[0, f * h * M, 0]} castShadow>
+          <boxGeometry args={[w * M + 0.006 * M, 0.02 * M, d * M + 0.006 * M]} />
+          <meshStandardMaterial {...strap} />
         </mesh>
-      )))}
-      {/* and the steel corner brackets, top and bottom */}
-      {[-1, 1].map((sy) => [-1, 1].map((sx) => (
-        <mesh
-          key={`${sy}${sx}`}
-          position={[(sx * (w - batten * 0.6)) / 2, (sy * (h - batten)) / 2, 0]}
-          castShadow
-        >
-          <boxGeometry args={[batten * 0.7, batten * 1.1, d * 0.98]} />
-          <meshStandardMaterial {...surfaceProps(SURFACES.steel, 0.85)} />
-        </mesh>
-      )))}
+      ))}
     </group>
   );
 }
 
-function Crates({ M, x, floorY, z, ambient }) {
-  // A stack has to be a stack: the big one on the floor, a smaller one square
-  // on top of it and turned off its axis, and a third alongside at a different
-  // depth. Three identical boxes in a row is a pattern, not a pile.
-  const big = { w: 0.86 * M, h: 0.68 * M, d: 0.64 * M };
-  const small = { w: 0.6 * M, h: 0.47 * M, d: 0.54 * M };
-  const flank = { w: 0.68 * M, h: 0.52 * M, d: 0.46 * M };
+/**
+ * The mouth in the back wall the run comes out of.
+ *
+ * Not a hole — the landing wall is one panel and cutting it would be a
+ * subtraction the whole room would have to pay for. What reads as an opening at
+ * this distance is a recess with something over it that casts into it, which is
+ * how the post box's letter slot is built too.
+ */
+function BeltMouth({ M, x, y, z }) {
+  const w = (BELT.WIDE + 0.24) * M;
+  const h = 0.6 * M;
+  // Hand-set rather than taken from the catalogue: every iron in `SURFACES`
+  // sits low enough that a member this small disappears, and what makes an
+  // opening read as an opening is one bright edge against the black behind it.
+  const surround = { color: '#584828', roughness: 0.62, metalness: 0.32 };
+  return (
+    <group position={[x, y, z]}>
+      {/* the dark of the shaft behind the wall */}
+      <mesh position={[0, 0, 0.02 * M]}>
+        <planeGeometry args={[w, h]} />
+        <meshStandardMaterial color="#050403" roughness={1} metalness={0} />
+      </mesh>
+      {/* the pressed steel surround, standing proud of the plaster */}
+      {[[0, h / 2, w, 0.09 * M], [0, -h / 2, w, 0.09 * M],
+        [-w / 2, 0, 0.09 * M, h], [w / 2, 0, 0.09 * M, h]].map(([rx, ry, rw, rh]) => (
+          <mesh key={`${rx},${ry}`} position={[rx, ry, 0.05 * M]} castShadow receiveShadow>
+            <boxGeometry args={[rw, rh, 0.07 * M]} />
+            <meshStandardMaterial {...surround} />
+          </mesh>
+      ))}
+      {/* The hood, tipped out over the opening. It is the whole reason this
+          reads as a hole rather than a dark panel: a lit lip along the top with
+          its own shadow falling into the black under it. The post box's letter
+          slot is built the same way and for the same reason. */}
+      <mesh position={[0, h / 2 + 0.045 * M, 0.1 * M]} rotation={[-0.34, 0, 0]} castShadow receiveShadow>
+        <boxGeometry args={[w + 0.05 * M, 0.115 * M, 0.018 * M]} />
+        <meshStandardMaterial color="#544326" roughness={0.6} metalness={0.34} />
+      </mesh>
+      {/* the strip curtain: what a goods opening in a wall actually has, and
+          the one part of this that breaks the rectangle */}
+      {Array.from({ length: 7 }, (_, i) => (
+        <mesh
+          key={i}
+          position={[(i - 3) * 0.1 * M, h * 0.18, 0.075 * M]}
+          rotation={[0, 0, (i % 3 - 1) * 0.035]}
+          castShadow
+        >
+          <boxGeometry args={[0.085 * M, h * 0.62, 0.012 * M]} />
+          <meshStandardMaterial color="#2b2318" roughness={0.82} metalness={0.05} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+/**
+ * Drives the band and the train.
+ *
+ * One writer, ticked off `requestAnimationFrame` with a gate on it rather than
+ * off React state. Both halves of that matter and both are scars: a prop
+ * positioned from a React prop while the lift is riding is being written by two
+ * clocks and judders (`useRideMotion` was written to end exactly that), and a
+ * frame asked of one canvas while its neighbour sits out a long run is how the
+ * doors came to blink — so the frame is asked of the scene.
+ *
+ * rAF also gets one thing a timer would not: a hidden tab stops paying for it.
+ *
+ * @param {{ current: import('three').Texture | null }} band
+ * @param {{ current: import('three').Object3D | null }} train
+ * @param {number} pitchPx one slot, in scene pixels
+ * @param {number} project which project is on the glass
+ * @param {boolean} live
+ */
+function useBeltMotion(band, train, pitchPx, project, live) {
+  const from = useRef(project);
+  const changedAt = useRef(0);
+
+  useEffect(() => {
+    // The advance is started here and played out by the ticker below, so the
+    // slot the train is easing *from* survives a re-render. Skipped on the
+    // first pass: arriving on the floor is not a delivery.
+    if (from.current === project) return;
+    from.current = project;
+    changedAt.current = performance.now();
+  }, [project]);
+
+  useEffect(() => {
+    if (!live) return undefined;
+    let raf = 0;
+    let last = performance.now();
+    const period = 1000 / BELT.HZ;
+
+    const tick = (now) => {
+      raf = requestAnimationFrame(tick);
+      const dt = now - last;
+      if (dt < period) return;
+      last = now;
+
+      if (band.current) band.current.offset.x += bandOffset(dt);
+      if (train.current) {
+        const since = changedAt.current ? now - changedAt.current : null;
+        train.current.position.x = beltSlide(since) * pitchPx;
+      }
+      invalidateScene();
+    };
+
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [band, train, pitchPx, live]);
+}
+
+function Conveyor({ M, x, floorY, z, ambient, leftEnd, live }) {
+  const gallery = useFullscreenGallery();
+  const slide = SLIDES[gallery?.page ?? 0] ?? null;
+  // Which *project*, not which frame. Six shots of one job must not move a box.
+  const project = Math.max(0, PROJECTS.findIndex((p) => p.id === slide?.project));
+
+  const bandRef = useRef(null);
+  const trainRef = useRef(null);
+  const pitchPx = BELT.PITCH * M;
+  useBeltMotion(bandRef, trainRef, pitchPx, project, live);
+
+  const mouthX = BELT.UPSTREAM * M;
+  // The run itself: from the mouth, past the station, and out of the room. It
+  // does not stop at the edge of what can be seen — a corridor carries on, and
+  // the same argument is written out at length on `WallCable`.
+  const runFrom = leftEnd - x;
+  const runTo = mouthX;
+  const runW = runTo - runFrom;
+  const beltY = BELT.TOP * M;
+
+  const bandSrc = beltBand();
+  const band = useMemo(() => {
+    if (!bandSrc) return null;
+    const map = bandSrc.clone();
+    // Cloned rather than shared: this offset is written every tick, and two
+    // landings furnished at once during a ride would be two drivers on one
+    // texture — both winning every other frame. A clone shares the image.
+    map.repeat.set(runW / M / (BELT.SLAT * 4), 1);
+    map.needsUpdate = true;
+    return map;
+  }, [bandSrc, runW, M]);
+  useEffect(() => {
+    bandRef.current = band;
+    return () => band?.dispose();
+  }, [band]);
+
+  // Shaded up rather than left at the catalogue's own level: `SURFACES.steel`
+  // and `SURFACES.iron` sit near 0.03 linear and swallow this room's pendant
+  // whole, which on a member this long reads as one black beam with boxes
+  // balanced on it. The bench, the only other big steel object down here, is
+  // carried at the same sort of level for the same reason.
+  const steel = surfaceProps(SURFACES.steel, 1.35);
+  const iron = surfaceProps(SURFACES.iron, 1.05);
+  const railH = 0.1 * M;
+  const legs = [];
+  for (let lx = runTo - 0.3 * M; lx > runFrom; lx -= 1.15 * M) legs.push(lx);
+
   return (
     <group position={[x, worldY(floorY), z]}>
-      <Crate
-        M={M} {...big} boards={5} stencilled ambient={ambient}
-        position={[0, big.h / 2, 0]} rotation={[0, 0.13, 0]}
-      />
-      <Crate
-        M={M} {...small} boards={4} stencilled={false} ambient={ambient}
-        position={[0.06 * M, big.h + small.h / 2, -0.03 * M]} rotation={[0, -0.22, 0]}
-      />
-      <Crate
-        M={M} {...flank} boards={4} stencilled ambient={ambient}
-        position={[-0.78 * M, flank.h / 2, 0.24 * M]} rotation={[0, 0.44, 0]}
-      />
+      {/* ── the frame ───────────────────────────────────────────────────────── */}
+      {[-1, 1].map((s) => (
+        <mesh
+          key={s}
+          position={[runFrom + runW / 2, beltY - railH * 0.35, s * (BELT.WIDE / 2 + 0.03) * M]}
+          castShadow
+          receiveShadow
+        >
+          <boxGeometry args={[runW, railH, 0.06 * M]} />
+          <meshStandardMaterial {...steel} />
+        </mesh>
+      ))}
+      {/* the pan under the band, so the run is not a floating ribbon */}
+      <mesh position={[runFrom + runW / 2, beltY - 0.055 * M, 0]} receiveShadow>
+        <boxGeometry args={[runW, 0.05 * M, BELT.WIDE * M]} />
+        <meshStandardMaterial {...iron} />
+      </mesh>
+      {legs.map((lx) => [-1, 1].map((s) => (
+        <mesh
+          key={`${lx}${s}`}
+          position={[lx, (beltY - railH) / 2, s * (BELT.WIDE / 2 - 0.02) * M]}
+          castShadow
+          receiveShadow
+        >
+          <boxGeometry args={[0.055 * M, beltY - railH, 0.055 * M]} />
+          <meshStandardMaterial {...iron} />
+        </mesh>
+      )))}
+
+      {/* ── the band ────────────────────────────────────────────────────────── */}
+      <mesh position={[runFrom + runW / 2, beltY, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[runW, BELT.WIDE * M]} />
+        {band
+          ? (
+            <meshStandardMaterial
+              map={band}
+              emissive="#ffffff"
+              emissiveMap={band}
+              emissiveIntensity={ambient * FACE.up}
+              roughness={0.92}
+              metalness={0.04}
+              userData={{ selfLit: true }}
+            />
+          )
+          : <meshStandardMaterial color="#181410" roughness={0.92} />}
+      </mesh>
+      {/* the head pulley at the discharge end, turned across the run */}
+      <mesh
+        position={[runFrom + 0.06 * M, beltY - 0.04 * M, 0]}
+        rotation={[Math.PI / 2, 0, 0]}
+        castShadow
+      >
+        <cylinderGeometry args={[0.09 * M, 0.09 * M, BELT.WIDE * M, 14]} />
+        <meshStandardMaterial {...steel} />
+      </mesh>
+
+      {/* ── the stop ────────────────────────────────────────────────────────── */}
+      {/* What actually holds a box at the station while the band keeps running
+          under it. It is the reason one box stands still on a belt that never
+          does, and it is why the room needs no second lamp to say which box is
+          being looked at: the machine says it. */}
+      <group position={[-(BELT.BOX.w / 2 + 0.07) * M, beltY, 0]}>
+        <mesh position={[0, 0.16 * M, 0]} castShadow receiveShadow>
+          <boxGeometry args={[0.035 * M, 0.32 * M, BELT.WIDE * M * 0.92]} />
+          <meshStandardMaterial {...steel} />
+        </mesh>
+        {[-1, 1].map((s) => (
+          <mesh key={s} position={[0, 0.34 * M, s * BELT.WIDE * M * 0.46]} castShadow>
+            <boxGeometry args={[0.05 * M, 0.12 * M, 0.05 * M]} />
+            <meshStandardMaterial {...iron} />
+          </mesh>
+        ))}
+      </group>
+
+      <BeltMouth M={M} x={mouthX} y={beltY + 0.19 * M} z={-0.42 * M} />
+
+      {/* ── the archive, riding ─────────────────────────────────────────────── */}
+      {/* One slot per project, in the archive's own order. Slot 0 is against
+          the stop; behind it is what has not gone yet, ahead of it what has.
+          The group's own x is written by the ticker and by nothing else. */}
+      <group ref={trainRef}>
+        {beltSlots(PROJECTS, project).map(({ slot, project: p }) => (
+          <ArtifactBox
+            key={p.id}
+            M={M}
+            mark={p.title}
+            spec={p.stack ?? ''}
+            ambient={ambient}
+            position={[slot * pitchPx, beltY + (BELT.BOX.h / 2) * M, 0]}
+            rotation={[0, slot === 0 ? -0.03 : (slot % 2 ? 0.07 : -0.09), 0]}
+          />
+        ))}
+      </group>
     </group>
   );
 }
@@ -1597,9 +1863,13 @@ function LandingProps({ idx, vw, vh, top, live = true }) {
       )}
       {idx === 2 && (
         <>
-          <Crates
+          {/* The station — where the box is held — stands where the pile of
+              crates used to, under the column. The run carries on past the
+              pier and out of the room to the left, because a corridor does. */}
+          <Conveyor
             M={M} x={underColumn(vw, content, 0.52, cratesZ)} floorY={floorY} z={cratesZ}
-            ambient={ambient}
+            leftEnd={offRoom(vw, cratesZ, -1)}
+            ambient={ambient} live={live}
           />
           {/* In the gutter, where the rack hangs on the EG, at the height a
               drawing gets hung at — eye level for someone standing. */}
