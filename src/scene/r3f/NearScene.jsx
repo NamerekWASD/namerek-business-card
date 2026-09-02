@@ -9,7 +9,7 @@ import {
 import { SURFACES } from '../model/materials.js';
 import { Box, Panel } from '../renderers/r3f/Surface.jsx';
 import { surfaceProps } from '../renderers/r3f/surfaceMaterial.js';
-import { useFittingMaterial } from '../renderers/r3f/useSurfaceMaterial.js';
+import { materialKey, useFittingMaterial } from '../renderers/r3f/useSurfaceMaterial.js';
 import { worldY } from '../renderers/r3f/camera.js';
 import { doorLeafFace, gateLattice, hazardStripe } from '../renderers/r3f/patterns.js';
 import { MARK_RISE, MARK_SPAN, leafMark } from '../renderers/r3f/leafMark.js';
@@ -97,7 +97,13 @@ function Tier({ vw, vh, top, tier }) {
  */
 function DoorLeaf({ side, left, top, w, h, z, clip }) {
   const face = doorLeafFace(side);
-  const plate = surfaceProps(SURFACES.doorLeaf, 1);
+  // ── NBC-69 ────────────────────────────────────────────────────────────────
+  // This is the largest single surface anyone ever looks at in this scene — two
+  // leaves filling the aperture for the whole of every arrival — and it was a
+  // flat `surfaceProps()` spread with no map on it at all. Grained at the
+  // leaf's own size, so the density matches the stiles standing on it rather
+  // than the wall behind.
+  const plate = useFittingMaterial(SURFACES.doorLeaf, 1, [w, h]);
   // The astragal is one of the four vertical members that frame every opening
   // in this scene, and it was flat colour like the rest of them. Grained, at
   // the frame's own tile size.
@@ -123,7 +129,11 @@ function DoorLeaf({ side, left, top, w, h, z, clip }) {
         {/* `clip` is this backend's `overflow: hidden` — a leaf slides out of
             its opening and has to stop existing where the frame stops hiding
             it, exactly as the CSS leaves are clipped by the frame they sit in */}
-        <meshStandardMaterial {...plate} clippingPlanes={clip ?? null} />
+        <meshStandardMaterial
+          key={materialKey(plate)}
+          {...plate}
+          clippingPlanes={clip ?? null}
+        />
       </mesh>
       {face && (
         <mesh position={[w / 2, -h / 2, LEAF_D + 0.4]} receiveShadow>

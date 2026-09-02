@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { bakeRoughness, bakeSurface, surfaceProps, tileRepeat } from './surfaceMaterial.js';
 import { useLightTuning } from './tuning.js';
 
@@ -92,4 +92,49 @@ export const materialKey = (material) => `${material.map ? 'g' : ''}${material.r
  */
 export function useFittingMaterial(s, shade = 1, size = [64, 64]) {
   return useSurfaceMaterial(s, size[0], size[1], shade);
+}
+
+// ── one bake, many shades ────────────────────────────────────────────────────
+// NBC-69, and the reason it needed a second entry point rather than more calls
+// to the one above. A fitting is rarely one tone: the workbench alone spreads
+// `SURFACES.iron` across eleven shades, the valve rack across seven, and every
+// one of those was a raw `surfaceProps()` spread — a flat rectangle of colour
+// with no grain and no roughness field on it. Reaching for `useFittingMaterial`
+// once per tone would be eleven hooks, eleven awaited bakes and eleven pairs of
+// cloned textures for one piece of furniture.
+//
+// The way out is that `shade` does exactly one thing: it multiplies the colour.
+// It touches neither map, and it is applied *after* the grain's own gain, so a
+// tone can be taken off a material that already carries its texture instead of
+// being re-derived from the catalogue — which is the one way this could go
+// quietly wrong, and what `fittingShades.test.js` holds.
+
+/**
+ * The same material at another tone.
+ *
+ * @param {{ color: import('three').Color, roughness: number, metalness: number,
+ *   map?: unknown, roughnessMap?: unknown }} base
+ * @param {Shade} [shade]
+ */
+export function shadeProps(base, shade = 1) {
+  if (shade === 1) return base;
+  return { ...base, color: base.color.clone().multiplyScalar(shade) };
+}
+
+/**
+ * A surface's grain baked once, handed back as something a call site can take
+ * any number of tones off.
+ *
+ * ```jsx
+ * const iron = useFittingShades(SURFACES.iron, [bodyW, bodyH]);
+ * // …
+ * <meshStandardMaterial {...iron(0.62)} />
+ * ```
+ *
+ * @param {Surface} s @param {[number, number]} [size] the largest face the tile
+ *   has to cover, so a box's six faces share one density
+ */
+export function useFittingShades(s, size = [64, 64]) {
+  const base = useFittingMaterial(s, 1, size);
+  return useCallback((/** @type {Shade} */ shade = 1) => shadeProps(base, shade), [base]);
 }
