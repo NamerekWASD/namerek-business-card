@@ -15,7 +15,7 @@ import {
   DOORWAY_W_FRAC, LANDING_SETBACK, landingCeilingY, landingFloorY, pxPerM,
 } from '../model/geometry.js';
 import { SURFACES } from '../model/materials.js';
-import { surfaceProps } from '../renderers/r3f/surfaceMaterial.js';
+import { useFittingShades } from '../renderers/r3f/useSurfaceMaterial.js';
 import { worldY } from '../renderers/r3f/camera.js';
 import { useLightTuning } from '../renderers/r3f/tuning.js';
 import {
@@ -235,8 +235,15 @@ function ValveRack({ M, x, y, z, ambient, live }) {
   const plate = valveRackPlate();
   const plateArt = artwork(plate, ambient);
 
-  const cast = surfaceProps(SURFACES.iron, 0.9);
-  const steel = surfaceProps(SURFACES.steel, 1);
+  // ── NBC-69: the rack's metal carries its grain now ──────────────────────
+  // Every member below used to be a raw `surfaceProps()` spread, which returns
+  // no map at all — seven tones of the same flat colour. One bake per surface,
+  // sized to the case's largest face so all of the small members share one
+  // density, and the tone taken off it per call. See `useFittingShades`.
+  const ironAt = useFittingShades(SURFACES.iron, [caseW, caseH]);
+  const steelAt = useFittingShades(SURFACES.steel, [caseW, caseH]);
+  const cast = ironAt(0.9);
+  const steel = steelAt(1);
   const brass = { color: '#8a6326', roughness: 0.42, metalness: 0.72 };
 
   /** A point on the plate, in the case's own local frame. */
@@ -302,7 +309,7 @@ function ValveRack({ M, x, y, z, ambient, live }) {
       {[[1.0, 0.028], [0.93, 0.05]].map(([k, d], i) => (
         <mesh key={k} position={[0, 0, front + (d * M) / 2]} castShadow receiveShadow>
           <boxGeometry args={[caseW * k, caseH * k, d * M]} />
-          <meshStandardMaterial {...surfaceProps(SURFACES.iron, 0.8 + i * 0.35)} />
+          <meshStandardMaterial {...ironAt(0.8 + i * 0.35)} />
         </mesh>
       ))}
       {[-1, 1].map((s) => (
@@ -323,7 +330,7 @@ function ValveRack({ M, x, y, z, ambient, live }) {
         {[[0.075, 0.03, 0], [0.055, 0.035, 0.032], [0.042, 0.05, 0.062]].map(([r, hh, oy]) => (
           <mesh key={r} position={[0, (oy + hh / 2) * M, 0]} castShadow receiveShadow>
             <cylinderGeometry args={[r * M, r * M * 1.08, hh * M, 12]} />
-            <meshStandardMaterial {...surfaceProps(SURFACES.iron, 1.1)} />
+            <meshStandardMaterial {...ironAt(1.1)} />
           </mesh>
         ))}
         {/* the lock nut: a hexagon, because that is what says "threaded" */}
@@ -338,7 +345,7 @@ function ValveRack({ M, x, y, z, ambient, live }) {
         <planeGeometry args={[plateW, plateH]} />
         {plateArt
           ? <meshStandardMaterial {...plateArt} roughness={0.62} metalness={0.2} />
-          : <meshStandardMaterial {...surfaceProps(SURFACES.iron, 0.7)} />}
+          : <meshStandardMaterial {...ironAt(0.7)} />}
       </mesh>
 
       {/* ── the decks ────────────────────────────────────────────────────────
@@ -354,7 +361,7 @@ function ValveRack({ M, x, y, z, ambient, live }) {
           receiveShadow
         >
           <boxGeometry args={[plateW * 0.95, deckT, deckD]} />
-          <meshStandardMaterial {...surfaceProps(SURFACES.iron, 1.15)} />
+          <meshStandardMaterial {...ironAt(1.15)} />
         </mesh>
       ))}
 
@@ -445,12 +452,12 @@ function ValveRack({ M, x, y, z, ambient, live }) {
       <group position={[-caseW / 2, 0, front]} rotation={[0, -1.78, 0]}>
         <mesh position={[caseW / 2, 0, -0.012 * M]} castShadow receiveShadow>
           <boxGeometry args={[caseW, caseH, 0.024 * M]} />
-          <meshStandardMaterial {...surfaceProps(SURFACES.iron, 1.05)} />
+          <meshStandardMaterial {...ironAt(1.05)} />
         </mesh>
         {/* its stiffening rib and the catch it shuts on */}
         <mesh position={[caseW / 2, 0, -0.03 * M]} castShadow>
           <boxGeometry args={[caseW * 0.7, caseH * 0.72, 0.014 * M]} />
-          <meshStandardMaterial {...surfaceProps(SURFACES.iron, 0.78)} />
+          <meshStandardMaterial {...ironAt(0.78)} />
         </mesh>
         <mesh position={[caseW * 0.94, 0, -0.03 * M]} castShadow>
           <boxGeometry args={[0.03 * M, 0.09 * M, 0.03 * M]} />
@@ -763,8 +770,14 @@ function Workbench({ M, x, floorY, z, ambient, yaw }) {
   const tapeArt = artwork(punchTape(), ambient, FACE.up);
   const glow = lampGlow();
 
-  const iron = surfaceProps(SURFACES.iron, 0.85);
-  const ironDark = surfaceProps(SURFACES.iron, 0.5);
+  // NBC-69. Eleven tones of one surface, and every one of them was a flat
+  // colour with no grain and no roughness field on it — the fault the note on
+  // `useFittingShades` describes and the reason the bench's legs measured a
+  // luminance stddev of 2.3 out of 255. One bake, sized to the slab, and the
+  // tone taken off it.
+  const ironAt = useFittingShades(SURFACES.iron, [len, depth]);
+  const iron = ironAt(0.85);
+  const ironDark = ironAt(0.5);
   // What the small hardware on the slab is made of. **Not the catalogue's
   // steel**, which is the one cool entry in it (#404952) and is authored for
   // fittings the shaft's own lamps rake across at close range. Up here, under a
@@ -772,15 +785,15 @@ function Workbench({ M, x, floorY, z, ambient, yaw }) {
   // all warm ochre, it has nowhere to go but black — a rack of tools rendered as
   // a row of holes cut in the bench. Warm iron, lifted, so a small object on the
   // slab reads as an object.
-  const hardware = surfaceProps(SURFACES.iron, 1.35);
+  const hardware = ironAt(1.35);
   // Warm, not the catalogue's steel. Every grey in this scene is warm on
   // purpose (see the note on `doorLeaf` in `materials.js`) and a cool bracket on
   // a brass-lit bench is the one hex fighting the grade.
-  const bracket = surfaceProps(SURFACES.iron, 1.55);
+  const bracket = ironAt(1.55);
 
   const band = (art, fallbackShade) => (art
     ? <meshStandardMaterial {...art} roughness={0.8} metalness={0.42} />
-    : <meshStandardMaterial {...surfaceProps(SURFACES.iron, fallbackShade)} />);
+    : <meshStandardMaterial {...ironAt(fallbackShade)} />);
 
   // the drawer bank fills the right-hand bay, the brace crosses the left one
   const bankW = 0.64 * M;
@@ -836,7 +849,7 @@ function Workbench({ M, x, floorY, z, ambient, yaw }) {
         <group key={`${sx}:${sz}`} position={[sx * endX, 0, sz * legZ]}>
           <mesh position={[0, footH * 0.3, 0]} castShadow receiveShadow>
             <cylinderGeometry args={[legT * 0.6, legT * 0.8, footH * 0.6, 12]} />
-            <meshStandardMaterial {...surfaceProps(SURFACES.iron, 0.7)} />
+            <meshStandardMaterial {...ironAt(0.7)} />
           </mesh>
           <mesh position={[0, footH * 0.78, 0]}>
             <cylinderGeometry args={[legT * 0.44, legT * 0.56, footH * 0.36, 12]} />
@@ -893,14 +906,14 @@ function Workbench({ M, x, floorY, z, ambient, yaw }) {
       </mesh>
       <mesh position={[brace.position[0], brace.position[1], -legZ * 0.35]} rotation={brace.lying}>
         <boxGeometry args={[brace.length, 0.045 * M, 0.018 * M]} />
-        <meshStandardMaterial {...surfaceProps(SURFACES.iron, 0.62)} />
+        <meshStandardMaterial {...ironAt(0.62)} />
       </mesh>
 
       {/* the drawer bank, filling the other bay */}
       <group position={[bankX, shelfY + bankH / 2, 0]}>
         <mesh castShadow receiveShadow>
           <boxGeometry args={[bankW, bankH, bankD]} />
-          <meshStandardMaterial {...surfaceProps(SURFACES.iron, 0.6)} />
+          <meshStandardMaterial {...ironAt(0.6)} />
         </mesh>
         {[-1, 0, 1].map((d) => (
           <group key={d} position={[0, d * -bankH * 0.31, bankD / 2 + 0.006 * M]}>
@@ -927,7 +940,7 @@ function Workbench({ M, x, floorY, z, ambient, yaw }) {
         </mesh>
         <mesh position={[0, 0.25 * M, 0]} castShadow receiveShadow>
           <boxGeometry args={[0.46 * M, 0.05 * M, 0.29 * M]} />
-          <meshStandardMaterial {...surfaceProps(SURFACES.iron, 0.78)} />
+          <meshStandardMaterial {...ironAt(0.78)} />
         </mesh>
         <mesh position={[0, 0.276 * M, 0]} rotation={[0, 0, 0]}>
           <torusGeometry args={[0.075 * M, 0.008 * M, 5, 14, Math.PI]} />
@@ -960,14 +973,14 @@ function Workbench({ M, x, floorY, z, ambient, yaw }) {
         <boxGeometry args={[len, topT, depth]} />
         {/* top face only takes the artwork; the edges are end grain and read
             better as plain dark timber than as the top's own picture repeated */}
-        <meshStandardMaterial attach="material-0" {...surfaceProps(SURFACES.iron, 0.6)} />
-        <meshStandardMaterial attach="material-1" {...surfaceProps(SURFACES.iron, 0.6)} />
+        <meshStandardMaterial attach="material-0" {...ironAt(0.6)} />
+        <meshStandardMaterial attach="material-1" {...ironAt(0.6)} />
         {topArt
           ? <meshStandardMaterial attach="material-2" {...topArt} roughness={0.78} metalness={0.05} />
-          : <meshStandardMaterial attach="material-2" {...surfaceProps(SURFACES.iron, 1.1)} />}
-        <meshStandardMaterial attach="material-3" {...surfaceProps(SURFACES.iron, 0.4)} />
-        <meshStandardMaterial attach="material-4" {...surfaceProps(SURFACES.iron, 0.75)} />
-        <meshStandardMaterial attach="material-5" {...surfaceProps(SURFACES.iron, 0.5)} />
+          : <meshStandardMaterial attach="material-2" {...ironAt(1.1)} />}
+        <meshStandardMaterial attach="material-3" {...ironAt(0.4)} />
+        <meshStandardMaterial attach="material-4" {...ironAt(0.75)} />
+        <meshStandardMaterial attach="material-5" {...ironAt(0.5)} />
       </mesh>
       {/* the brass edge strip along the front, which every bench in the
           reference has and which gives the slab a bright line to be read
@@ -1051,7 +1064,7 @@ function Workbench({ M, x, floorY, z, ambient, yaw }) {
       <group position={[-endX * 0.72, benchH, depth / 2 - 0.02 * M]}>
         <mesh position={[0, 0.035 * M, 0.09 * M]} castShadow receiveShadow>
           <boxGeometry args={[0.22 * M, 0.07 * M, 0.2 * M]} />
-          <meshStandardMaterial {...surfaceProps(SURFACES.iron, 0.9)} />
+          <meshStandardMaterial {...ironAt(0.9)} />
         </mesh>
         {[0.03, 0.15].map((jz) => (
           <mesh key={jz} position={[0, 0.1 * M, jz * M]} castShadow receiveShadow>
@@ -1111,7 +1124,7 @@ function Workbench({ M, x, floorY, z, ambient, yaw }) {
       <group position={[endX * 0.73, benchH, -0.12 * M]} rotation={[0, -0.24, 0]}>
         <mesh position={[0, 0.055 * M, 0]} castShadow receiveShadow>
           <boxGeometry args={[0.36 * M, 0.11 * M, 0.22 * M]} />
-          <meshStandardMaterial {...surfaceProps(SURFACES.iron, 0.9)} />
+          <meshStandardMaterial {...ironAt(0.9)} />
         </mesh>
         {[[-0.1, 0.22], [0.09, 0.15]].map(([vx, vh]) => (
           <group key={vx} position={[vx * M, 0.11 * M, 0]}>
@@ -1167,11 +1180,11 @@ function Workbench({ M, x, floorY, z, ambient, yaw }) {
         {/* the standard it hangs off, bolted to the slab */}
         <mesh position={[0, benchH + 0.055 * M, -0.075 * M]} castShadow receiveShadow>
           <boxGeometry args={[0.11 * M, 0.11 * M, 0.02 * M]} />
-          <meshStandardMaterial {...surfaceProps(SURFACES.iron, 0.85)} />
+          <meshStandardMaterial {...ironAt(0.85)} />
         </mesh>
         <mesh position={[0, benchH + 0.008 * M, -0.075 * M]} castShadow receiveShadow>
           <boxGeometry args={[0.17 * M, 0.016 * M, 0.07 * M]} />
-          <meshStandardMaterial {...surfaceProps(SURFACES.iron, 0.7)} />
+          <meshStandardMaterial {...ironAt(0.7)} />
         </mesh>
 
         {/* the reader head the tape passes through, and the two knobs that set
@@ -1179,7 +1192,7 @@ function Workbench({ M, x, floorY, z, ambient, yaw }) {
             into something is a machine mid-job. */}
         <mesh position={[0, benchH + 0.028 * M, 0.035 * M]} castShadow receiveShadow>
           <boxGeometry args={[0.13 * M, 0.056 * M, 0.1 * M]} />
-          <meshStandardMaterial {...surfaceProps(SURFACES.iron, 1.0)} />
+          <meshStandardMaterial {...ironAt(1.0)} />
         </mesh>
         <mesh position={[0, benchH + 0.058 * M, 0.035 * M]} castShadow>
           <boxGeometry args={[0.134 * M, 0.008 * M, 0.03 * M]} />
@@ -1331,12 +1344,19 @@ function BeltMouth({ M, x, y, z }) {
   // Hand-set rather than taken from the catalogue: every iron in `SURFACES`
   // sits low enough that a member this small disappears, and what makes an
   // opening read as an opening is one bright edge against the black behind it.
-  // Darker than the plaster it is set into, and deliberately: `Room` gives
-  // every material emissive = albedo x ambient, so a light albedo on a small
-  // member is a small member that glows. At the catalogue's old value the
-  // whole assembly read as a timber crate standing against the wall instead
-  // of an opening cut through it — the one thing it exists to be.
-  const surround = { color: '#3b3018', roughness: 0.66, metalness: 0.34 };
+  // ── the surround's metal ───────────────────────────────────────────────
+  // Off the catalogue rather than hand-set, which is NBC-69's whole point: a
+  // hand-set hex carries no grain, and this is a 370-pixel member standing in
+  // the middle of the shot. The tones are the ones that were hand-picked here
+  // first and then matched — `iron` at 1 lands within a couple of values of
+  // the `#3b3018` that made the assembly read as an opening rather than as a
+  // timber crate against the wall.
+  //
+  // Why it had to be darker than the plaster at all: `Room` gives every
+  // material emissive = albedo x ambient, so a light albedo on a small member
+  // is a small member that glows.
+  const ironAt = useFittingShades(SURFACES.iron, [w, h]);
+  const surround = ironAt(1);
   const slats = 7;
   return (
     <group position={[x, y, z]}>
@@ -1359,7 +1379,7 @@ function BeltMouth({ M, x, y, z }) {
           slot is built the same way and for the same reason. */}
       <mesh position={[0, h / 2 + 0.045 * M, 0.1 * M]} rotation={[-0.34, 0, 0]} castShadow receiveShadow>
         <boxGeometry args={[w + 0.05 * M, 0.115 * M, 0.018 * M]} />
-        <meshStandardMaterial color="#4a3b1f" roughness={0.6} metalness={0.34} />
+        <meshStandardMaterial {...ironAt(1.2)} />
       </mesh>
       {/* The strip curtain: what a goods opening in a wall actually has, and
           the one part of this that breaks the rectangle. It hangs down only the
@@ -1498,7 +1518,7 @@ function useBeltMotion(bands, boxes, path, count, pitch, M, projectRef, onStamp,
  * them, which is the whole of why `useBeltMotion` scrolls the two in opposite
  * directions — see the note there.
  */
-function BeltRun({ M, len, band, ambient, steel, iron, legFrom, ...rest }) {
+function BeltRun({ M, len, band, ambient, steel, iron, ironLeg, legFrom, ...rest }) {
   const beltY = BELT.TOP * M;
   // ── the rail sits *under* the band, not beside the box ─────────────────────
   // It used to stand a hair proud of the belt surface, which is what a real
@@ -1538,7 +1558,10 @@ function BeltRun({ M, len, band, ambient, steel, iron, legFrom, ...rest }) {
           receiveShadow
         >
           <boxGeometry args={[0.055 * M, beltY - railH, 0.055 * M]} />
-          <meshStandardMaterial {...iron} />
+          {/* Its own bake, not the pan's. One `size` cannot serve both: the
+              pan is nearly two thousand pixels of run and a leg is twenty-two
+              across, and a tile fitted to the first is a smear on the second. */}
+          <meshStandardMaterial {...ironLeg} />
         </mesh>
       )))}
 
@@ -1640,8 +1663,11 @@ function Conveyor({ M, x, floorY, z, ambient, leftEnd, live }) {
   // whole, which on a member this long reads as one black beam with boxes
   // balanced on it. The bench, the only other big steel object down here, is
   // carried at the same sort of level for the same reason.
-  const steel = surfaceProps(SURFACES.steel, 1.35);
-  const iron = surfaceProps(SURFACES.iron, 1.05);
+  // NBC-69: baked rather than flat. The run is the longest piece of metal in
+  // the room and was a single colour end to end.
+  const steel = useFittingShades(SURFACES.steel, [run, BELT.WIDE * M])(1.35);
+  const iron = useFittingShades(SURFACES.iron, [run, BELT.WIDE * M])(1.05);
+  const ironLeg = useFittingShades(SURFACES.iron, [0.055 * M, BELT.TOP * M])(1.05);
   const beltY = BELT.TOP * M;
 
   return (
@@ -1652,7 +1678,8 @@ function Conveyor({ M, x, floorY, z, ambient, leftEnd, live }) {
           −90° about z lays the run across and the −90° about x tips it flat,
           and the pair leaves the band's `u` pointing out of the wall. */}
       <BeltRun
-        M={M} len={out} band={head} ambient={ambient} steel={steel} iron={iron}
+        M={M} len={out} band={head} ambient={ambient}
+        steel={steel} iron={iron} ironLeg={ironLeg}
         legFrom={0.28 * M}
         rotation={[-Math.PI / 2, 0, -Math.PI / 2]}
       />
@@ -1660,7 +1687,8 @@ function Conveyor({ M, x, floorY, z, ambient, leftEnd, live }) {
           It does not stop at the edge of what can be seen — a corridor carries
           on, and the same argument is written out at length on `WallCable`. */}
       <BeltRun
-        M={M} len={run} band={long} ambient={ambient} steel={steel} iron={iron}
+        M={M} len={run} band={long} ambient={ambient}
+        steel={steel} iron={iron} ironLeg={ironLeg}
         legFrom={0.9 * M}
       />
 
@@ -1760,6 +1788,10 @@ function Schematic({ M, x, y, z, ambient }) {
   const w = pw + rail * 2;
   const h = ph + rail * 2;
   const wood = { color: '#2c2318', roughness: 0.72, metalness: 0.06 };
+  // NBC-69, and the two flat metals this frame had: the pan behind the sheet
+  // and the plate the drawing is fixed with.
+  const ironAt = useFittingShades(SURFACES.iron, [w, h]);
+  const steelAt = useFittingShades(SURFACES.steel, [w, h]);
   const runs = [
     [0, (h - rail) / 2, w, rail],
     [0, -(h - rail) / 2, w, rail],
@@ -1773,7 +1805,7 @@ function Schematic({ M, x, y, z, ambient }) {
           keeps the whole thing off the plaster */}
       <mesh position={[0, 0, -deep / 2]} receiveShadow>
         <boxGeometry args={[w, h, deep]} />
-        <meshStandardMaterial {...surfaceProps(SURFACES.iron, 0.9)} />
+        <meshStandardMaterial {...ironAt(0.9)} />
       </mesh>
       {runs.map(([rx, ry, rw, rh]) => (
         <group key={`${rx},${ry}`}>
@@ -1804,7 +1836,7 @@ function Schematic({ M, x, y, z, ambient }) {
           rotation={[Math.PI / 2, 0, 0]}
         >
           <cylinderGeometry args={[0.008 * M, 0.008 * M, 0.006 * M, 6]} />
-          <meshStandardMaterial {...surfaceProps(SURFACES.steel, 0.8)} />
+          <meshStandardMaterial {...steelAt(0.8)} />
         </mesh>
       ))}
       <mesh position={[0, 0, deep * 0.42]}>
@@ -1868,6 +1900,12 @@ function PostBox({ M, x, floorY, z, ambient, yaw }) {
     ? <meshStandardMaterial {...art} {...enamel} />
     : <meshStandardMaterial {...fallback} />);
 
+  // NBC-69. The plinth is the one member of this box not painted by
+  // `postBoxSkin`, and it was the catalogue's concrete as a flat colour — a
+  // grey slab under a heavily worn enamel box, which is the one place a missing
+  // grain shows most.
+  const concreteAt = useFittingShades(SURFACES.landing, [bodyW + 0.06 * M, plinthH]);
+
   const bodyY = plinthH + bodyH / 2;
   const frontZ = bodyD / 2;
   const card = postBoxCard();
@@ -1885,7 +1923,7 @@ function PostBox({ M, x, floorY, z, ambient, yaw }) {
           concrete the room is made of. */}
       <mesh position={[0, plinthH / 2, 0]} castShadow receiveShadow>
         <boxGeometry args={[bodyW + 0.06 * M, plinthH, bodyD + 0.06 * M]} />
-        <meshStandardMaterial {...surfaceProps(SURFACES.landing, 0.72)} />
+        <meshStandardMaterial {...concreteAt(0.72)} />
       </mesh>
       <mesh position={[0, plinthH + 0.008 * M, 0]} castShadow receiveShadow>
         <boxGeometry args={[bodyW + 0.02 * M, 0.016 * M, bodyD + 0.02 * M]} />

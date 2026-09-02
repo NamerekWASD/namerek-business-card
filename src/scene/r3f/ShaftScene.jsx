@@ -10,8 +10,10 @@ import {
 import { SURFACES } from '../model/materials.js';
 import { LAMPS } from '../model/lighting.js';
 import { Panel } from '../renderers/r3f/Surface.jsx';
-import { grainOf, surfaceProps } from '../renderers/r3f/surfaceMaterial.js';
-import { materialKey, useFittingMaterial } from '../renderers/r3f/useSurfaceMaterial.js';
+import { grainOf } from '../renderers/r3f/surfaceMaterial.js';
+import {
+  materialKey, shadeProps, useFittingMaterial, useFittingShades,
+} from '../renderers/r3f/useSurfaceMaterial.js';
 import { worldY } from '../renderers/r3f/camera.js';
 import SceneLights from './SceneLights.jsx';
 import CanvasBoot from '../../boot/CanvasBoot.jsx';
@@ -211,8 +213,10 @@ function Walls({ vw, vh, pos, floorPx, ticker }) {
 function Pendant({ vw, vh, top }) {
   const tuning = useLightTuning();
   const [x, y, z] = pendantAt(vw, vh, top);
-  const cast = surfaceProps(SURFACES.iron, 0.9);
-  const steel = surfaceProps(SURFACES.steel, 1);
+  // NBC-69: the one lit fitting in the landing, and it was flat colour. Sized
+  // to the dome, which is the biggest face the tile has to cover here.
+  const cast = useFittingShades(SURFACES.iron, [124, 124])(0.9);
+  const steel = useFittingShades(SURFACES.steel, [124, 124])(1);
 
   // Everything here is measured downward from the point the light comes from,
   // and negated by `worldY` on the way out: this file thinks in screen pixels
@@ -1015,7 +1019,9 @@ function Counterweight({ vw, vh, pos, floorPx, ticker }) {
         {/* the crosshead the ropes terminate in, and the shoe the stack sits on */}
         <mesh position={[0, worldY(-8), CW_D / 2 + 3]}>
           <boxGeometry args={[CW_W + 16, 17, 10]} />
-          <meshStandardMaterial {...surfaceProps(SURFACES.steel, 1.05)} />
+          {/* NBC-69: the last flat member of the stack, taken off the same
+              bake its slabs already carry rather than off the catalogue. */}
+          <meshStandardMaterial key={materialKey(steel)} {...shadeProps(steel, 1.05 / 1.4)} />
         </mesh>
         <mesh position={[0, worldY(CW_HEAD / 2), 0]}>
           <boxGeometry args={[CW_W, CW_HEAD, CW_D]} />
