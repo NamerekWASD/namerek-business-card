@@ -1,7 +1,10 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { PROJECTS, SLIDES } from '../../decks/projects.js';
-import { BELT, bandOffset, beltSlide, beltSlots } from '../renderers/r3f/belt.js';
+import {
+  BELT, bandOffset, beltAt, beltCount, beltTrip, pathLength, posAt,
+} from '../renderers/r3f/belt.js';
 import { useFullscreenGallery } from './fullscreenImage.js';
+import NoticeScreen from './NoticeScreen.jsx';
 import { invalidateScene } from '../renderers/r3f/frames.js';
 import {
   AdditiveBlending, BufferAttribute, BufferGeometry, CatmullRomCurve3, DoubleSide,
@@ -1315,14 +1318,26 @@ function ArtifactBox({ M, mark, spec, ambient, ...rest }) {
  * subtraction the whole room would have to pay for. What reads as an opening at
  * this distance is a recess with something over it that casts into it, which is
  * how the post box's letter slot is built too.
+ *
+ * It grew with the boxes on NBC-68. The old opening was authored to the *band*
+ * and the band alone, so a box half again bigger came out of a hole it barely
+ * fitted through — which read, correctly, as a box pushing through a letter
+ * slot. `BELT.MOUTH` is the size now and `belt.test.js` holds it to being
+ * bigger than what comes out of it.
  */
 function BeltMouth({ M, x, y, z }) {
-  const w = (BELT.WIDE + 0.24) * M;
-  const h = 0.6 * M;
+  const w = BELT.MOUTH.W * M;
+  const h = BELT.MOUTH.H * M;
   // Hand-set rather than taken from the catalogue: every iron in `SURFACES`
   // sits low enough that a member this small disappears, and what makes an
   // opening read as an opening is one bright edge against the black behind it.
-  const surround = { color: '#584828', roughness: 0.62, metalness: 0.32 };
+  // Darker than the plaster it is set into, and deliberately: `Room` gives
+  // every material emissive = albedo x ambient, so a light albedo on a small
+  // member is a small member that glows. At the catalogue's old value the
+  // whole assembly read as a timber crate standing against the wall instead
+  // of an opening cut through it — the one thing it exists to be.
+  const surround = { color: '#3b3018', roughness: 0.66, metalness: 0.34 };
+  const slats = 7;
   return (
     <group position={[x, y, z]}>
       {/* the dark of the shaft behind the wall */}
@@ -1344,19 +1359,22 @@ function BeltMouth({ M, x, y, z }) {
           slot is built the same way and for the same reason. */}
       <mesh position={[0, h / 2 + 0.045 * M, 0.1 * M]} rotation={[-0.34, 0, 0]} castShadow receiveShadow>
         <boxGeometry args={[w + 0.05 * M, 0.115 * M, 0.018 * M]} />
-        <meshStandardMaterial color="#544326" roughness={0.6} metalness={0.34} />
+        <meshStandardMaterial color="#4a3b1f" roughness={0.6} metalness={0.34} />
       </mesh>
-      {/* the strip curtain: what a goods opening in a wall actually has, and
-          the one part of this that breaks the rectangle */}
-      {Array.from({ length: 7 }, (_, i) => (
+      {/* The strip curtain: what a goods opening in a wall actually has, and
+          the one part of this that breaks the rectangle. It hangs down only the
+          top third — the boxes come through here now rather than standing off to
+          one side, and a curtain a box walks through without moving is worse
+          than no curtain at all. */}
+      {Array.from({ length: slats }, (_, i) => (
         <mesh
           key={i}
-          position={[(i - 3) * 0.1 * M, h * 0.18, 0.075 * M]}
+          position={[(i - (slats - 1) / 2) * (w / slats), h * 0.3, 0.075 * M]}
           rotation={[0, 0, (i % 3 - 1) * 0.035]}
           castShadow
         >
-          <boxGeometry args={[0.085 * M, h * 0.62, 0.012 * M]} />
-          <meshStandardMaterial color="#2b2318" roughness={0.82} metalness={0.05} />
+          <boxGeometry args={[w / slats * 0.86, h * 0.34, 0.012 * M]} />
+          <meshStandardMaterial color="#171310" roughness={0.88} metalness={0.04} />
         </mesh>
       ))}
     </group>
@@ -1364,7 +1382,7 @@ function BeltMouth({ M, x, y, z }) {
 }
 
 /**
- * Drives the band and the train.
+ * Drives the band and every box on it.
  *
  * One writer, ticked off `requestAnimationFrame` with a gate on it rather than
  * off React state. Both halves of that matter and both are scars: a prop
@@ -1375,30 +1393,60 @@ function BeltMouth({ M, x, y, z }) {
  *
  * rAF also gets one thing a timer would not: a hidden tab stops paying for it.
  *
- * @param {{ current: import('three').Texture | null }} band
- * @param {{ current: import('three').Object3D | null }} train
- * @param {number} pitchPx one slot, in scene pixels
- * @param {number} project which project is on the glass
+ * ── the one thing React is allowed to own here ──────────────────────────────
+ * Which project each box is stamped with, and nothing else. Position is written
+ * here and only here; the stamp is a rare, discrete fact — a box reaching the
+ * mouth, roughly once every ten seconds per box — and a texture swap is not
+ * something a ticker can do without reaching into materials it does not own.
+ * So the ticker *reports* the crossing through `onStamp` and React re-renders
+ * that one box's faces. The group it re-renders never carries a `position`
+ * prop, which is what keeps this from being two clocks again.
+ *
+ * @param {{ head: { current: import('three').Texture | null },
+ *           run: { current: import('three').Texture | null } }} bands
+ * @param {{ current: Array<import('three').Object3D | null> }} boxes
+ * @param {{ out: number, run: number }} path in scene pixels
+ * @param {number} count how many boxes are on the run
+ * @param {number} pitch one box and its gap, in scene pixels
+ * @param {number} M the room's metre
+ * @param {{ current: number }} projectRef what is on the glass, right now
+ * @param {(i: number, project: number) => void} onStamp
  * @param {boolean} live
  */
-function useBeltMotion(band, train, pitchPx, project, live) {
-  const from = useRef(project);
-  const changedAt = useRef(0);
+function useBeltMotion(bands, boxes, path, count, pitch, M, projectRef, onStamp, live) {
+  const travel = useRef(0);
+  const trips = useRef([]);
 
-  useEffect(() => {
-    // The advance is started here and played out by the ticker below, so the
-    // slot the train is easing *from* survives a re-render. Skipped on the
-    // first pass: arriving on the floor is not a delivery.
-    if (from.current === project) return;
-    from.current = project;
-    changedAt.current = performance.now();
-  }, [project]);
+  // Where the boxes stand, laid out from the ticker's *own* travel rather than
+  // from a second source — so this is the same clock, not a second one. It has
+  // to exist at all because a landing can be furnished with `live` false (the
+  // boot warm-up, and every floor the lift is not standing at), and without it
+  // those rooms hold four boxes stacked on the corner.
+  useLayoutEffect(() => {
+    const len = pathLength(path);
+    for (let i = 0; i < count; i += 1) {
+      const g = boxes.current[i];
+      if (!g) continue;
+      const d = beltAt(travel.current, i, count, pitch);
+      const at = posAt(d, path);
+      g.position.x = at.x;
+      g.position.z = at.z;
+      g.visible = d < len;
+    }
+  });
 
   useEffect(() => {
     if (!live) return undefined;
     let raf = 0;
     let last = performance.now();
     const period = 1000 / BELT.HZ;
+    const len = pathLength(path);
+    // Seeded from where the boxes already are rather than from zero, so a
+    // resize — which re-lays the room and can change `count` — does not fire a
+    // burst of stamps for crossings that never happened.
+    trips.current = Array.from(
+      { length: count }, (_, i) => beltTrip(travel.current, i, count, pitch),
+    );
 
     const tick = (now) => {
       raf = requestAnimationFrame(tick);
@@ -1406,83 +1454,80 @@ function useBeltMotion(band, train, pitchPx, project, live) {
       if (dt < period) return;
       last = now;
 
-      if (band.current) band.current.offset.x += bandOffset(dt);
-      if (train.current) {
-        const since = changedAt.current ? now - changedAt.current : null;
-        train.current.position.x = beltSlide(since) * pitchPx;
+      const off = bandOffset(dt);
+      // Opposite signs, and not a typo: the two runs point different ways, and
+      // both bands have to appear to carry a box the way the boxes actually go.
+      // The head run's own +u is world +z, the long run's is world +x, and the
+      // product travels +z then −x.
+      if (bands.head.current) bands.head.current.offset.x -= off;
+      if (bands.run.current) bands.run.current.offset.x += off;
+
+      travel.current += (BELT.SPEED * M * dt) / 1000;
+      const s = travel.current;
+      for (let i = 0; i < count; i += 1) {
+        const g = boxes.current[i];
+        if (!g) continue;
+        const d = beltAt(s, i, count, pitch);
+        const at = posAt(d, path);
+        g.position.x = at.x;
+        g.position.z = at.z;
+        // The stretch of the cycle past the end of the run: the box is back
+        // behind the wall being brought round again, which is not a place
+        // anything is drawn.
+        g.visible = d < len;
+        const trip = beltTrip(s, i, count, pitch);
+        if (trip !== trips.current[i]) {
+          trips.current[i] = trip;
+          onStamp(i, projectRef.current);
+        }
       }
       invalidateScene();
     };
 
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [band, train, pitchPx, live]);
+  }, [bands, boxes, path, count, pitch, M, projectRef, onStamp, live]);
 }
 
-function Conveyor({ M, x, floorY, z, ambient, leftEnd, live }) {
-  const gallery = useFullscreenGallery();
-  const slide = SLIDES[gallery?.page ?? 0] ?? null;
-  // Which *project*, not which frame. Six shots of one job must not move a box.
-  const project = Math.max(0, PROJECTS.findIndex((p) => p.id === slide?.project));
-
-  const bandRef = useRef(null);
-  const trainRef = useRef(null);
-  const pitchPx = BELT.PITCH * M;
-  useBeltMotion(bandRef, trainRef, pitchPx, project, live);
-
-  const mouthX = BELT.UPSTREAM * M;
-  // The run itself: from the mouth, past the station, and out of the room. It
-  // does not stop at the edge of what can be seen — a corridor carries on, and
-  // the same argument is written out at length on `WallCable`.
-  const runFrom = leftEnd - x;
-  const runTo = mouthX;
-  const runW = runTo - runFrom;
+/**
+ * One run of belt: the frame, the legs, the pan and the band itself.
+ *
+ * Laid out along its own +x and turned into place by the caller, so the head
+ * run and the long run are the same object twice rather than two near-copies
+ * that drift. That also settles which way the band's `u` points on each of
+ * them, which is the whole of why `useBeltMotion` scrolls the two in opposite
+ * directions — see the note there.
+ */
+function BeltRun({ M, len, band, ambient, steel, iron, legFrom, ...rest }) {
   const beltY = BELT.TOP * M;
-
-  const bandSrc = beltBand();
-  const band = useMemo(() => {
-    if (!bandSrc) return null;
-    const map = bandSrc.clone();
-    // Cloned rather than shared: this offset is written every tick, and two
-    // landings furnished at once during a ride would be two drivers on one
-    // texture — both winning every other frame. A clone shares the image.
-    map.repeat.set(runW / M / (BELT.SLAT * 4), 1);
-    map.needsUpdate = true;
-    return map;
-  }, [bandSrc, runW, M]);
-  useEffect(() => {
-    bandRef.current = band;
-    return () => band?.dispose();
-  }, [band]);
-
-  // Shaded up rather than left at the catalogue's own level: `SURFACES.steel`
-  // and `SURFACES.iron` sit near 0.03 linear and swallow this room's pendant
-  // whole, which on a member this long reads as one black beam with boxes
-  // balanced on it. The bench, the only other big steel object down here, is
-  // carried at the same sort of level for the same reason.
-  const steel = surfaceProps(SURFACES.steel, 1.35);
-  const iron = surfaceProps(SURFACES.iron, 1.05);
-  const railH = 0.1 * M;
+  // ── the rail sits *under* the band, not beside the box ─────────────────────
+  // It used to stand a hair proud of the belt surface, which is what a real
+  // side guide does and which was wrong here for a reason no drawing shows: the
+  // near rail is a third of a metre closer to the camera than the box behind
+  // it, so at this camera height it projects up across the bottom of the face —
+  // straight through the stack line on the manifest. Mykolai caught it on the
+  // first cut. The box is the thing that has to be read, so the rail loses.
+  const railH = 0.07 * M;
   const legs = [];
-  for (let lx = runTo - 0.3 * M; lx > runFrom; lx -= 1.15 * M) legs.push(lx);
+  for (let lx = -legFrom; lx > -len + 0.2 * M; lx -= 1.15 * M) legs.push(lx);
 
   return (
-    <group position={[x, worldY(floorY), z]}>
+    <group {...rest}>
       {/* ── the frame ───────────────────────────────────────────────────────── */}
       {[-1, 1].map((s) => (
         <mesh
           key={s}
-          position={[runFrom + runW / 2, beltY - railH * 0.35, s * (BELT.WIDE / 2 + 0.03) * M]}
+          position={[-len / 2, beltY - railH * 0.62, s * (BELT.WIDE / 2 + 0.03) * M]}
           castShadow
           receiveShadow
         >
-          <boxGeometry args={[runW, railH, 0.06 * M]} />
+          <boxGeometry args={[len, railH, 0.06 * M]} />
           <meshStandardMaterial {...steel} />
         </mesh>
       ))}
       {/* the pan under the band, so the run is not a floating ribbon */}
-      <mesh position={[runFrom + runW / 2, beltY - 0.055 * M, 0]} receiveShadow>
-        <boxGeometry args={[runW, 0.05 * M, BELT.WIDE * M]} />
+      <mesh position={[-len / 2, beltY - 0.055 * M, 0]} receiveShadow>
+        <boxGeometry args={[len, 0.05 * M, BELT.WIDE * M]} />
         <meshStandardMaterial {...iron} />
       </mesh>
       {legs.map((lx) => [-1, 1].map((s) => (
@@ -1498,8 +1543,8 @@ function Conveyor({ M, x, floorY, z, ambient, leftEnd, live }) {
       )))}
 
       {/* ── the band ────────────────────────────────────────────────────────── */}
-      <mesh position={[runFrom + runW / 2, beltY, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[runW, BELT.WIDE * M]} />
+      <mesh position={[-len / 2, beltY, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[len, BELT.WIDE * M]} />
         {band
           ? (
             <meshStandardMaterial
@@ -1514,9 +1559,148 @@ function Conveyor({ M, x, floorY, z, ambient, leftEnd, live }) {
           )
           : <meshStandardMaterial color="#181410" roughness={0.92} />}
       </mesh>
+    </group>
+  );
+}
+
+/**
+ * A band texture cloned and repeated to a run of `len` scene pixels.
+ *
+ * Cloned rather than shared: the offset is written every tick, and two runs —
+ * never mind two landings furnished at once during a ride — would be several
+ * drivers on one texture, each winning every other frame. A clone shares the
+ * image, so this is a descriptor rather than a second upload.
+ */
+function useBand(len, M, ref) {
+  const src = beltBand();
+  const band = useMemo(() => {
+    if (!src) return null;
+    const map = src.clone();
+    map.repeat.set(len / M / (BELT.SLAT * BELT.SLATS_PER_TILE), 1);
+    map.needsUpdate = true;
+    return map;
+  }, [src, len, M]);
+  useEffect(() => {
+    ref.current = band;
+    return () => band?.dispose();
+  }, [band, ref]);
+  return band;
+}
+
+function Conveyor({ M, x, floorY, z, ambient, leftEnd, live }) {
+  const gallery = useFullscreenGallery();
+  const slide = SLIDES[gallery?.page ?? 0] ?? null;
+  // Which *project*, not which frame. Six shots of one job must not change what
+  // comes out of the wall.
+  const project = Math.max(0, PROJECTS.findIndex((p) => p.id === slide?.project));
+  // Read by the ticker, which must not be torn down and rebuilt every time the
+  // console is paged — that would restart the belt on a keypress.
+  const projectRef = useRef(project);
+  projectRef.current = project;
+
+  // ── the L ──────────────────────────────────────────────────────────────────
+  // The group's origin is the corner. The head run comes toward the room out of
+  // the wall behind it, the long run leaves to the left, and both are measured
+  // from here so the transfer cannot drift away from either of them.
+  const out = BELT.OUT * M;
+  const run = x - leftEnd;
+  const path = useMemo(() => ({ out, run }), [out, run]);
+  const pitch = BELT.PITCH * M;
+  const count = beltCount(pathLength(path), pitch);
+
+  const headBand = useRef(null);
+  const runBand = useRef(null);
+  const bands = useMemo(() => ({ head: headBand, run: runBand }), []);
+  const head = useBand(out, M, headBand);
+  const long = useBand(run, M, runBand);
+
+  // ── what each box is stamped with ──────────────────────────────────────────
+  // One entry per box, written only when that box is back at the mouth. A box
+  // already out on the run keeps what it came out with until it has left the
+  // room, which is the whole of NBC-68 point 3: the archive changes on the
+  // glass, and the change reaches the floor as the next thing off the line.
+  const [stamps, setStamps] = useState(() => Array.from({ length: count }, () => project));
+  useEffect(() => {
+    setStamps((prev) => (prev.length === count
+      ? prev
+      : Array.from({ length: count }, (_, i) => prev[i] ?? projectRef.current)));
+  }, [count]);
+  const onStamp = useCallback((i, p) => setStamps((prev) => {
+    if (prev[i] === p) return prev;
+    const next = prev.slice();
+    next[i] = p;
+    return next;
+  }), []);
+
+  const boxes = useRef([]);
+  useBeltMotion(bands, boxes, path, count, pitch, M, projectRef, onStamp, live);
+
+  // Shaded up rather than left at the catalogue's own level: `SURFACES.steel`
+  // and `SURFACES.iron` sit near 0.03 linear and swallow this room's pendant
+  // whole, which on a member this long reads as one black beam with boxes
+  // balanced on it. The bench, the only other big steel object down here, is
+  // carried at the same sort of level for the same reason.
+  const steel = surfaceProps(SURFACES.steel, 1.35);
+  const iron = surfaceProps(SURFACES.iron, 1.05);
+  const beltY = BELT.TOP * M;
+
+  return (
+    <group position={[x, worldY(floorY), z]}>
+      {/* ── the head run, out of the wall ───────────────────────────────────
+          Turned so its own +x points along world +z. The Euler is worth
+          reading rather than trusting: three applies XYZ as Rx·Ry·Rz, so the
+          −90° about z lays the run across and the −90° about x tips it flat,
+          and the pair leaves the band's `u` pointing out of the wall. */}
+      <BeltRun
+        M={M} len={out} band={head} ambient={ambient} steel={steel} iron={iron}
+        legFrom={0.28 * M}
+        rotation={[-Math.PI / 2, 0, -Math.PI / 2]}
+      />
+      {/* ── the long run, away to the left ──────────────────────────────────
+          It does not stop at the edge of what can be seen — a corridor carries
+          on, and the same argument is written out at length on `WallCable`. */}
+      <BeltRun
+        M={M} len={run} band={long} ambient={ambient} steel={steel} iron={iron}
+        legFrom={0.9 * M}
+      />
+
+      {/* ── the transfer ────────────────────────────────────────────────────
+          What actually turns the corner. A right-angle transfer is a plate the
+          head belt runs the box onto and a set of short rollers that take it
+          off sideways — no curve, no turntable, and nothing rotates, which is
+          why the manifest never leaves the camera. It replaces the stop gate
+          that used to stand here; Mykolai's word for that was "ни к чему", and
+          he is right — a gate is what a belt has when something is meant to
+          stand still on it, and nothing on this belt is. */}
+      <group position={[0, beltY, 0]}>
+        <mesh position={[0, -0.055 * M, 0]} receiveShadow castShadow>
+          <boxGeometry args={[BELT.WIDE * M, 0.05 * M, BELT.WIDE * M]} />
+          <meshStandardMaterial {...iron} />
+        </mesh>
+        {[-0.3, -0.1, 0.1, 0.3].map((f) => (
+          <mesh
+            key={f}
+            position={[f * BELT.WIDE * M, -0.012 * M, 0]}
+            rotation={[Math.PI / 2, 0, 0]}
+            castShadow
+          >
+            <cylinderGeometry args={[0.032 * M, 0.032 * M, BELT.WIDE * M * 0.94, 10]} />
+            <meshStandardMaterial {...steel} />
+          </mesh>
+        ))}
+        {/* There was a guide rail across the front of the transfer here — the
+            member a real one pushes the box against — and it is gone, because
+            of where the camera stands rather than because of what a conveyor
+            has. It sat half a metre nearer the lens than the box it belonged
+            to and projected as a black bar straight across the bottom two lines
+            of the manifest. The box is the thing in this room that has to be
+            read; anything that crosses it loses. Same call, same reason, as the
+            side rails dropping under the band. */}
+      </group>
+
       {/* the head pulley at the discharge end, turned across the run */}
       <mesh
-        position={[runFrom + 0.06 * M, beltY - 0.04 * M, 0]}
+        position={[-run + 0.06 * M, beltY - 0.04 * M, 0]}
         rotation={[Math.PI / 2, 0, 0]}
         castShadow
       >
@@ -1524,46 +1708,34 @@ function Conveyor({ M, x, floorY, z, ambient, leftEnd, live }) {
         <meshStandardMaterial {...steel} />
       </mesh>
 
-      {/* ── the stop ────────────────────────────────────────────────────────── */}
-      {/* What actually holds a box at the station while the band keeps running
-          under it. It is the reason one box stands still on a belt that never
-          does, and it is why the room needs no second lamp to say which box is
-          being looked at: the machine says it. */}
-      <group position={[-(BELT.BOX.w / 2 + 0.07) * M, beltY, 0]}>
-        <mesh position={[0, 0.16 * M, 0]} castShadow receiveShadow>
-          <boxGeometry args={[0.035 * M, 0.32 * M, BELT.WIDE * M * 0.92]} />
-          <meshStandardMaterial {...steel} />
-        </mesh>
-        {[-1, 1].map((s) => (
-          <mesh key={s} position={[0, 0.34 * M, s * BELT.WIDE * M * 0.46]} castShadow>
-            <boxGeometry args={[0.05 * M, 0.12 * M, 0.05 * M]} />
-            <meshStandardMaterial {...iron} />
-          </mesh>
-        ))}
-      </group>
+      <BeltMouth M={M} x={0} y={beltY + (BELT.MOUTH.H / 2 - 0.12) * M} z={-out} />
 
-      <BeltMouth M={M} x={mouthX} y={beltY + 0.19 * M} z={-0.42 * M} />
-
-      {/* ── the archive, riding ─────────────────────────────────────────────── */}
-      {/* One slot per project, in the archive's own order. Slot 0 is against
-          the stop; behind it is what has not gone yet, ahead of it what has.
-          The group's own x is written by the ticker and by nothing else. */}
-      <group ref={trainRef}>
-        {beltSlots(PROJECTS, project).map(({ slot, project: p }) => (
+      {/* ── the archive, shipping ───────────────────────────────────────────
+          `count` boxes, built when the floor is furnished and never rebuilt.
+          Each one's group carries no `position` prop on purpose: the ticker
+          owns where it is, React owns only what is stamped on it. A box that
+          has run out of the room is this same box coming round behind the
+          wall, so there is nothing here to dispose of on the way past. */}
+      {stamps.map((p, i) => (
+        <group
+          // eslint-disable-next-line react/no-array-index-key
+          key={i}
+          ref={(g) => { boxes.current[i] = g; }}
+        >
           <ArtifactBox
-            key={p.id}
             M={M}
-            mark={p.title}
-            spec={p.stack ?? ''}
+            mark={PROJECTS[p]?.title ?? ''}
+            spec={PROJECTS[p]?.stack ?? ''}
             ambient={ambient}
-            position={[slot * pitchPx, beltY + (BELT.BOX.h / 2) * M, 0]}
-            rotation={[0, slot === 0 ? -0.03 : (slot % 2 ? 0.07 : -0.09), 0]}
+            position={[0, beltY + (BELT.BOX.h / 2) * M, 0]}
+            rotation={[0, (i % 2 ? 0.05 : -0.04), 0]}
           />
-        ))}
-      </group>
+        </group>
+      ))}
     </group>
   );
 }
+
 // ─────────────────────────────────────────────────────────────────────────────
 // 2. OG — the framed schematic
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1820,7 +1992,10 @@ function LandingProps({ idx, vw, vh, top, live = true }) {
 
   // how far each one stands off the back wall, measured to its own centre
   const benchZ = back + 0.56 * M;
-  const cratesZ = back + 0.5 * M;
+  // The conveyor's origin is its *corner*, not its centre, and it has to stand
+  // the head run's own length off the wall — that is what makes the run come
+  // out of the mouth instead of past it. See `BELT.OUT` and `mouthClearance`.
+  const beltZ = back + BELT.OUT * M;
   const boxZ = back + 0.52 * M;
 
   return (
@@ -1863,12 +2038,24 @@ function LandingProps({ idx, vw, vh, top, live = true }) {
       )}
       {idx === 2 && (
         <>
-          {/* The station — where the box is held — stands where the pile of
-              crates used to, under the column. The run carries on past the
-              pier and out of the room to the left, because a corridor does. */}
+          {/* The corner — where the run turns out of the wall and away — stands
+              where the pile of crates used to, under the column. The mouth is
+              behind it in the plaster and the long run carries on past the pier
+              and out of the room to the left, because a corridor does. */}
+          {/* Hard against the column's inner edge rather than out in the
+              middle of it, so the mouth lands in the gap between the notice
+              above and the console beside it — Mykolai's call once he saw the
+              first cut ("нужно чтобы окно и конвейер был правее, поближе к
+              экрану"). Not as far as it will go, though: at the column's own
+              inner edge the mouth ended up *behind* the console's frame and the
+              head run with it, so the one thing the move was for — seeing the
+              product come out of the wall — was the thing it hid. This is the
+              rightmost place the whole opening still stands clear of it. The
+              product then runs left *under* the notice, which is the right way
+              round: the sign is over the line, not beside it. */}
           <Conveyor
-            M={M} x={underColumn(vw, content, 0.52, cratesZ)} floorY={floorY} z={cratesZ}
-            leftEnd={offRoom(vw, cratesZ, -1)}
+            M={M} x={underColumn(vw, content, 0.24, beltZ)} floorY={floorY} z={beltZ}
+            leftEnd={offRoom(vw, beltZ, -1)}
             ambient={ambient} live={live}
           />
           {/* In the gutter, where the rack hangs on the EG, at the height a
@@ -1876,6 +2063,29 @@ function LandingProps({ idx, vw, vh, top, live = true }) {
           <Schematic
             M={M} x={bayX} y={floorY - 1.5 * M} z={back + 0.03 * M}
             ambient={ambient}
+          />
+          {/* The works notice, which was an enamel plate of DOM text until
+              NBC-68 and is a screen now — see `NoticeScreen`. It hangs on the
+              column's own wall, over the run: the product passes underneath it,
+              which is the right way round for a sign in a works. The DOM half
+              of this floor is empty as a result, and that is why
+              `ProjekteDeck` renders nothing.
+
+              ── the height is not a taste call ─────────────────────────────
+              The first cut hung it where a sign gets hung and its bottom run
+              landed straight across the mouth in the wall. Mykolai's word for
+              it was "коллизия" and he is right: a sign growing out of a hole
+              is worse than no sign. The mouth tops out at
+              `TOP + MOUTH.H − 0.12` above the floor, so this clears that with
+              a hand's width of plaster showing between the two — and it had to
+              give up a little width to keep its own head under the cornice,
+              which is 3.05 m up and not negotiable. */}
+          <NoticeScreen
+            x={underColumn(vw, content, 0.5, back + 0.04 * M)}
+            y={floorY - 2.25 * M}
+            z={back + 0.04 * M}
+            w={1.55 * M}
+            live={live}
           />
         </>
       )}

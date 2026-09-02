@@ -1,65 +1,59 @@
 // @vitest-environment jsdom
 //
-// NBC-22: the left half of 2. UG used to be a header and four badges, and
-// removing them left a hole — a visitor looking at a screenshot of a Paperless
-// config with nothing anywhere to say what it is or why. What fills it is the
-// current project's own description, and the three things worth holding still
-// are all about *which* description and *how many times a fact is said*:
+// NBC-22 put a works notice here — the current project's description, as real
+// selectable DOM text on an enamel plate. NBC-68 moved it into the scene as a
+// screen of its own, because the one thing it had to do was be *seen* changing
+// and a plate cannot go dark and come back. The reasoning, and Mykolai's own
+// argument for giving up the selectable text, is in `ProjekteDeck.jsx`.
 //
-//   - the notice follows the picture on the glass, and it follows it by
-//     project, not by frame: six shots of one job are one job;
-//   - it is real, selectable DOM text, which is why the 3D-text option was
-//     turned down (see `project_deck_text_stays_dom`);
-//   - it does not name the project. The console's own plate does that a metre
-//     to the right, and the crate under it will do it a second time — NBC-28.
+// So what is left to hold is the boundary rather than the content: this floor's
+// DOM column is empty, and it is empty *by rendering nothing* rather than by
+// being removed from `DECK_BODIES`, which every floor is indexed through.
+// `notice.test.js` holds the screen that took the job.
 
 import { describe, expect, it, afterEach } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render } from '@testing-library/react';
 import ProjekteDeck from './ProjekteDeck.jsx';
+import { DECK_BODIES } from './index.js';
 import { SLIDES } from './projects.js';
 import { FullscreenImageProvider } from '../scene/r3f/fullscreenImage.js';
 
 afterEach(cleanup);
 
-/** The deck reads the console's page number through the same context the modal does. */
 const at = (page) => render(
   <FullscreenImageProvider value={{ page, step: () => {}, openFullscreenImage: () => {} }}>
     <ProjekteDeck />
   </FullscreenImageProvider>,
 );
 
-describe('the works notice on 2. UG', () => {
-  it('describes the project whose picture is on the glass', () => {
-    at(0);
-    expect(screen.getByText(SLIDES[0].blurb)).toBeTruthy();
-  });
-
-  it('stands still across the shots of one project', () => {
-    // The counter moves on every press of NEXT; the notice must not, or three
-    // pictures of one job read as three different jobs.
-    const first = SLIDES.findIndex((s) => s.project === SLIDES[0].project && s.shot === 2);
-    expect(first).toBeGreaterThan(0);
-    at(first);
-    expect(screen.getByText(SLIDES[0].blurb)).toBeTruthy();
-  });
-
-  it('changes when the picture crosses into the next project', () => {
-    const next = SLIDES.findIndex((s) => s.project !== SLIDES[0].project);
-    expect(next).toBeGreaterThan(0);
-    at(next);
-    expect(screen.getByText(SLIDES[next].blurb)).toBeTruthy();
-    expect(screen.queryByText(SLIDES[0].blurb)).toBeNull();
-  });
-
-  it('never says the project\'s name — the console plate and the crate do', () => {
-    at(0);
-    expect(screen.queryByText(SLIDES[0].title)).toBeNull();
-  });
-
-  it('says nothing at all rather than something empty when the archive is', () => {
-    // `SLIDES` is derived from a hand-edited file and the empty archive is a
-    // painted state, not a crash — see `projects.js`.
-    const { container } = at(SLIDES.length + 5);
+describe('the 2. UG column, after the notice moved into the scene', () => {
+  it('puts nothing on the wall at all', () => {
+    const { container } = at(0);
     expect(container.textContent.trim()).toBe('');
+  });
+
+  // The blurb belongs to the screen now. If it ever came back here it would be
+  // said twice in one room — the fault "one surface, one question" exists to
+  // prevent. See the table at the top of `projects.js`.
+  it('does not print the description a second time', () => {
+    const { container } = at(0);
+    expect(container.textContent).not.toContain(SLIDES[0].blurb);
+  });
+
+  it('stays empty wherever the console is paged, including off the end', () => {
+    for (const page of [0, 1, SLIDES.length - 1, SLIDES.length + 5]) {
+      const { container } = at(page);
+      expect(container.textContent.trim()).toBe('');
+      cleanup();
+    }
+  });
+
+  // Not deleted, and this is the clause that says why: `Dieselpunk` renders
+  // `DECK_BODIES[i]` for every floor within a landing of the one being stood
+  // on, and a hole in that array is a crash rather than an empty column.
+  it('is still a component every floor can be indexed through', () => {
+    expect(DECK_BODIES).toHaveLength(4);
+    expect(DECK_BODIES[2]).toBe(ProjekteDeck);
+    expect(DECK_BODIES.every((B) => typeof B === 'function')).toBe(true);
   });
 });

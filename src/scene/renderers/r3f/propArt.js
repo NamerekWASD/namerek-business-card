@@ -428,7 +428,11 @@ const PLY = ['#4c3f28', '#544526', '#453a25', '#584a2c'];
  * @param {boolean} labelled whether this is the face the manifest is on
  */
 export const artifactFace = (mark, spec, labelled = true) => bake(
-  `artifact:${labelled ? `${mark}|${spec}` : 'blank'}`, 512, 384, (ctx, w, h) => {
+  // Half again the canvas it used to be, because the box is half again the
+  // object it used to be — see `BELT.BOX`. The lettering below is set as
+  // fractions of the canvas rather than in pixels, so the two move together
+  // and a bigger sheet buys resolution rather than smaller type.
+  `artifact:${labelled ? `${mark}|${spec}` : 'blank'}`, 768, 576, (ctx, w, h) => {
     const rnd = seeded(0x9c1f5 + (labelled ? mark.length * 37 + spec.length : 0));
 
     // the sheet itself, and the long veneer streaks that say it is peeled
@@ -474,20 +478,35 @@ export const artifactFace = (mark, spec, labelled = true) => bake(
 
     // ── the manifest ─────────────────────────────────────────────────────────
     // Sprayed: a soft dark halo under a harder pass, which is what a card held
-    // a centimetre off the timber does. Set large enough to be read at the
-    // distance the box actually stands at — this is the one piece of lettering
-    // in the room that is *supposed* to be legible, because it is the label
-    // that makes the object an artifact rather than a prop.
+    // a centimetre off the timber does.
+    //
+    // ── the colour, which was the bug ────────────────────────────────────────
+    // Both passes used to be `#191207`, so the "harder pass" was the same near
+    // black as its own shadow, laid on plywood painted around `#4c3f28`. That
+    // is about two stops of separation on a surface lit by one pendant across a
+    // room, and it is exactly what Mykolai reported on NBC-68 — "они
+    // практически сливаются с фоном ящика". He is right and the fix is not more
+    // alpha: it is that despatch stencils are not sprayed in dark paint on dark
+    // timber. They are sprayed in white. So the halo stays dark and the pass on
+    // top of it is `INK`, which is what actually carries the letter.
+    //
+    // Set large enough to be read at the distance the box actually stands at —
+    // this is the one piece of lettering in the room that is *supposed* to be
+    // legible, because it is the label that makes the object an artifact rather
+    // than a prop.
+    const INK = '#f2e7cd';
     const spray = (text, y, size, alpha) => {
       ctx.font = `700 ${size}px "Archivo Black", "Arial Black", sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.globalAlpha = alpha * 0.3;
-      ctx.fillStyle = '#191207';
-      ctx.filter = 'blur(4px)';
-      ctx.fillText(text, w / 2, y);
+      // the shadow the card throws, and the dirty edge overspray leaves
+      ctx.globalAlpha = alpha * 0.55;
+      ctx.fillStyle = '#140e05';
+      ctx.filter = 'blur(6px)';
+      ctx.fillText(text, w / 2, y + size * 0.04);
       ctx.filter = 'none';
       ctx.globalAlpha = alpha;
+      ctx.fillStyle = INK;
       ctx.fillText(text, w / 2, y);
       ctx.globalAlpha = 1;
     };
@@ -496,38 +515,44 @@ export const artifactFace = (mark, spec, labelled = true) => bake(
     ctx.translate(0, 0);
     ctx.rotate(-0.008);
 
-    // the mark shrinks to fit rather than running off the plywood — the archive
-    // is hand-edited and a long project name must not silently walk off a box
-    let size = 62;
-    ctx.font = `700 ${size}px "Archivo Black", "Arial Black", sans-serif`;
-    while (size > 26 && ctx.measureText(mark.toUpperCase()).width > w - 72) {
-      size -= 3;
+    // The mark shrinks to fit rather than running off the plywood — the archive
+    // is hand-edited and a long project name must not silently walk off a box.
+    // Both the start and the floor are fractions of the canvas: a size in
+    // pixels would be a different size of letter every time the sheet's
+    // resolution changed.
+    const fit = (text, from, floor, margin) => {
+      let size = from;
       ctx.font = `700 ${size}px "Archivo Black", "Arial Black", sans-serif`;
-    }
-    spray(mark.toUpperCase(), h * 0.4, size, 0.82);
+      while (size > floor && ctx.measureText(text).width > w - margin) {
+        size -= from * 0.04;
+        ctx.font = `700 ${size}px "Archivo Black", "Arial Black", sans-serif`;
+      }
+      return size;
+    };
+
+    const size = fit(mark.toUpperCase(), h * 0.2, h * 0.095, w * 0.12);
+    spray(mark.toUpperCase(), h * 0.38, size, 0.94);
 
     // the rule the despatch label is divided by
-    ctx.globalAlpha = 0.45;
-    ctx.fillStyle = '#1d1509';
-    ctx.fillRect(w * 0.14, h * 0.53, w * 0.72, 3.5);
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = '#171004';
+    ctx.fillRect(w * 0.14, h * 0.53, w * 0.72, h * 0.011);
     ctx.globalAlpha = 1;
 
-    let sub = 30;
-    ctx.font = `700 ${sub}px "Archivo Black", "Arial Black", sans-serif`;
-    while (sub > 14 && ctx.measureText(spec.toUpperCase()).width > w - 60) {
-      sub -= 2;
-      ctx.font = `700 ${sub}px "Archivo Black", "Arial Black", sans-serif`;
-    }
-    spray(spec.toUpperCase(), h * 0.65, sub, 0.66);
-    spray('NAMEREK RECHENWERKE', h * 0.78, 20, 0.4);
+    const sub = fit(spec.toUpperCase(), h * 0.098, h * 0.05, w * 0.1);
+    spray(spec.toUpperCase(), h * 0.65, sub, 0.82);
+    spray('NAMEREK RECHENWERKE', h * 0.79, h * 0.055, 0.5);
     ctx.restore();
 
     // and the skips: paint does not sit evenly on a scuffed sheet
+    // Fewer and thinner than they were: at the old ink they were texture on
+    // something already hard to read, and at this one they are holes in the one
+    // thing on the box worth looking at.
     ctx.globalCompositeOperation = 'destination-out';
-    for (let i = 0; i < 22; i += 1) {
-      ctx.globalAlpha = 0.2 + rnd() * 0.5;
+    for (let i = 0; i < 14; i += 1) {
+      ctx.globalAlpha = 0.12 + rnd() * 0.28;
       ctx.beginPath();
-      ctx.ellipse(rnd() * w, h * (0.32 + rnd() * 0.55), 4 + rnd() * 22, 1 + rnd() * 4, rnd(), 0, Math.PI * 2);
+      ctx.ellipse(rnd() * w, h * (0.32 + rnd() * 0.55), 5 + rnd() * 26, 1 + rnd() * 4, rnd(), 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.globalAlpha = 1;
