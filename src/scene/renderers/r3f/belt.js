@@ -42,7 +42,36 @@ export const BELT = {
   SLATS_PER_TILE: 4,
   // The opening the run comes out of, grown with the box — an opening the same
   // size as what comes through it is a box born clipping its own surround.
-  MOUTH: { W: 1.16, H: 0.94 },
+  // `SILL` is how far the belt surface sits *below* the middle of the opening,
+  // and it is here rather than in the JSX because the curtain's swing is
+  // arithmetic off it — see `slatSwing`.
+  MOUTH: { W: 1.16, H: 0.94, SILL: 0.12 },
+
+  // ── the run behind the wall ────────────────────────────────────────────────
+  // How far a box travels inside the tunnel before its nose reaches the
+  // opening. Not decoration, and NBC-70's second half: the box used to be
+  // switched on standing in the plane of the wall, which is half a box — 0.36 m
+  // of it — appearing in the shot between one tick and the next. "Ящики просто
+  // спаунятся из ничего", and that is exactly what it was.
+  //
+  // What makes this work with no tunnel modelled at all is that the black
+  // behind the mouth is *opaque*: a box on this stretch is occluded by it and
+  // by the wall, and comes out of the hole nose first. Longer than a box, so
+  // there is a beat with nothing in the opening rather than a nose permanently
+  // parked in it.
+  LEAD: 0.92,
+
+  // ── the strip curtain ──────────────────────────────────────────────────────
+  // `HANG` and `DROP` are the hinge height above the middle of the opening and
+  // the length of a slat, both as fractions of `MOUTH.H`. They live here rather
+  // than in the JSX for one reason: whether a box can push the curtain at all,
+  // and how far it has to swing to ride over the box instead of through it, is
+  // a sum over these and `BOX.h` — and it is wrong silently.
+  //
+  // `RAMP` is how far the nose travels before the slats are fully aside;
+  // `FALL` is how far the back travels before they have shut again, longer
+  // because rubber does not snap back.
+  CURTAIN: { SLATS: 7, HANG: 0.47, DROP: 0.34, RAMP: 0.12, FALL: 0.3, LIFT: 0.05 },
 
   // ── the two numbers that decide what this costs ────────────────────────────
   // Both canvases are `frameloop="demand"` at rest and that is deliberate: a
@@ -86,13 +115,16 @@ export const bandOffset = (dt) =>
 export const mouthClearance = (out) => out - BELT.BOX.d / 2;
 
 /**
- * @typedef {{ out: number, run: number }} Path
+ * @typedef {{ lead?: number, out: number, run: number }} Path
+ *   `lead` — the stretch inside the wall, before the mouth. Optional; a path
+ *     without one starts the box in the plane of the opening, which is the bug
+ *     NBC-70 was opened for.
  *   `out` — the head run, out of the wall toward the room.
  *   `run` — the long run, from the corner away to the left.
  */
 
 /** @param {Path} path */
-export const pathLength = (path) => path.out + path.run;
+export const pathLength = (path) => (path.lead ?? 0) + path.out + path.run;
 
 /**
  * Where a box `d` along the path stands, in the conveyor's own space: the
@@ -109,8 +141,97 @@ export const pathLength = (path) => path.out + path.run;
  */
 export function posAt(d, path) {
   const along = Math.min(Math.max(0, d), pathLength(path));
-  if (along <= path.out) return { x: 0, z: along - path.out };
-  return { x: -(along - path.out), z: 0 };
+  // Measured from the mouth, so everything downstream of it — the corner, the
+  // discharge — stands exactly where it stood before the lead-in existed.
+  const fromMouth = along - (path.lead ?? 0);
+  if (fromMouth <= path.out) return { x: 0, z: fromMouth - path.out };
+  return { x: -(fromMouth - path.out), z: 0 };
+}
+
+/**
+ * The drawn length of the head run, and of the long one.
+ *
+ * Both runs used to be drawn their full length, which laid two bands and two
+ * pans in the same plane over the square metre at the corner: coincident
+ * polygons, and which one the depth buffer keeps is a coin toss per pixel that
+ * is tossed again every time the camera moves. They butt instead — the head run
+ * stops at the long run's far edge and the long run is carried past the corner
+ * to meet it, so the corner belongs to exactly one of them.
+ *
+ * This is also what let the transfer go. There was a plate and four rollers
+ * standing here; Mykolai's reading of them was that a box rides over a set of
+ * loose bars for no reason he could see, and he asked for what a run has
+ * everywhere else — a pair of legs. The corner is a plain junction now.
+ *
+ * @param {number} out the head run, in whatever unit `M` is given in
+ * @param {number} [M] the room's metre, when the caller works in scene pixels
+ */
+export const headRun = (out, M = 1) => out - (BELT.WIDE / 2) * M;
+
+/** @param {number} run @param {number} [M] */
+export const longRun = (run, M = 1) => run + (BELT.WIDE / 2) * M;
+
+/**
+ * How far a curtain slat has to swing for its foot to ride over a box rather
+ * than through it, in radians.
+ *
+ * Every term is a height above the belt: the hinge, and the top of the box. A
+ * slat is a rod of known length pinned at the first, and the angle is the one
+ * that puts its foot at the second.
+ *
+ * `LIFT` is why it is not exactly that angle. Swung to the box's own height the
+ * strips sit *on* the lid, which is what rubber really does and which from this
+ * camera reads as strips buried in the box rather than riding over it — the lid
+ * is turned toward the lens and takes them. A few centimetres of clearance is
+ * the difference between a curtain a box has pushed and a curtain a box has
+ * gone through.
+ */
+export const slatSwing = () => {
+  const hinge = BELT.CURTAIN.HANG * BELT.MOUTH.H + BELT.MOUTH.H / 2 - BELT.MOUTH.SILL;
+  const clear = hinge - BELT.BOX.h - BELT.CURTAIN.LIFT;
+  return Math.acos(Math.min(1, Math.max(-1, clear / (BELT.CURTAIN.DROP * BELT.MOUTH.H))));
+};
+
+/**
+ * Where each slat hangs across the opening, and how wide one is — both in
+ * metres, both off the mouth's own width. Two callers read these and they have
+ * to agree to the millimetre: the JSX that draws the curtain, and the ticker
+ * that decides which slats a box is under. A drawing and a simulation that
+ * disagree about where a thing is is the family of bug this file exists for.
+ */
+export const slatXs = () => Array.from(
+  { length: BELT.CURTAIN.SLATS },
+  (_, i) => (i - (BELT.CURTAIN.SLATS - 1) / 2) * (BELT.MOUTH.W / BELT.CURTAIN.SLATS),
+);
+
+/** Half a slat, across. The 0.86 is the gap between one strip and the next. */
+export const slatHalfWidth = () => (BELT.MOUTH.W / BELT.CURTAIN.SLATS) * 0.86 / 2;
+
+/**
+ * How far aside a single slat is pushed, 0 to 1.
+ *
+ * Everything is in metres and everything is relative, so the caller does not
+ * have to hand over the scene's frame: `dz` is how far the box's middle is past
+ * the slats, `x` is how far the slat is off the belt's centre line.
+ *
+ * The two factors are the whole of it. Across the opening, a slat moves only if
+ * the box is actually under it — which is what makes the curtain say the box
+ * has a width instead of opening like a door. Along the run, it ramps aside on
+ * the nose and falls back behind the tail, and the two halves meet at 1 exactly
+ * when the tail reaches the slats, so nothing steps.
+ *
+ * @param {number} dz @param {number} x @param {number} halfW half a slat, across
+ */
+export function slatPush(dz, x, halfW) {
+  const across = Math.min(1, Math.max(0, (BELT.BOX.w / 2 + halfW - Math.abs(x)) / (2 * halfW)));
+  if (across === 0) return 0;
+  const nose = dz + BELT.BOX.d / 2;
+  if (nose <= 0) return 0;
+  const tail = dz - BELT.BOX.d / 2;
+  const along = tail <= 0
+    ? Math.min(1, nose / BELT.CURTAIN.RAMP)
+    : Math.max(0, 1 - tail / BELT.CURTAIN.FALL);
+  return across * along;
 }
 
 /**
