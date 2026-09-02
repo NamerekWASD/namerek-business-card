@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { MultiplyBlending } from 'three';
+import { AdditiveBlending, MultiplyBlending } from 'three';
 import { worldY } from '../renderers/r3f/camera.js';
 import { screenGlow, screenRaster } from '../renderers/r3f/patterns.js';
 import useScreenLife from '../renderers/r3f/screenLife.js';
 import {
-  LOG, RUN, TERMINAL_ASPECT, clearTerminal, linesAt, paintTerminal, terminalSurface,
+  LOG, RUN, clearTerminal, linesAt, paintTerminal, sizeTerminal, terminalSurface,
 } from '../renderers/r3f/terminal.js';
+import {
+  STATIONS, flowAt, flowBead, flowHalo, flowLayout, flowSurface, paintFlow, pathAt, sizeFlow,
+} from '../renderers/r3f/flow.js';
 import { invalidateScene } from '../renderers/r3f/frames.js';
 import {
   gallerySurface, loadShot, paintSlide, paintStandby, readyShot,
@@ -42,7 +45,7 @@ export const SCREEN_TUNING = [
       marginX: 46, // gap from the doorway's own edges — outer wall side and centre gutter alike
       marginTop: 104, // gap under the cornice
       marginBottom: 124, // gap above the skirting
-      screenFill: 0.94, // how much of the glass the terminal's own picture takes
+      screenFill: 0.94, // only the 2. UG picture tube reads this — see below
     }
   },
   {
@@ -53,7 +56,7 @@ export const SCREEN_TUNING = [
       marginX: 46, // gap from the doorway's own edges — outer wall side and centre gutter alike
       marginTop: 104, // gap under the cornice
       marginBottom: 124, // gap above the skirting
-      screenFill: 0.94, // how much of the glass the terminal's own picture takes
+      screenFill: 0.94, // only the 2. UG picture tube reads this — see below
     }
   },
   {
@@ -64,7 +67,7 @@ export const SCREEN_TUNING = [
       marginX: 46, // gap from the doorway's own edges — outer wall side and centre gutter alike
       marginTop: 44, // gap under the cornice
       marginBottom: 124, // gap above the skirting
-      screenFill: 0.94, // how much of the glass the terminal's own picture takes
+      screenFill: 0.94, // only the 2. UG picture tube reads this — see below
     }
   },
   {
@@ -75,7 +78,7 @@ export const SCREEN_TUNING = [
       marginX: 46, // gap from the doorway's own edges — outer wall side and centre gutter alike
       marginTop: 104, // gap under the cornice
       marginBottom: 124, // gap above the skirting
-      screenFill: 0.94, // how much of the glass the terminal's own picture takes
+      screenFill: 0.94, // only the 2. UG picture tube reads this — see below
     }
   }
 ];
@@ -107,10 +110,25 @@ export const SCREEN_TUNING = [
  * was measured rather than a style.
  */
 function TerminalLog({ y, z, w, h, open, shut }) {
-  const [surface] = useState(() => (typeof document === 'undefined' ? null : terminalSurface()));
+  // The glass's own shape. The page inside stays a fixed grid; what follows the
+  // opening is the tube around it — see the note at the head of `terminal.js`.
+  const aspect = w / h;
+  const [surface] = useState(() => (
+    typeof document === 'undefined' ? null : terminalSurface(aspect)
+  ));
   const raf = useRef(0);
   // has this open cycle already printed — cleared on the next full close
   const playing = useRef(false);
+
+  // A resize is a new canvas, and a new canvas is a blank one — so whatever was
+  // on the tube has to go back onto it. Ahead of the print's own effect, which
+  // will not run again for a change of shape alone.
+  useEffect(() => {
+    if (!surface || !sizeTerminal(surface, aspect)) return;
+    if (playing.current) paintTerminal(surface.canvas, LOG.length, aspect);
+    surface.texture.needsUpdate = true;
+    invalidateScene();
+  }, [surface, aspect]);
 
   useEffect(() => {
     if (!surface) return undefined;
@@ -133,7 +151,7 @@ function TerminalLog({ y, z, w, h, open, shut }) {
     const show = (count) => {
       if (count === lastCount) return;
       lastCount = count;
-      paintTerminal(surface.canvas, count);
+      paintTerminal(surface.canvas, count, aspect);
       surface.texture.needsUpdate = true;
       // The whole scene, not this canvas. The print runs with the lift standing
       // still, so both canvases are on demand — and asking only this one left
@@ -152,7 +170,7 @@ function TerminalLog({ y, z, w, h, open, shut }) {
     show(0);
     raf.current = requestAnimationFrame(step);
     return () => { live = false; cancelAnimationFrame(raf.current); };
-  }, [surface, open, shut]);
+  }, [surface, open, shut, aspect]);
 
   if (!surface) return null;
   // **Built once, and never unbuilt.** This mesh used to be gated on the reveal
@@ -177,6 +195,172 @@ function TerminalLog({ y, z, w, h, open, shut }) {
       <planeGeometry args={[w, h]} />
       <meshBasicMaterial map={surface.texture} transparent depthWrite={false} toneMapped={false} />
     </mesh>
+  );
+}
+
+/** How often the impulse is resampled — the screen's own refresh, as
+ * `screenLife` sets it, and for the reason written there: a request bead moved
+ * at 160 fps is a bead on a modern monitor. */
+const FLOW_TICK_MS = 55;
+
+/** How much of the run the bead spends coming on and going off, so it does not
+ * appear as a half-blob standing on the edge of the sheet. */
+const FLOW_EDGE = 0.04;
+
+/**
+ * The 1. UG screen: the request the deck's Architektur plate is describing,
+ * running down the layers it names.
+ *
+ * ── the mounting is the terminal's, whole ───────────────────────────────────
+ * Built once and never unbuilt, the canvas carrying the state, every write
+ * asking the *scene* for a frame rather than this canvas. All three are argued
+ * at length on `TerminalLog` above and none is a style — the mount that was
+ * taken out there was a shader compiled on the frame the leaves finish parting,
+ * and it would be the same mount and the same frame here.
+ *
+ * ── what is new is that nothing here repaints ───────────────────────────────
+ * The sheet is painted once, on the commit that makes it. Everything that moves
+ * is geometry over the top: one plane per layer whose `opacity` is the light
+ * that layer is throwing, and one bead walked along the wire. That is a handful
+ * of floats per tick against a megabyte of texture — see the head of `flow.js`
+ * for why a diagram that redraws itself is the wrong build on a screen somebody
+ * may stand in front of for a minute.
+ *
+ * Written straight to the materials and to the bead's own transform, never
+ * through React state: a screen that lives through `setState` re-renders the
+ * whole landing eighteen times a second for three floats. Same rule as
+ * `useScreenLife` and `buttonPulse`, and the size the bead is walked across is
+ * held in a ref so a viewport resize does not restart the run.
+ */
+function RequestFlow({ y, z, w, h, live }) {
+  // The glass's own shape, which is what the sheet is built to — the canvas is
+  // rebuilt at it rather than the drawing being stretched onto it. Rounded by
+  // `flowAspect`, so a viewport that moves by a pixel is not a repaint.
+  const aspect = w / h;
+  const [surface] = useState(() => (
+    typeof document === 'undefined' ? null : flowSurface(aspect)
+  ));
+  const L = flowLayout(aspect);
+  const halo = useRef([]);
+  const bead = useRef(null);
+  const beadMat = useRef(null);
+  // What the bead is walked across, held in a ref: a resize must move the bead,
+  // not restart the run it is in the middle of.
+  const across = useRef([w, h, aspect]);
+  across.current = [w, h, aspect];
+
+  const haloMap = flowHalo();
+  const beadMap = flowBead();
+
+  useEffect(() => {
+    if (!surface) return;
+    // `sizeFlow` first, and only then paint: writing `canvas.width` wipes the
+    // canvas, so the order is not a preference.
+    sizeFlow(surface, aspect);
+    paintFlow(surface.canvas, aspect);
+    surface.texture.needsUpdate = true;
+    invalidateScene();
+  }, [surface, aspect]);
+
+  useEffect(() => {
+    // Every lamp back to nothing, which is the sheet at rest — the settle
+    // `useScreenLife` performs, and for its reason: a landing that goes dark
+    // mid-run must not come back with one layer still alight.
+    const settle = () => {
+      for (const m of halo.current) if (m) m.opacity = 0;
+      if (beadMat.current) beadMat.current.opacity = 0;
+      invalidateScene();
+    };
+
+    if (!live) {
+      settle();
+      return undefined;
+    }
+
+    const t0 = performance.now();
+    let timer = 0;
+    const step = () => {
+      const [pw, ph, a] = across.current;
+      const { u, lit } = flowAt(performance.now() - t0, a);
+      lit.forEach((level, i) => {
+        const m = halo.current[i];
+        if (m) m.opacity = level;
+      });
+      if (beadMat.current) {
+        beadMat.current.opacity = u === null
+          ? 0
+          : Math.max(0, Math.min(1, u / FLOW_EDGE, (1 - u) / FLOW_EDGE));
+      }
+      if (u !== null && bead.current) {
+        const [px, py] = pathAt(u, a);
+        const box = flowLayout(a);
+        // canvas pixels to the plane's own space: +x right, +y *up*
+        bead.current.position.x = (px / box.w - 0.5) * pw;
+        bead.current.position.y = (0.5 - py / box.h) * ph;
+      }
+      invalidateScene();
+      timer = setTimeout(step, FLOW_TICK_MS);
+    };
+    step();
+
+    return () => {
+      clearTimeout(timer);
+      settle();
+    };
+  }, [live]);
+
+  if (!surface) return null;
+
+  // The bead is square in the room, not in canvas fractions: a blob sized off
+  // one axis of a canvas this far from square arrives as an egg. Small — at a
+  // tenth of the glass it stopped reading as a thing travelling down a wire and
+  // started reading as the corner of the sheet going bright.
+  const beadSize = h * 0.055;
+
+  return (
+    <group position={[0, y, z]}>
+      <mesh>
+        <planeGeometry args={[w, h]} />
+        <meshBasicMaterial map={surface.texture} transparent depthWrite={false} toneMapped={false} />
+      </mesh>
+      {haloMap && L.boxes.map((b, i) => (
+        <mesh
+          key={STATIONS[i].tag}
+          position={[
+            ((b.x + b.w / 2) / L.w - 0.5) * w,
+            (0.5 - (b.y + b.h / 2) / L.h) * h,
+            0.2,
+          ]}
+        >
+          {/* a shade over the box, so the glow spills onto the tube around it
+              rather than stopping dead on the rule it is lighting */}
+          <planeGeometry args={[(b.w / L.w) * w * 1.06, (b.h / L.h) * h * 1.16]} />
+          <meshBasicMaterial
+            ref={(m) => { halo.current[i] = m; }}
+            map={haloMap}
+            transparent
+            opacity={0}
+            blending={AdditiveBlending}
+            depthWrite={false}
+            toneMapped={false}
+          />
+        </mesh>
+      ))}
+      {beadMap && (
+        <mesh ref={bead} position={[0, 0, 0.4]}>
+          <planeGeometry args={[beadSize, beadSize]} />
+          <meshBasicMaterial
+            ref={beadMat}
+            map={beadMap}
+            transparent
+            opacity={0}
+            blending={AdditiveBlending}
+            depthWrite={false}
+            toneMapped={false}
+          />
+        </mesh>
+      )}
+    </group>
   );
 }
 
@@ -334,11 +518,6 @@ function LandingScreen({
   useEffect(() => () => raster?.dispose(), [raster]);
   useScreenLife(lit, raster, live);
 
-  // the biggest box of the terminal's own shape that fits inside the glass
-  const fitW = m.glassW * t.screenFill;
-  const fitH = m.glassH * t.screenFill;
-  const termW = Math.min(fitW, fitH * TERMINAL_ASPECT);
-  const termH = termW / TERMINAL_ASPECT;
 
   // One group at the wall, and everything inside it in the frame's own space:
   // +z out of the plaster, +y up. The frame's tiers are all offsets from the
@@ -367,14 +546,35 @@ function LandingScreen({
         />
       </mesh>
       {floor === 0 && (
-        // Fitted inside the glass rather than stretched to it: the log is
-        // monospace on a canvas of fixed proportions, and a viewport that is
-        // shorter or wider than the last one must move the *box*, never the
-        // letterforms in it.
+        // The whole glass, edge to edge — the same call as the 1. UG sheet below
+        // and for the same reason: a picture fitted inside the opening leaves
+        // bare fluted glass down both sides and reads as a window open on a
+        // screen. Nothing is stretched to manage it; the *page* of monospace
+        // inside is still a fixed grid, centred on a tube built at the opening's
+        // own shape. See the head of `terminal.js`.
         <TerminalLog
           y={m.glassY} z={m.glassZ + 0.5}
-          w={termW} h={termH}
+          w={m.glassW} h={m.glassH}
           open={doorOpen} shut={doorShut}
+        />
+      )}
+      {floor === 1 && (
+        // The whole glass, edge to edge, and *not* fitted inside it the way the
+        // terminal is. A tube shows its picture to the rim; a drawing floating
+        // in the middle of one with bare fluted glass down either side reads as
+        // a window open on a screen, which is exactly what Mykolai saw in the
+        // first cut. Nothing is stretched to manage it — the sheet is built at
+        // the opening's own shape. See the head of `flow.js`.
+        //
+        // On `live` rather than `doorOpen`, unlike the terminal above. The
+        // terminal has something to replay on each arrival and wants the doors;
+        // this runs whether or not anyone came, which is what a machine on a
+        // wall does — and `doorOpen` is the wiring that left the valve rack dead
+        // in an open doorway for the better part of a second. See `Landing`.
+        <RequestFlow
+          y={m.glassY} z={m.glassZ + 0.5}
+          w={m.glassW} h={m.glassH}
+          live={live}
         />
       )}
       {floor === 2 && (

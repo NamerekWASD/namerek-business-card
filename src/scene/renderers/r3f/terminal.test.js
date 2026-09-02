@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { COLS, LOG, ROWS, RUN, linesAt } from './terminal.js';
+import {
+  COLS, LOG, ROWS, RUN, TERM, linesAt, pageLeft, termAspect, termCanvas,
+} from './terminal.js';
 
 // The two budgets in `terminal.js` are the whole reason the log is readable, and
 // both are the kind of thing an edit breaks silently: a warning message a few
@@ -35,6 +37,37 @@ describe('the log fits the tube it is printed on', () => {
     const claimed = Number(/(\d+) warning/.exec(summary)?.[1]);
     expect(claimed).toBeGreaterThan(0);
     expect(LOG.filter(([kind]) => kind === 'warn')).toHaveLength(claimed);
+  });
+});
+
+// The tube is built at whatever shape the opening comes out at, so that the
+// picture fills the glass instead of floating in the middle of it. What must
+// survive that is the *page*: thirty columns of monospace, on a canvas that is
+// never narrower than they are and never a shape they get stretched onto.
+describe('the tube fills the glass without stretching the page', () => {
+  const SHAPES = [TERM.ASPECT[0], 0.9, TERM.ASPECT[1]];
+
+  it.each(SHAPES)('is a canvas the shape of the glass at %s', (a) => {
+    const [w, h] = termCanvas(a);
+    expect(w / h).toBeCloseTo(termAspect(a), 2);
+  });
+
+  it.each(SHAPES)('leaves the page room for its full width of type at %s', (a) => {
+    const [w] = termCanvas(a);
+    const left = pageLeft(a);
+    // the page is centred, so the right margin is the left one
+    expect(left).toBeGreaterThan(0);
+    expect(w - left * 2).toBeGreaterThanOrEqual(COLS * 24);
+  });
+
+  it('is never asked for a canvas narrower than the page itself', () => {
+    expect(termAspect(0.2)).toBeCloseTo(TERM.ASPECT[0], 6);
+    expect(termAspect(9)).toBeCloseTo(TERM.ASPECT[1], 6);
+    expect(termAspect(NaN)).toBeCloseTo(TERM.ASPECT[0], 6);
+  });
+
+  it('rounds a measured glass to a step, so a pixel of resize is not a repaint', () => {
+    expect(termAspect(0.901)).toBeCloseTo(termAspect(0.907), 6);
   });
 });
 

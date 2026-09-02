@@ -39,6 +39,22 @@
 // two vertical ones. Not the inner one — that is the gutter the valve rack hangs
 // in, and there is about twenty pixels of clearance there already.
 //
+// ── and the tube fills the glass, whatever shape the glass is ────────────────
+// The grid above is a *page*, and it used to be the whole canvas: a fixed 0.707
+// rectangle fitted inside the opening, which on a wide viewport left a hand's
+// width of bare fluted glass down either side. Mykolai read that for what it
+// was — a window open on a screen rather than a screen — first on the 1. UG
+// sheet and then here.
+//
+// So the canvas is built at the *glass's own shape* and the page is centred on
+// it: the tube, its raster and its falloff run edge to edge, and what is left
+// over either side of the type is the margin a terminal has anyway. Nothing is
+// stretched to manage it, because monospace is the one thing on this surface a
+// stretch would give away. The range of shapes is `TERM.ASPECT`, whose narrow
+// end is the page's own aspect — below that there is nowhere for thirty columns
+// to go. `flow.js` sets the same problem out at length; this is the same answer,
+// and the two screens now behave alike.
+//
 // ── what the log says, and why these lines ───────────────────────────────────
 // It is this building's own control software being built, not a generic terminal
 // dump: the assemblies are the parts of the lift, and every warning is a real
@@ -71,8 +87,43 @@ const PAD_X = 26;
 const PAD_TOP = 40;
 const PAD_BOTTOM = 26;
 
-const W = Math.round(COLS * ADVANCE + PAD_X * 2);
+/** The page: the grid, plus the margin that keeps type off the tube's edge. */
+const PAGE_W = Math.round(COLS * ADVANCE + PAD_X * 2);
+/** The canvas is always this tall — the grid is what decides it. */
 const H = PAD_TOP + ROWS * LINE + PAD_BOTTOM;
+
+export const TERM = {
+  /** The shapes of glass the tube is built for. The narrow end is the page. */
+  ASPECT: [PAGE_W / H, 1.2],
+  /** and how finely a measured glass is rounded to one of them */
+  STEP: 0.02,
+};
+
+/**
+ * The shape the canvas is actually built at: the measured glass, rounded to a
+ * step and held inside the range above.
+ *
+ * Rounded because the glass drifts by a pixel or two with every viewport, and a
+ * canvas rebuilt on each of those is a repaint and a texture upload for a change
+ * nobody can see.
+ *
+ * @param {number} aspect the glass's width over its height
+ */
+export function termAspect(aspect) {
+  const [lo, hi] = TERM.ASPECT;
+  const a = Number.isFinite(aspect) && aspect > 0 ? aspect : lo;
+  return Math.min(hi, Math.max(lo, Math.round(a / TERM.STEP) * TERM.STEP));
+}
+
+/** The canvas, in pixels, for a glass of this shape. */
+export function termCanvas(aspect) {
+  return [Math.round(H * termAspect(aspect)), H];
+}
+
+/** Where the page's own left margin falls on that canvas — the page is centred. */
+export function pageLeft(aspect) {
+  return (termCanvas(aspect)[0] - PAGE_W) / 2 + PAD_X;
+}
 
 /**
  * @typedef {'rule' | 'head' | 'cmd' | 'out' | 'ok' | 'warn' | 'ref' | 'gap' | 'cur'} Kind
@@ -154,21 +205,21 @@ const INK = {
  * own glow still leaks round it and the plane does not read as a card taped
  * over the opening.
  *
- * @param {CanvasRenderingContext2D} ctx
+ * @param {CanvasRenderingContext2D} ctx @param {number} w
  */
-function tube(ctx) {
-  ctx.clearRect(0, 0, W, H);
-  const g = ctx.createRadialGradient(W / 2, H * 0.46, 0, W / 2, H * 0.5, W * 0.95);
+function tube(ctx, w) {
+  ctx.clearRect(0, 0, w, H);
+  const g = ctx.createRadialGradient(w / 2, H * 0.46, 0, w / 2, H * 0.5, Math.max(w, H) * 0.95);
   g.addColorStop(0, 'rgba(26,15,6,0.95)');
   g.addColorStop(0.62, 'rgba(20,11,4,0.93)');
   g.addColorStop(1, 'rgba(12,7,3,0.7)');
   ctx.fillStyle = g;
-  ctx.fillRect(0, 0, W, H);
+  ctx.fillRect(0, 0, w, H);
 
   // the raster. One line of tube in four, at a hair of alpha — invisible as a
   // pattern at this size, and the thing that stops the dark reading as paint.
   ctx.fillStyle = 'rgba(0,0,0,0.2)';
-  for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1.4);
+  for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, w, 1.4);
 }
 
 /**
@@ -176,11 +227,15 @@ function tube(ctx) {
  *
  * @param {HTMLCanvasElement} canvas
  * @param {number} count
+ * @param {number} aspect the glass's width over its height
  */
-export function paintTerminal(canvas, count) {
+export function paintTerminal(canvas, count, aspect) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
-  tube(ctx);
+  const [w] = termCanvas(aspect);
+  // the page's left margin, on a tube that is usually wider than the page
+  const x = pageLeft(aspect);
+  tube(ctx, w);
 
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
@@ -195,7 +250,7 @@ export function paintTerminal(canvas, count) {
     if (kind === 'rule') {
       ctx.globalAlpha = 0.6;
       ctx.fillStyle = INK.rule;
-      ctx.fillRect(PAD_X, y - FONT * 0.34, W - PAD_X * 2, 2.4);
+      ctx.fillRect(x, y - FONT * 0.34, PAGE_W - PAD_X * 2, 2.4);
       ctx.globalAlpha = 1;
       continue;
     }
@@ -208,7 +263,7 @@ export function paintTerminal(canvas, count) {
       ctx.shadowColor = 'rgba(255,180,90,0.7)';
       ctx.shadowBlur = 14;
       ctx.fillStyle = INK.cur;
-      ctx.fillRect(PAD_X, y - FONT * 0.74, ADVANCE, FONT * 0.86);
+      ctx.fillRect(x, y - FONT * 0.74, ADVANCE, FONT * 0.86);
       ctx.shadowBlur = 0;
       continue;
     }
@@ -226,11 +281,11 @@ export function paintTerminal(canvas, count) {
       // the prompt is the machine's, the command is the operator's, and they
       // are not printed at the same level
       ctx.globalAlpha = 0.7;
-      ctx.fillText('>', PAD_X, y);
+      ctx.fillText('>', x, y);
       ctx.globalAlpha = 1;
-      ctx.fillText(text, PAD_X + ADVANCE * 2, y);
+      ctx.fillText(text, x + ADVANCE * 2, y);
     } else {
-      ctx.fillText(text, PAD_X, y);
+      ctx.fillText(text, x, y);
     }
     ctx.shadowBlur = 0;
   }
@@ -238,25 +293,41 @@ export function paintTerminal(canvas, count) {
 }
 
 /**
- * A canvas and the texture over it, sized to the grid.
+ * A canvas and the texture over it, built at the glass's own shape.
  *
- * Aspect is fixed here rather than taken from the glass: the screen's own
- * proportions follow the viewport, and monospace text stretched to fit a
- * changing rectangle is the one thing on this surface that would give it away.
- * The caller fits this box inside the glass instead — see `TERMINAL_ASPECT`.
+ * The *page* is still a fixed grid — monospace stretched to fit a changing
+ * rectangle is the one thing on this surface that would give it away — but the
+ * canvas around it is the opening, so the tube fills the glass rather than
+ * floating in the middle of it. Resized in place when the viewport changes that
+ * shape; see `sizeTerminal`.
+ *
+ * @param {number} aspect
  */
-export function terminalSurface() {
+export function terminalSurface(aspect) {
   const canvas = document.createElement('canvas');
-  canvas.width = W;
-  canvas.height = H;
+  const [w, h] = termCanvas(aspect);
+  canvas.width = w;
+  canvas.height = h;
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
   texture.anisotropy = 8;
   return { canvas, texture };
 }
 
-/** The canvas's own shape, for a caller fitting it inside the glass. */
-export const TERMINAL_ASPECT = W / H;
+/**
+ * Put a surface at this shape, and say whether anything changed. Writing
+ * `canvas.width` wipes the canvas even when the value written is the one already
+ * there, so the caller must not do it unconditionally.
+ *
+ * @param {{ canvas: HTMLCanvasElement }} surface @param {number} aspect
+ */
+export function sizeTerminal(surface, aspect) {
+  const [w, h] = termCanvas(aspect);
+  if (surface.canvas.width === w && surface.canvas.height === h) return false;
+  surface.canvas.width = w;
+  surface.canvas.height = h;
+  return true;
+}
 
 /**
  * Wipe the screen back to nothing without touching the texture, the material or
