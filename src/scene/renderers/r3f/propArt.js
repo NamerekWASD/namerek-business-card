@@ -560,59 +560,6 @@ export const artifactFace = (mark, spec, labelled = true) => bake(
   },
 );
 
-// ── the belt itself ──────────────────────────────────────────────────────────
-// A slat belt, because a smooth rubber band has nothing on it for the eye to
-// track and a conveyor that cannot be seen to be running is a table. The tile
-// repeats along the run and its offset is what is scrolled — see `Conveyor` in
-// `LandingProps.jsx`, and the note there about why it is not scrolled every
-// frame.
-export const beltBand = () => bake('belt:band', 128, 128, (ctx, w, h) => {
-  const rnd = seeded(0x5e17);
-  // ── the value it is painted at ─────────────────────────────────────────────
-  // Authored first at the black rubber actually is and it disappeared: this
-  // room's iron already sits near 0.03 linear and swallows the pendant whole,
-  // so a black belt under a black frame came back as one unreadable beam with
-  // boxes balanced on it. It is painted here at the value worn steel slats
-  // *are* under a tungsten pendant — the same argument the crates' pine and
-  // the post box's enamel are both painted by, two hundred lines up.
-  ctx.fillStyle = '#241d14';
-  ctx.fillRect(0, 0, w, h);
-
-  // the slats, running across the belt. Four to the tile, so the period is
-  // short enough that a slow scroll still reads as motion.
-  const pitch = w / 4;
-  for (let i = 0; i < 4; i += 1) {
-    const x = i * pitch;
-    ctx.fillStyle = '#33291a';
-    ctx.fillRect(x + 3, 0, pitch - 6, h);
-    // the arris along the leading edge, which is the only bright line on the
-    // whole belt and the thing the eye actually tracks
-    ctx.globalAlpha = 0.75;
-    ctx.fillStyle = '#7b6540';
-    ctx.fillRect(x + 3, 0, 2.5, h);
-    ctx.globalAlpha = 0.8;
-    ctx.fillStyle = '#0d0a07';
-    ctx.fillRect(x + pitch - 4, 0, 3, h);
-    ctx.globalAlpha = 1;
-  }
-
-  // the polish down the middle, where everything that ships has slid, and the
-  // dirt at the edges where nothing has
-  const g = ctx.createLinearGradient(0, 0, 0, h);
-  g.addColorStop(0, 'rgba(0,0,0,0.42)');
-  g.addColorStop(0.5, 'rgba(150,126,86,0.22)');
-  g.addColorStop(1, 'rgba(0,0,0,0.42)');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, w, h);
-
-  for (let i = 0; i < 90; i += 1) {
-    ctx.globalAlpha = 0.06 + rnd() * 0.18;
-    ctx.fillStyle = rnd() > 0.5 ? '#000000' : '#574833';
-    ctx.fillRect(rnd() * w, rnd() * h, 1 + rnd() * 9, 1 + rnd() * 2);
-  }
-  ctx.globalAlpha = 1;
-});
-
 // ── the valve rack ───────────────────────────────────────────────────────────
 // The one prop that is about the site's own subject. It used to state that with
 // a field of jacks and three cords bridged across it — a switched network,
