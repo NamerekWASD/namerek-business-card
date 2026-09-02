@@ -80,23 +80,38 @@ export const BELT = {
   // has been delivered yet. Without it the run starts in mid-air under the
   // opening and the lift lowers a box onto its own end plate.
   //
-  // Long enough to finish *past* the lift's wall gear, which is Mykolai's own
-  // correction and the right one: cut off level with the mechanism the run
-  // reads as unfinished — "выглядит конвейер будто не до конца доделан" — and a
-  // machine that stops exactly where the thing feeding it stands looks like two
-  // halves that were never joined. It carries on a hand's width beyond the
-  // guide and is closed there with an end frame, which is what a real run has
-  // at its infeed. `belt.test.js` holds it past `GUIDE`.
-  TAIL: 0.88,
+  // ── why it is this figure and not a longer one ─────────────────────────────
+  // The first cut ran it out to 0.88 so the machine would finish *past* the
+  // lift's wall gear rather than level with it. That reasoning was sound and
+  // the number was not: the counterweight hangs on that gear at the height of
+  // the roller line, so a run carried out under it is a run with a cylinder of
+  // cast iron standing through its rollers and its far channel — "конструкция
+  // подьемника правее окна пробивает насквозь ролики и каркас".
+  //
+  // So the run stops where the opening's own surround stops, which is his call
+  // and is also the one line in the picture that can justify an end: the
+  // machine is as wide as the hole that feeds it. The end frame's outer face
+  // lands on the surround's outer edge — `MOUTH.W / 2 + MOUTH.FRAME / 2` — and
+  // `TAIL` is that less the frame's own thickness. `belt.test.js` holds the
+  // equality, and holds the wall gear outside it.
+  TAIL: 0.575,
+  // The end frame across the infeed: a plate the channels lap over, standing a
+  // little proud of the flange the way a stop does. Here rather than in the JSX
+  // because it is half of where the run ends.
+  END: 0.05,
   // How far right of the opening's own edge the lift's guide, sprocket and
   // counterweight stand. Here rather than in the JSX only because `TAIL` has to
-  // be measured against it.
-  GUIDE: 0.14,
+  // be measured against it — the gear now stands entirely beyond the run's end
+  // instead of over it, so this is what holds the counterweight off the end
+  // frame.
+  GUIDE: 0.17,
 
   // The opening the product comes out of, sized off the box. `SILL` is how far
   // the *lift's* surface sits below the middle of the opening, and it is here
   // rather than in the JSX because the curtain's swing is arithmetic off it.
-  MOUTH: { W: 1.16, H: 0.94, SILL: 0.12 },
+  // `FRAME` is the pressed surround's member width, here because the run's end
+  // is measured to its outer edge.
+  MOUTH: { W: 1.16, H: 0.94, SILL: 0.12, FRAME: 0.09 },
 
   // ── the run behind the wall ────────────────────────────────────────────────
   // How far a box travels inside the tunnel before its nose reaches the
@@ -145,6 +160,10 @@ export const BELT = {
     FINGER_W: 0.034, // across — has to live in the gap between two rollers
     WHEEL: 0.062, // the small rollers on a finger
     WHEEL_PITCH: 0.13,
+    // The counterweight's radius. It is here rather than in the JSX because it
+    // is the widest thing on the wall gear at the height of the roller line,
+    // which makes it the member `TAIL` has to stay clear of.
+    WEIGHT_R: 0.095,
   },
 
   // ── the strip curtain ──────────────────────────────────────────────────────

@@ -73,12 +73,22 @@ describe('the conveyor', () => {
     expect(BELT.TAIL).toBeGreaterThan(BELT.BOX.d / 2);
   });
 
-  // And past the gear that feeds it. A run cut off level with the lift's own
-  // guide reads as a machine that was stopped rather than finished — Mykolai's
-  // "будто не до конца доделан", and he is right that it is the difference
-  // between a built thing and a sketch.
-  it('finishes past the lift gear rather than level with it', () => {
-    expect(BELT.TAIL).toBeGreaterThan(BELT.MOUTH.W / 2 + BELT.GUIDE + 0.06);
+  // Where it stops, and it is not a taste figure. The run used to be carried
+  // out past the lift's wall gear so it would read as finished rather than cut
+  // off; what that actually bought was a counterweight hanging through the
+  // rollers. The end frame lands on the mouth surround's outer edge instead —
+  // the machine is as wide as the hole that feeds it, which is the one line in
+  // the picture that can justify an end.
+  it('closes the run on the mouth surround rather than past the gear', () => {
+    expect(BELT.TAIL + BELT.END).toBeCloseTo(BELT.MOUTH.W / 2 + BELT.MOUTH.FRAME / 2, 6);
+  });
+
+  // And the gear stands clear of it. The counterweight is the widest member on
+  // the wall guide at the height of the roller line, so this is the clause that
+  // keeps a cylinder of cast iron out of the run's far channel.
+  it('hangs the wall gear beyond the end frame', () => {
+    const nearEdge = BELT.MOUTH.W / 2 + BELT.GUIDE - BELT.LIFT.WEIGHT_R;
+    expect(nearEdge).toBeGreaterThan(BELT.TAIL + BELT.END);
   });
 });
 

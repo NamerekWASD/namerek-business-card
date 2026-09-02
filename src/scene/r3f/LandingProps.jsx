@@ -1276,8 +1276,15 @@ function Workbench({ M, x, floorY, z, ambient, yaw }) {
  * toward the room. Flat sheets, so it does not read as another crate — the
  * crate above is sawn boards with gaps and battens, and the silhouette is what
  * separates the two at this distance.
+ *
+ * `strap` comes down from the run rather than being built here: it is the
+ * catalogue's iron at the tone the rest of the machine is drawn at, and it is
+ * handed in so that one bake serves every box on the belt instead of one per
+ * box. It used to be a hand-set `#2b2419`, which carried no grain and rendered
+ * at luminance 35 — two black lines lying across the one face on this box that
+ * has anything to say.
  */
-function ArtifactBox({ M, mark, spec, ambient, ...rest }) {
+function ArtifactBox({ M, mark, spec, ambient, strap, ...rest }) {
   const { w, h, d } = BELT.BOX;
   const face = artifactFace(mark, spec, true);
   const side = artifactFace(mark, spec, false);
@@ -1286,7 +1293,6 @@ function ArtifactBox({ M, mark, spec, ambient, ...rest }) {
   const lidArt = artwork(side, ambient, FACE.up);
   const underArt = artwork(side, ambient, FACE.down);
   const fallback = { color: '#4c3f28', roughness: 0.9, metalness: 0.02 };
-  const strap = { color: '#2b2419', roughness: 0.55, metalness: 0.45 };
   // ── one material per face, and each of them says which face ────────────────
   // A row of bare `<meshStandardMaterial>` children does **not** make a
   // material array: R3F attaches every one of them to `material`, so the last
@@ -1408,6 +1414,7 @@ const SLAT_SWING = slatSwing();
 function BeltMouth({ M, x, y, z, hinges }) {
   const w = BELT.MOUTH.W * M;
   const h = BELT.MOUTH.H * M;
+  const frame = BELT.MOUTH.FRAME * M;
   // ── the surround's metal ───────────────────────────────────────────────────
   // Off the catalogue rather than hand-set, which is NBC-69's whole point: a
   // hand-set hex carries no grain, and this is a 370-pixel member standing in
@@ -1425,9 +1432,10 @@ function BeltMouth({ M, x, y, z, hinges }) {
         <planeGeometry args={[w, h]} />
         <meshStandardMaterial color="#050403" roughness={1} metalness={0} />
       </mesh>
-      {/* the pressed steel surround, standing proud of the plaster */}
-      {[[0, h / 2, w, 0.09 * M], [0, -h / 2, w, 0.09 * M],
-        [-w / 2, 0, 0.09 * M, h], [w / 2, 0, 0.09 * M, h]].map(([rx, ry, rw, rh]) => (
+      {/* The pressed steel surround, standing proud of the plaster. Its outer
+          edge is where the run's end frame stops — see `TAIL`. */}
+      {[[0, h / 2, w, frame], [0, -h / 2, w, frame],
+        [-w / 2, 0, frame, h], [w / 2, 0, frame, h]].map(([rx, ry, rw, rh]) => (
           <mesh key={`${rx},${ry}`} position={[rx, ry, 0.05 * M]} castShadow receiveShadow>
             <boxGeometry args={[rw, rh, 0.07 * M]} />
             <meshStandardMaterial {...surround} />
@@ -1503,11 +1511,14 @@ function BeltMouth({ M, x, y, z, hinges }) {
  * if it ran unbroken. A transfer station in a real works has exactly this: the
  * frame is cut away where the transfer crosses it.
  */
-function RollerRun({ M, tail, run, rollerXs, rollersRef, rollerGeo, steel, roller, ironLeg, bolt }) {
+function RollerRun({
+  M, tail, run, rollerXs, rollersRef, rollerGeo, frame, flange, roller, ironLeg, bolt,
+}) {
   const beltY = BELT.TOP * M;
   const rD = BELT.ROLL.D * M;
   const sideZ = (BELT.WIDE / 2 + 0.035) * M;
   const chH = 0.13 * M;
+  const endT = BELT.END * M;
   // ── how far the channel stands proud, and the correction to the reference ──
   // The reference's own proportion is a flange about a third of a roller above
   // the roller tops, working as a side guide. Built that way it is wrong here
@@ -1579,20 +1590,26 @@ function RollerRun({ M, tail, run, rollerXs, rollersRef, rollerGeo, steel, rolle
       {/* ── the channels ─────────────────────────────────────────────────── */}
       <mesh position={[(tail - run) / 2, chY, sideZ]} castShadow receiveShadow>
         <boxGeometry args={[tail + run, chH, 0.05 * M]} />
-        <meshStandardMaterial {...steel} />
+        <meshStandardMaterial {...frame} />
       </mesh>
-      {/* the top flange, a lip rather than a wall — enough of a border to say
-          the rollers are held between two members, not enough to hide them */}
+      {/* The top flange, a lip rather than a wall — enough of a border to say
+          the rollers are held between two members, not enough to hide them.
+
+          It is the one member of the frame turned *up*, so it is the one the
+          pendant reaches, and it carries its own tone for that reason rather
+          than for emphasis: a face that is lit reads lighter than a face that
+          is not, and a lip drawn at the web's tone is a frame with no edge on
+          it. It is also what draws the whole length of the run in one line. */}
       {[-1, 1].map((s) => (
         <mesh key={s} position={[(tail - run) / 2, chTop + 0.012 * M, s * sideZ]} castShadow receiveShadow>
           <boxGeometry args={[tail + run, 0.024 * M, 0.075 * M]} />
-          <meshStandardMaterial {...steel} />
+          <meshStandardMaterial {...flange} />
         </mesh>
       ))}
       {farRuns.map(([a, b]) => (
         <mesh key={a} position={[(a + b) / 2, chY, -sideZ]} castShadow receiveShadow>
           <boxGeometry args={[Math.abs(a - b), chH, 0.05 * M]} />
-          <meshStandardMaterial {...steel} />
+          <meshStandardMaterial {...frame} />
         </mesh>
       ))}
       <instancedMesh ref={bolts} args={[undefined, undefined, Math.max(1, boltItems.length)]}>
@@ -1642,14 +1659,18 @@ function RollerRun({ M, tail, run, rollerXs, rollersRef, rollerGeo, steel, rolle
           A plate across the frame with the channels' own ends lapped over it,
           standing a little proud of the flange the way a stop does. It is the
           detail Mykolai asked for and the argument is his: a run that simply
-          stops has been cut off, a run that is closed has been built. */}
-      <mesh position={[tail + 0.025 * M, chY + 0.015 * M, 0]} castShadow receiveShadow>
-        <boxGeometry args={[0.05 * M, chH + 0.075 * M, (BELT.WIDE + 0.16) * M]} />
-        <meshStandardMaterial {...steel} />
+          stops has been cut off, a run that is closed has been built.
+
+          Its outer face is where the machine ends, and that is not a free
+          number any more: it lands on the mouth surround's outer edge. See
+          `TAIL`. */}
+      <mesh position={[tail + endT / 2, chY + 0.015 * M, 0]} castShadow receiveShadow>
+        <boxGeometry args={[endT, chH + 0.075 * M, (BELT.WIDE + 0.16) * M]} />
+        <meshStandardMaterial {...frame} />
       </mesh>
       {[-1, 1].map((s) => (
-        <mesh key={s} position={[tail + 0.026 * M, chY + 0.05 * M, s * sideZ]} castShadow receiveShadow>
-          <boxGeometry args={[0.06 * M, 0.05 * M, 0.09 * M]} />
+        <mesh key={s} position={[tail + endT / 2, chY + 0.05 * M, s * sideZ]} castShadow receiveShadow>
+          <boxGeometry args={[endT, 0.05 * M, 0.09 * M]} />
           <meshStandardMaterial {...bolt} />
         </mesh>
       ))}
@@ -1899,6 +1920,7 @@ function Conveyor({ M, x, floorY, z, ambient, leftEnd, live }) {
   const beltY = BELT.TOP * M;
   const rD = BELT.ROLL.D * M;
   const guideX = (BELT.MOUTH.W / 2 + BELT.GUIDE) * M;
+  const weightR = BELT.LIFT.WEIGHT_R * M;
   const guideZ = -out + 0.06 * M;
 
   // Where every roller stands, on a grid anchored at the station — which is
@@ -1978,13 +2000,34 @@ function Conveyor({ M, x, floorY, z, ambient, leftEnd, live }) {
   const boxes = useRef([]);
   useBeltMotion(rig, boxes, path, count, pitch, M, projectRef, onStamp, live);
 
-  // Shaded up rather than left at the catalogue's own level: `SURFACES.steel`
-  // and `SURFACES.iron` sit near 0.03 linear and swallow this room's pendant
-  // whole, which on a member this long reads as one black beam with boxes
-  // balanced on it. NBC-69: baked rather than flat, because the run is the
-  // longest piece of metal in the room.
-  const steelAt = useFittingShades(SURFACES.steel, [run, BELT.WIDE * M]);
+  // ── why the frame is iron and shaded this far up ───────────────────────────
+  // Measured, on the branch, against the belt this replaced. What the eye used
+  // to read as "the conveyor" was the band's *upward* face, and the pendant
+  // strikes that: it came out at luminance 38 of 255. What it reads now is the
+  // side channel's web and the trestles under it, all of them vertical, and
+  // those came out at 18 — "конструкция ковейера сейчас черная", and he is
+  // right.
+  //
+  // Three measurements say what the lever is and what it is not. Turning the
+  // channel's albedo to white and its metalness off moved it 18 → 27, so the
+  // pendant is delivering about one per cent of what a vertical face would need
+  // — a lamp overhead reaches an upward face and rakes a vertical one, and no
+  // amount of tone on the metal buys light that is not arriving. Turning the
+  // pendant's shadows off moved it 18 → 19, so it is not in shadow either. What
+  // actually renders these members is the term `Room` writes: emissive = albedo
+  // x ambient, one flat product of the material's own colour. On a vertical
+  // face in this room the albedo *is* the picture, and it is the only lever
+  // with any authority.
+  //
+  // So the frame comes off `SURFACES.iron` rather than `SURFACES.steel`, and
+  // the argument is the one already written against the lift's guide a hundred
+  // lines below: steel is the catalogue's single cool entry, kept so the room
+  // has something to read as warm against, and a 600-pixel member lying across
+  // the middle of an ochre shot is far too much of the frame to hand it. The
+  // rollers keep it — turned, cool, catching the pendant along their tops, and
+  // legible *because* the frame around them is warm.
   const rollerAt = useFittingShades(SURFACES.steel, [rD * Math.PI, BELT.WIDE * M]);
+  const frameAt = useFittingShades(SURFACES.iron, [run, BELT.WIDE * M]);
   const ironAt = useFittingShades(SURFACES.iron, [0.05 * M, beltY]);
   const liftAt = useFittingShades(SURFACES.steel, [BELT.LIFT.LEN * M, 0.13 * M]);
 
@@ -1997,10 +2040,11 @@ function Conveyor({ M, x, floorY, z, ambient, leftEnd, live }) {
         rollerXs={rollerXs}
         rollersRef={rig.rollers}
         rollerGeo={rollerGeo}
-        steel={steelAt(1.05)}
-        roller={rollerAt(1.6)}
-        ironLeg={ironAt(1.05)}
-        bolt={ironAt(1.35)}
+        frame={frameAt(2.5)}
+        flange={frameAt(2.85)}
+        roller={rollerAt(3.6)}
+        ironLeg={ironAt(2.25)}
+        bolt={ironAt(2.2)}
       />
 
       {/* ── the wall gear ────────────────────────────────────────────────────
@@ -2016,14 +2060,14 @@ function Conveyor({ M, x, floorY, z, ambient, leftEnd, live }) {
               catalogue and it is there to give the eye something to read the
               room as warm *against* — which on a 500-pixel vertical member in
               the middle of an ochre wall reads as a green pipe. */}
-          <meshStandardMaterial {...ironAt(0.85)} />
+          <meshStandardMaterial {...ironAt(1.75)} />
         </mesh>
         {/* Turned to face the room. A sprocket left on the cylinder's own axis
             is a disc lying flat on top of the guide like a table, which is what
             it was — the same family of mistake as the run's old Euler. */}
         <mesh position={[0, sprocketY, 0.08 * M]} rotation={[Math.PI / 2, 0, 0]} castShadow>
           <cylinderGeometry args={[0.1 * M, 0.1 * M, 0.04 * M, 14]} />
-          <meshStandardMaterial {...ironAt(1.35)} />
+          <meshStandardMaterial {...ironAt(2.3)} />
         </mesh>
       </group>
       {/* the two chain runs, drawn from the sprocket down and scaled by the
@@ -2036,7 +2080,7 @@ function Conveyor({ M, x, floorY, z, ambient, leftEnd, live }) {
         >
           <mesh position={[0, -0.5, 0]}>
             <boxGeometry args={[0.028 * M, 1, 0.02 * M]} />
-            <meshStandardMaterial {...ironAt(0.95)} />
+            <meshStandardMaterial {...ironAt(1.85)} />
           </mesh>
         </group>
       ))}
@@ -2046,8 +2090,10 @@ function Conveyor({ M, x, floorY, z, ambient, leftEnd, live }) {
         castShadow
         receiveShadow
       >
-        <cylinderGeometry args={[0.095 * M, 0.095 * M, 0.34 * M, 12]} />
-        <meshStandardMaterial {...ironAt(1.25)} />
+        {/* Its radius is `BELT`'s rather than a number here, because it is what
+            the run's end has to stay clear of — see `TAIL`. */}
+        <cylinderGeometry args={[weightR, weightR, 0.34 * M, 12]} />
+        <meshStandardMaterial {...ironAt(2.25)} />
       </mesh>
 
       {/* ── the lift ─────────────────────────────────────────────────────────
@@ -2060,8 +2106,8 @@ function Conveyor({ M, x, floorY, z, ambient, leftEnd, live }) {
           wheelsRef={rig.wheels}
           wheelGeo={wheelGeo}
           wheelCount={wheelCount}
-          steel={liftAt(1.1)}
-          iron={ironAt(1.1)}
+          steel={liftAt(2.15)}
+          iron={ironAt(1.9)}
           guideX={guideX}
           guideZ={guideZ}
         />
@@ -2091,6 +2137,7 @@ function Conveyor({ M, x, floorY, z, ambient, leftEnd, live }) {
             mark={PROJECTS[p]?.title ?? ''}
             spec={PROJECTS[p]?.stack ?? ''}
             ambient={ambient}
+            strap={ironAt(2.1)}
           />
         </group>
       ))}
@@ -2116,8 +2163,13 @@ function Conveyor({ M, x, floorY, z, ambient, leftEnd, live }) {
  */
 function WallDado({ M, vw, floorY, z, top }) {
   const w = offRoom(vw, z) - offRoom(vw, z, -1);
-  const field = useFittingShades(SURFACES.landing, [w, top])(0.52);
-  const rail = useFittingShades(SURFACES.iron, [w, 0.05 * M])(0.95);
+  // Measured against the wall above it rather than dialled: at 0.52 it came
+  // out at luminance 31 of 255 against the plaster's 44, which past a certain
+  // depth stops being a dado and becomes a black skirt the machine stands in.
+  // A painted dado is a *tone* change on the same plaster, and the run in front
+  // of it is legible now on its own account.
+  const field = useFittingShades(SURFACES.landing, [w, top])(0.72);
+  const rail = useFittingShades(SURFACES.iron, [w, 0.05 * M])(1.5);
   return (
     <group position={[vw / 2, worldY(floorY), z]}>
       <mesh position={[0, top / 2, 0]} receiveShadow>
