@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { PROJECTS, SLIDES } from '../../decks/projects.js';
 import {
-  BELT, bandOffset, beltAt, beltCount, beltTrip, pathLength, posAt,
+  BELT, bandOffset, beltAt, beltCount, beltTrip, headRun, longRun, pathLength, posAt,
+  slatHalfWidth, slatPush, slatSwing, slatXs,
 } from '../renderers/r3f/belt.js';
 import { useFullscreenGallery } from './fullscreenImage.js';
 import NoticeScreen from './NoticeScreen.jsx';
@@ -1324,6 +1325,13 @@ function ArtifactBox({ M, mark, spec, ambient, ...rest }) {
   );
 }
 
+// The curtain, as three numbers the ticker needs on every slat of every tick.
+// All three are pure functions of `BELT`, so they are resolved once here rather
+// than inside a hook: nothing in the room can change them.
+const SLAT_X = slatXs();
+const SLAT_HALF = slatHalfWidth();
+const SLAT_SWING = slatSwing();
+
 /**
  * The mouth in the back wall the run comes out of.
  *
@@ -1338,7 +1346,7 @@ function ArtifactBox({ M, mark, spec, ambient, ...rest }) {
  * slot. `BELT.MOUTH` is the size now and `belt.test.js` holds it to being
  * bigger than what comes out of it.
  */
-function BeltMouth({ M, x, y, z }) {
+function BeltMouth({ M, x, y, z, hinges }) {
   const w = BELT.MOUTH.W * M;
   const h = BELT.MOUTH.H * M;
   // Hand-set rather than taken from the catalogue: every iron in `SURFACES`
@@ -1357,7 +1365,8 @@ function BeltMouth({ M, x, y, z }) {
   // is a small member that glows.
   const ironAt = useFittingShades(SURFACES.iron, [w, h]);
   const surround = ironAt(1);
-  const slats = 7;
+  const slats = BELT.CURTAIN.SLATS;
+  const drop = BELT.CURTAIN.DROP * h;
   return (
     <group position={[x, y, z]}>
       {/* the dark of the shaft behind the wall */}
@@ -1382,20 +1391,29 @@ function BeltMouth({ M, x, y, z }) {
         <meshStandardMaterial {...ironAt(1.2)} />
       </mesh>
       {/* The strip curtain: what a goods opening in a wall actually has, and
-          the one part of this that breaks the rectangle. It hangs down only the
-          top third — the boxes come through here now rather than standing off to
-          one side, and a curtain a box walks through without moving is worse
-          than no curtain at all. */}
+          the one part of this that breaks the rectangle.
+
+          ── why each slat is a group with a mesh inside it ──────────────────
+          It swings now. A curtain a box walks through without moving is worse
+          than no curtain at all — that was the whole of NBC-70's third point,
+          and until now the answer had been to hang it high enough that the two
+          never met. So each slat hangs from a *pin* at the head of the opening:
+          the group sits at the pin and the strip is dropped half its own length
+          below it, because a mesh turned about its own middle swings its head
+          back into the plaster. The ticker owns `rotation.x` on the group and
+          nothing else does — see `useBeltMotion`, and the two-clocks rule it is
+          written under. */}
       {Array.from({ length: slats }, (_, i) => (
-        <mesh
+        <group
           key={i}
-          position={[(i - (slats - 1) / 2) * (w / slats), h * 0.3, 0.075 * M]}
-          rotation={[0, 0, (i % 3 - 1) * 0.035]}
-          castShadow
+          ref={(g) => { if (hinges) hinges.current[i] = g; }}
+          position={[(i - (slats - 1) / 2) * (w / slats), BELT.CURTAIN.HANG * h, 0.075 * M]}
         >
-          <boxGeometry args={[w / slats * 0.86, h * 0.34, 0.012 * M]} />
-          <meshStandardMaterial color="#171310" roughness={0.88} metalness={0.04} />
-        </mesh>
+          <mesh position={[0, -drop / 2, 0]} rotation={[0, 0, (i % 3 - 1) * 0.035]} castShadow>
+            <boxGeometry args={[w / slats * 0.86, drop, 0.012 * M]} />
+            <meshStandardMaterial color="#171310" roughness={0.88} metalness={0.04} />
+          </mesh>
+        </group>
       ))}
     </group>
   );
@@ -1432,10 +1450,35 @@ function BeltMouth({ M, x, y, z }) {
  * @param {{ current: number }} projectRef what is on the glass, right now
  * @param {(i: number, project: number) => void} onStamp
  * @param {boolean} live
+ * @param {{ hinges: { current: Array<import('three').Object3D | null> },
+ *           mouthZ: number }} curtain the strip curtain's pins, and the plane
+ *   they hang in — in the conveyor's own frame, so a box's `position.z` can be
+ *   compared with it directly.
  */
-function useBeltMotion(bands, boxes, path, count, pitch, M, projectRef, onStamp, live) {
+function useBeltMotion(bands, boxes, path, count, pitch, M, projectRef, onStamp, live, curtain) {
   const travel = useRef(0);
   const trips = useRef([]);
+
+  // ── the curtain, laid from where the boxes already are ─────────────────────
+  // Second-hand on purpose: it reads the boxes' own transforms rather than the
+  // travel, so there is no way for a slat to be swung aside for a box that is
+  // somewhere else. Both writers of box positions call this immediately after
+  // writing them, and nothing else touches `rotation.x` on a pin.
+  const layCurtain = useCallback(() => {
+    const pins = curtain?.hinges?.current;
+    if (!pins) return;
+    for (let s = 0; s < SLAT_X.length; s += 1) {
+      const pin = pins[s];
+      if (!pin) continue;
+      let push = 0;
+      for (let i = 0; i < count; i += 1) {
+        const b = boxes.current[i];
+        if (!b) continue;
+        push = Math.max(push, slatPush((b.position.z - curtain.mouthZ) / M, SLAT_X[s], SLAT_HALF));
+      }
+      pin.rotation.x = -push * SLAT_SWING;
+    }
+  }, [curtain, boxes, count, M]);
 
   // Where the boxes stand, laid out from the ticker's *own* travel rather than
   // from a second source — so this is the same clock, not a second one. It has
@@ -1453,6 +1496,7 @@ function useBeltMotion(bands, boxes, path, count, pitch, M, projectRef, onStamp,
       g.position.z = at.z;
       g.visible = d < len;
     }
+    layCurtain();
   });
 
   useEffect(() => {
@@ -1501,12 +1545,13 @@ function useBeltMotion(bands, boxes, path, count, pitch, M, projectRef, onStamp,
           onStamp(i, projectRef.current);
         }
       }
+      layCurtain();
       invalidateScene();
     };
 
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [bands, boxes, path, count, pitch, M, projectRef, onStamp, live]);
+  }, [bands, boxes, path, count, pitch, M, projectRef, onStamp, live, layCurtain]);
 }
 
 /**
@@ -1627,15 +1672,28 @@ function Conveyor({ M, x, floorY, z, ambient, leftEnd, live }) {
   // from here so the transfer cannot drift away from either of them.
   const out = BELT.OUT * M;
   const run = x - leftEnd;
-  const path = useMemo(() => ({ out, run }), [out, run]);
+  // The `lead` is the stretch inside the wall. It costs one more box in the
+  // pool and buys the only thing that made the mouth read as a mouth: a box
+  // that comes *out* of it rather than being switched on standing in it.
+  const path = useMemo(() => ({ lead: BELT.LEAD * M, out, run }), [out, run, M]);
   const pitch = BELT.PITCH * M;
   const count = beltCount(pathLength(path), pitch);
+
+  // Drawn lengths, which are not the path's lengths: the corner square belongs
+  // to the long run alone, and the head run stops at its edge. See `headRun`.
+  const headLen = headRun(out, M);
+  const longLen = longRun(run, M);
 
   const headBand = useRef(null);
   const runBand = useRef(null);
   const bands = useMemo(() => ({ head: headBand, run: runBand }), []);
-  const head = useBand(out, M, headBand);
-  const long = useBand(run, M, runBand);
+  const head = useBand(headLen, M, headBand);
+  const long = useBand(longLen, M, runBand);
+
+  // The curtain's pins, and the plane they hang in. The mouth is a child of
+  // this group at `-out`, and the slats stand 0.075 m proud of it.
+  const hinges = useRef([]);
+  const curtain = useMemo(() => ({ hinges, mouthZ: -out + 0.075 * M }), [out, M]);
 
   // ── what each box is stamped with ──────────────────────────────────────────
   // One entry per box, written only when that box is back at the mouth. A box
@@ -1656,7 +1714,7 @@ function Conveyor({ M, x, floorY, z, ambient, leftEnd, live }) {
   }), []);
 
   const boxes = useRef([]);
-  useBeltMotion(bands, boxes, path, count, pitch, M, projectRef, onStamp, live);
+  useBeltMotion(bands, boxes, path, count, pitch, M, projectRef, onStamp, live, curtain);
 
   // Shaded up rather than left at the catalogue's own level: `SURFACES.steel`
   // and `SURFACES.iron` sit near 0.03 linear and swallow this room's pendant
@@ -1673,58 +1731,86 @@ function Conveyor({ M, x, floorY, z, ambient, leftEnd, live }) {
   return (
     <group position={[x, worldY(floorY), z]}>
       {/* ── the head run, out of the wall ───────────────────────────────────
-          Turned so its own +x points along world +z. The Euler is worth
-          reading rather than trusting: three applies XYZ as Rx·Ry·Rz, so the
-          −90° about z lays the run across and the −90° about x tips it flat,
-          and the pair leaves the band's `u` pointing out of the wall. */}
+          Turned in plan and in plan only, so its own +x points along world +z
+          and its own up stays up. That is the whole of the transform and it
+          could not be anything else — a run of belt turned a right angle on the
+          floor is a yaw.
+
+          ── the Euler that was here, and what it actually did ───────────────
+          `[-π/2, 0, -π/2]`, with a note explaining that three composes XYZ as
+          Rx·Ry·Rz. The note was right and the Euler was wrong: that product
+          sends the run's *up* to world +x and its width to world +y, so the
+          head band stood on edge, its rails hung in the air and its legs lay
+          flat on the belt like a dropped bar. It had been that way since the L
+          was built and nothing gave it away, because the boxes are positioned
+          by the ticker in the conveyor's own frame and ride the L correctly
+          over a head run that is not there. What Mykolai kept reading as a
+          crooked support was one of these legs, on its side, at the corner. */}
       <BeltRun
-        M={M} len={out} band={head} ambient={ambient}
+        M={M} len={headLen} band={head} ambient={ambient}
         steel={steel} iron={iron} ironLeg={ironLeg}
-        legFrom={0.28 * M}
-        rotation={[-Math.PI / 2, 0, -Math.PI / 2]}
+        legFrom={0}
+        position={[0, 0, -(BELT.WIDE / 2) * M]}
+        rotation={[0, -Math.PI / 2, 0]}
       />
       {/* ── the long run, away to the left ──────────────────────────────────
           It does not stop at the edge of what can be seen — a corridor carries
           on, and the same argument is written out at length on `WallCable`. */}
       <BeltRun
-        M={M} len={run} band={long} ambient={ambient}
+        M={M} len={longLen} band={long} ambient={ambient}
         steel={steel} iron={iron} ironLeg={ironLeg}
-        legFrom={0.9 * M}
+        legFrom={(BELT.WIDE / 2 + 0.9) * M}
+        position={[(BELT.WIDE / 2) * M, 0, 0]}
       />
 
-      {/* ── the transfer ────────────────────────────────────────────────────
-          What actually turns the corner. A right-angle transfer is a plate the
-          head belt runs the box onto and a set of short rollers that take it
-          off sideways — no curve, no turntable, and nothing rotates, which is
-          why the manifest never leaves the camera. It replaces the stop gate
-          that used to stand here; Mykolai's word for that was "ни к чему", and
-          he is right — a gate is what a belt has when something is meant to
-          stand still on it, and nothing on this belt is. */}
-      <group position={[0, beltY, 0]}>
-        <mesh position={[0, -0.055 * M, 0]} receiveShadow castShadow>
-          <boxGeometry args={[BELT.WIDE * M, 0.05 * M, BELT.WIDE * M]} />
-          <meshStandardMaterial {...iron} />
+      {/* ── the corner ──────────────────────────────────────────────────────
+          There is nothing here, and that is NBC-70's first half. A rectangular
+          transfer stood at this corner — a plate with four short rollers across
+          it, which is the machine that really does turn a box a right angle
+          without turning the box. It read as a set of loose bars a box happens
+          to ride over: asymmetric against the opening because the rollers lay
+          along the *long* run while the window and the head run go the other
+          way, and — the part that settled it — standing 0.02 m proud of the
+          belt surface, so every roller pushed up through the bottom of the box
+          on top of it. Mykolai asked for what the run has everywhere else, and
+          he is right that it reads better: a plain junction on a plain pair of
+          legs.
+
+          ── which pair, and why only one ────────────────────────────────────
+          The corner is a square, so there were two candidate pairs for it —
+          one across each run — and standing both under it is what made the
+          first cut read as crooked. The two posts of a pair across the *long*
+          run sit at different depths from this camera, so they project as two
+          posts at different heights and different screen x: a splayed trestle
+          rather than a pair. The pair across the *head* run is square to the
+          lens, level with itself, and centred on the opening's own centre line,
+          because that is what the head run is centred on. So the corner stands
+          on that one, at the seam between the runs, and the long run's own legs
+          start where they always did — 0.9 m to the left.
+
+          ── and the pair it was still missing ───────────────────────────────
+          The head run's own legs stand at the *back* of the corner square, on
+          the seam. That leaves the front metre of the corner — the edge nearest
+          the lens, the one the box turns on — standing on nothing all the way
+          to the long run's first pair 0.9 m away, and Mykolai spotted the hole
+          from across the room. A corner unit stands on four legs; these are the
+          front two, and with the head run's back pair they make the trestle.
+          The 0.07 is `BeltRun`'s own rail, which its legs stop under. */}
+      {[-1, 1].map((s) => (
+        <mesh
+          key={s}
+          position={[
+            s * (BELT.WIDE / 2 - 0.02) * M,
+            (beltY - 0.07 * M) / 2,
+            (BELT.WIDE / 2 - 0.02) * M,
+          ]}
+          castShadow
+          receiveShadow
+        >
+          <boxGeometry args={[0.055 * M, beltY - 0.07 * M, 0.055 * M]} />
+          <meshStandardMaterial {...ironLeg} />
         </mesh>
-        {[-0.3, -0.1, 0.1, 0.3].map((f) => (
-          <mesh
-            key={f}
-            position={[f * BELT.WIDE * M, -0.012 * M, 0]}
-            rotation={[Math.PI / 2, 0, 0]}
-            castShadow
-          >
-            <cylinderGeometry args={[0.032 * M, 0.032 * M, BELT.WIDE * M * 0.94, 10]} />
-            <meshStandardMaterial {...steel} />
-          </mesh>
-        ))}
-        {/* There was a guide rail across the front of the transfer here — the
-            member a real one pushes the box against — and it is gone, because
-            of where the camera stands rather than because of what a conveyor
-            has. It sat half a metre nearer the lens than the box it belonged
-            to and projected as a black bar straight across the bottom two lines
-            of the manifest. The box is the thing in this room that has to be
-            read; anything that crosses it loses. Same call, same reason, as the
-            side rails dropping under the band. */}
-      </group>
+      ))}
 
       {/* the head pulley at the discharge end, turned across the run */}
       <mesh
@@ -1736,7 +1822,10 @@ function Conveyor({ M, x, floorY, z, ambient, leftEnd, live }) {
         <meshStandardMaterial {...steel} />
       </mesh>
 
-      <BeltMouth M={M} x={0} y={beltY + (BELT.MOUTH.H / 2 - 0.12) * M} z={-out} />
+      <BeltMouth
+        M={M} x={0} y={beltY + (BELT.MOUTH.H / 2 - BELT.MOUTH.SILL) * M} z={-out}
+        hinges={hinges}
+      />
 
       {/* ── the archive, shipping ───────────────────────────────────────────
           `count` boxes, built when the floor is furnished and never rebuilt.

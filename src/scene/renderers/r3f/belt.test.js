@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  BELT, bandOffset, beltAt, beltCount, beltTrip, mouthClearance, pathLength, posAt,
+  BELT, bandOffset, beltAt, beltCount, beltTrip, headRun, longRun, mouthClearance, pathLength,
+  posAt, slatPush, slatSwing,
 } from './belt.js';
 
 // Every clause here fails silently on the landing rather than throwing: two
@@ -165,5 +166,113 @@ describe('the boxes, without end', () => {
   it('is legal on a path shorter than one pitch', () => {
     expect(beltCount(0.5, 1.5)).toBeGreaterThanOrEqual(1);
     expect(beltAt(0, 0, 1, 1.5)).toBe(0);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NBC-70 — the corner, and where a box comes from
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('the lead-in, behind the wall', () => {
+  const path = { lead: BELT.LEAD, out: 1, run: 4 };
+
+  // The fault this exists for: a box switched on standing in the plane of the
+  // wall is half a box appearing between one tick and the next — "ящики просто
+  // спаунятся из ничего". A box has to have somewhere to come *from*.
+  it('starts the box further back than the box is long', () => {
+    expect(BELT.LEAD).toBeGreaterThan(BELT.BOX.d);
+  });
+
+  it('counts the hidden stretch as part of the path', () => {
+    expect(pathLength(path)).toBeCloseTo(BELT.LEAD + 5, 6);
+  });
+
+  it('holds the box inside the wall until the belt pushes it out', () => {
+    expect(posAt(0, path).z).toBeCloseTo(-BELT.LEAD - 1, 6);
+    expect(posAt(BELT.LEAD, path).z).toBeCloseTo(-1, 6);
+  });
+
+  // Nothing downstream of the mouth moves: the corner is where it always was,
+  // and so is the end of the run.
+  it('leaves the corner and the discharge where they were', () => {
+    expect(posAt(BELT.LEAD + 1, path).x).toBeCloseTo(0, 9);
+    expect(posAt(BELT.LEAD + 1, path).z).toBeCloseTo(0, 9);
+    expect(posAt(pathLength(path), path).x).toBeCloseTo(-4, 9);
+    expect(posAt(pathLength(path), path).z).toBeCloseTo(0, 9);
+  });
+
+  // A path with no lead is the old one, unchanged — which is what keeps every
+  // clause above this line honest.
+  it('is optional', () => {
+    expect(posAt(0, { out: 1, run: 4 })).toEqual({ x: 0, z: -1 });
+  });
+});
+
+describe('the corner, as a butt joint', () => {
+  // Both runs used to be drawn full length, which laid two bands and two pans
+  // in the same plane over the square at the corner. Coincident polygons are a
+  // coin toss per pixel, and the coin is tossed again every time the camera
+  // moves. They butt now.
+  it('stops the head run at the far edge of the long one', () => {
+    expect(headRun(BELT.OUT) + BELT.WIDE / 2).toBeCloseTo(BELT.OUT, 6);
+  });
+
+  it('carries the long run past the corner to meet it', () => {
+    expect(longRun(4) - 4).toBeCloseTo(BELT.WIDE / 2, 6);
+  });
+
+  it('leaves a head run there is still something to see of', () => {
+    expect(headRun(BELT.OUT)).toBeGreaterThan(BELT.BOX.d / 2);
+  });
+
+  it('measures both in the room it is drawn in', () => {
+    expect(headRun(BELT.OUT * 10, 10)).toBeCloseTo(headRun(BELT.OUT) * 10, 6);
+    expect(longRun(4 * 10, 10)).toBeCloseTo(longRun(4) * 10, 6);
+  });
+});
+
+describe('the strip curtain', () => {
+  const half = 0.07;
+
+  it('hangs low enough that a box has to push it', () => {
+    const foot = (BELT.CURTAIN.HANG - BELT.CURTAIN.DROP) * BELT.MOUTH.H
+      + BELT.MOUTH.H / 2 - BELT.MOUTH.SILL;
+    expect(foot).toBeLessThan(BELT.BOX.h);
+  });
+
+  it('swings over the box rather than through it', () => {
+    expect(slatSwing()).toBeGreaterThan(0);
+    expect(slatSwing()).toBeLessThan(Math.PI / 2);
+  });
+
+  it('hangs still until the box reaches it', () => {
+    expect(slatPush(-BELT.BOX.d, 0, half)).toBe(0);
+  });
+
+  it('is fully aside while the box is going through', () => {
+    expect(slatPush(0, 0, half)).toBeCloseTo(1, 6);
+  });
+
+  it('falls shut once the box has gone by', () => {
+    expect(slatPush(BELT.BOX.d / 2 + BELT.CURTAIN.FALL, 0, half)).toBeCloseTo(0, 9);
+    expect(slatPush(BELT.BOX.d, 0, half)).toBeLessThan(1);
+  });
+
+  // The slats outside the box's own width are the ones that say the box has a
+  // width at all. A curtain that opens all the way across is a door.
+  it('leaves the slats wider than the box alone', () => {
+    expect(slatPush(0, BELT.MOUTH.W / 2 - half, half)).toBe(0);
+    expect(slatPush(0, 0, half)).toBeGreaterThan(slatPush(0, BELT.BOX.w / 2, half));
+  });
+
+  // No step anywhere in a whole pass: a slat that jumps reads as a glitch, not
+  // as rubber.
+  it('never jumps over a whole pass', () => {
+    let last = slatPush(-1, 0, half);
+    for (let dz = -1; dz < 1.5; dz += 0.01) {
+      const now = slatPush(dz, 0, half);
+      expect(Math.abs(now - last)).toBeLessThan(0.12);
+      last = now;
+    }
   });
 });
