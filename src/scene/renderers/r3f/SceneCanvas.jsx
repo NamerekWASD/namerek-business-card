@@ -5,16 +5,20 @@ import { cameraProps } from './camera.js';
 import { TONE_CURVES, roomLight, useLightTuning } from './tuning.js';
 import { installSoftLight, wrapUniforms } from './softLight.js';
 import { installRoomTone, toneUniforms } from './roomTone.js';
+import { installRoomLights } from './roomLights.js';
 import { registerCanvas } from './frames.js';
 import { DEBUG_PANEL } from '../../effects/quality.js';
 
-// Both before anything can compile a material. `softLight` gives the fittings a
-// soft terminator — without it they sit in the plane of nearly everything they
-// light and reach none of it — and `roomTone` moves the tone curve out of the
-// renderer and into each material, which is what lets the two rooms be graded
-// apart at all.
+// All three before anything can compile a material. `softLight` gives the
+// fittings a soft terminator — without it they sit in the plane of nearly
+// everything they light and reach none of it — `roomTone` moves the tone curve
+// out of the renderer and into each material, which is what lets the two rooms
+// be graded apart at all, and `roomLights` is the masonry between them: three's
+// light layers test against the camera rather than the receiver, so until this
+// patch every fitting in the shaft was lighting the landing through the wall.
 installSoftLight();
 installRoomTone();
+installRoomLights();
 
 // One of the scene's two WebGL layers. Two, and not one, because the decks are
 // *inside* this scene rather than laid over it: they sit on the landing, behind

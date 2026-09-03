@@ -28,6 +28,36 @@ export function claimMap(material) {
 }
 
 /**
+ * Marks everything under it as also lit by another room — the doorway case.
+ *
+ * A surface facing an open opening is genuinely lit from both sides of it: the
+ * cage's own floor and the architrave lining the hole take the landing's
+ * pendant, and go on taking the shaft's fittings, because there is nothing
+ * between them and either. Without this they are lit by the shaft alone and the
+ * lift reads as a dark box standing in front of a lit room, which is what
+ * NBC-74's second reference is a picture of.
+ *
+ * A wrapper rather than `userData` at each mesh because `Panel`, `Box` and
+ * `PatternPlane` build their own meshes and forward nothing — and because the
+ * rule is about a *region* of the scene, not about fifteen individual boxes.
+ *
+ * It runs as a layout effect inside `Room`'s own subtree, and React runs a
+ * child's effects before its parent's, so the tag is always already there when
+ * the traverse below reads it.
+ *
+ * @param {{ room: 'shaft' | 'landing', children: React.ReactNode }} props
+ */
+export function AlsoLit({ room, children }) {
+  const group = useRef(null);
+  useLayoutEffect(() => {
+    group.current?.traverse((object) => {
+      if (!object.isLight) object.userData.alsoLit = room;
+    });
+  });
+  return <group ref={group}>{children}</group>;
+}
+
+/**
  * Puts everything under it in one room — and a room, here, is the whole of what
  * "the light in here" means.
  *
@@ -41,11 +71,14 @@ export function claimMap(material) {
  * casting — had no ambience at all and went to pure black the moment they were
  * out of a lamp's reach.
  *
- * **The layer.** A three.js light only reaches objects sharing its layer, so
- * this is how a wall becomes opaque in a scene with no shadows: the shaft's
- * fittings are on one layer, a landing's pendant on another, and neither can
- * light the far side of the masonry between them. The camera sees every layer —
- * it is not a light.
+ * **The layer, and the mask.** A wall is opaque to light, and saying so is this
+ * component's first job. The layer is how it was said for a long time — and it
+ * turned out not to say anything at all: three tests a light's layers against
+ * the *camera's*, never against the receiver's, and this scene's camera is on
+ * every layer because it has to see both rooms. So the layer is a tag now, and
+ * the mask beside it (`userData.lit`, read by `roomLights.js` at compile) is the
+ * masonry. `alsoLit` is the doorway: a prop standing in an open opening is lit
+ * from both sides and gets both bits.
  *
  * **The ambience.** What the room bounces back into its own corners, carried as
  * emissive at the surface's own albedo rather than as an `ambientLight`: same
@@ -118,6 +151,10 @@ function Room({ room, visible = true, children }) {
       // look is light no one can see.
       const also = object.userData.alsoLit;
       if (also && LAYER_OF[also] !== undefined) object.layers.enable(LAYER_OF[also]);
+      // What the layer above was always meant to mean, in the one form three
+      // actually honours: which sources reach this surface. See `roomLights.js`
+      // — the layers do not do this and never did.
+      const lit = also && LAYER_OF[also] !== undefined && also !== room ? 'both' : room;
 
       const materials = Array.isArray(object.material) ? object.material : [object.material];
       for (const material of materials) {
@@ -126,6 +163,16 @@ function Room({ room, visible = true, children }) {
         // at its first compile — after this effect, because the canvas draws on
         // the frame *following* the commit that mounted the mesh.
         material.userData.room = room;
+        // Read at the same moment and under the same rule as `room` above it:
+        // `onBeforeCompile` runs once per material, so both tags have to be
+        // right before the material's first draw. This traverse is a layout
+        // effect and the canvas draws on the frame after the commit, so they
+        // are — including for the cabinet, whose meshes are tagged in
+        // `paintedModel` as its materials are built. A material that changed
+        // rooms after compiling would need `needsUpdate` *and* a cache key of
+        // its own, which would cost the scene a second program per room; no
+        // surface in this scene moves house.
+        material.userData.lit = lit;
         // Assigned once per material, guarded by identity for the same reason
         // `emissiveMap` below is. The *intensity* is a plain uniform three
         // uploads on every draw, so that one is free to write on every commit

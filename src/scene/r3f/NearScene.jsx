@@ -15,7 +15,7 @@ import { doorLeafFace, gateLattice, hazardStripe } from '../renderers/r3f/patter
 import { MARK_RISE, MARK_SPAN, leafMark } from '../renderers/r3f/leafMark.js';
 import useRideMotion from '../renderers/r3f/useRideMotion.js';
 import SceneLights from './SceneLights.jsx';
-import Room from '../renderers/r3f/Room.jsx';
+import Room, { AlsoLit } from '../renderers/r3f/Room.jsx';
 import { DECKS } from '../../lift/decks.js';
 import { doorClosureAt } from '../../lift/ride.js';
 import SceneWarmup from './SceneWarmup.jsx';
@@ -291,9 +291,18 @@ function Doorway({ vw, vh, top, floor, deck, intro, ticker }) {
           sill only. The two upright ones are gone on purpose: they were the
           last vertical surface at the sides of the opening, and a lit panel
           exactly where the corridor is supposed to run out is a wall, whatever
-          it is called in the code. */}
-      <Panel surface={SURFACES.doorFrame} shade={1.15} hinge="top" pitch={-90} left={left} top={top} w={w} h={ARCHITRAVE_DEPTH} z={-SHAFT_DEPTH + ARCHITRAVE_DEPTH} />
-      <Panel surface={SURFACES.doorFrame} shade={0.7} hinge="top" pitch={90} left={left} top={top + h} w={w} h={ARCHITRAVE_DEPTH} z={-SHAFT_DEPTH + ARCHITRAVE_DEPTH} />
+          it is called in the code.
+          The reveal and the architrave around it line the hole, so they see
+          both rooms — the pendant rakes across the sill on its way out to the
+          cage, and it is that grazing light on the threshold that makes the
+          opening read as a way through rather than a picture hung on a wall. */}
+      <AlsoLit room="landing">
+        <Panel surface={SURFACES.doorFrame} shade={1.15} hinge="top" pitch={-90} left={left} top={top} w={w} h={ARCHITRAVE_DEPTH} z={-SHAFT_DEPTH + ARCHITRAVE_DEPTH} />
+        <Panel surface={SURFACES.doorFrame} shade={0.7} hinge="top" pitch={90} left={left} top={top + h} w={w} h={ARCHITRAVE_DEPTH} z={-SHAFT_DEPTH + ARCHITRAVE_DEPTH} />
+        {FRAME_TIERS.map((tier, ti) => (
+          <Tier key={ti} vw={vw} vh={vh} top={top} tier={tier} />
+        ))}
+      </AlsoLit>
 
       {/* the leaves, set back inside the frame */}
       <group ref={leaves} position={[0, 0, 0]}>
@@ -308,10 +317,6 @@ function Doorway({ vw, vh, top, floor, deck, intro, ticker }) {
           </group>
         ))}
       </group>
-
-      {FRAME_TIERS.map((tier, ti) => (
-        <Tier key={ti} vw={vw} vh={vh} top={top} tier={tier} />
-      ))}
     </group>
   );
 }
@@ -510,15 +515,23 @@ function NearScene({
       <SceneLights
         vw={vw} vh={vh} floorPx={floorPx} ticker={ticker}
         deck={deck} ride={ride} intro={intro} dim={dim}
-        // everything below is `<Room room="shaft">`, so the pendant's seat here
-        // lights nothing and needs no shadow of its own — the landing itself is
-        // in the other canvas, with the other copy of this rig
-        rooms={['shaft']}
+        // Every seat in this canvas casts, the pendant's included — see
+        // `SceneLights`. The landing's own surfaces are in the other canvas,
+        // but the cage and the architrave in this one stand in the open
+        // doorway and are lit *by* the pendant, and an unshadowed pendant
+        // washes them flat where what an opening actually throws onto a lift
+        // floor is a pool the shape of the opening. NBC-74's second reference
+        // is a red line drawn along that missing edge.
       />
-      {/* the doors and the cage face the shaft, so they are lit by it */}
+      {/* The doors and the cage face the shaft, so they are lit by it — and
+          the cage is *also* lit by whatever floor it is standing at, which is
+          the whole of what an open door does. Its deck takes the pendant's
+          pool, its posts and rails take the edge of it. */}
       <Room room="shaft">
         <Doorways vw={vw} vh={vh} pos={pos} floorPx={floorPx} deck={deck} intro={intro} ticker={ticker} />
-        <Cage vw={vw} vh={vh} />
+        <AlsoLit room="landing">
+          <Cage vw={vw} vh={vh} />
+        </AlsoLit>
       </Room>
       {/* last, for the same reason it is last in `ShaftScene` */}
       <CanvasBoot name="near" onSettle={onSettle} again={settling} />

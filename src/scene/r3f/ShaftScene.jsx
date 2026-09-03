@@ -385,25 +385,41 @@ function Pendant({ vw, vh, top }) {
             </mesh>
           </group>
         ))}
+        {/* The two rings of the guard — and only the lower one casts.
+            That is a measurement rather than a preference. The source stands
+            at the fitting's own centre, so the *upper* ring is barely two
+            pixels below it and its shadow projects to something the size of
+            the corridor; the lower one is thirty-odd below and throws a ring
+            on the floor about the width of the pool, which is what a caged
+            pendant actually lays down and what NBC-74's second reference
+            circles in red. */}
         {[[cageTop, rTop], [cageBot, rBot]].map(([v, r]) => (
-          <mesh key={v} position={[0, worldY(v), 0]} rotation={[Math.PI / 2, 0, 0]} receiveShadow>
+          <mesh
+            key={v}
+            position={[0, worldY(v), 0]}
+            rotation={[Math.PI / 2, 0, 0]}
+            castShadow={v === cageBot}
+            receiveShadow
+          >
             <torusGeometry args={[r, 2.4, 6, 20]} />
             <meshStandardMaterial {...steel} />
           </mesh>
         ))}
         {/* The finial closing the cage under the bulb.
-            ── and neither it nor the rings above cast ──────────────────────
-            They sit directly under the point the light comes from, and a point
+            ── and it alone does not cast ──────────────────────────────
+            It sits directly under the point the light comes from, and a point
             source has no size: a 5px ball 40px below it subtends the whole
-            nadir, and at `shadowRadius` 14 the result was a dark ellipse the
-            width of the light pool, dead centre on the floor. It read as a hole
-            in the concrete and it was the first thing the eye found once the
-            floor was bright enough to see at all.
-            A real bulb is a volume and its guard is a wire basket, so this
+            nadir, and at a generous `shadowRadius` the result is a dark
+            *filled* ellipse the width of the light pool, dead centre on the
+            floor. It read as a hole in the concrete and it was the first thing
+            the eye found once the floor was bright enough to see at all.
+            A real bulb is a volume and its guard is a wire basket, so that
             shadow does not exist in the thing being modelled — it is an
-            artefact of putting the source at the fitting's centre. The
-            uprights still cast, and should: a caged lamp throwing bars across
-            a wall is the fitting's whole signature. It is only what stands
+            artefact of putting the source at the fitting's centre.
+            The guard around it is a different case and does cast, which is
+            NBC-74: an annulus is not a disc. The uprights throw bars across
+            the wall and the lower ring throws a ring on the floor, which is a
+            caged lamp's whole signature — it is only the solid thing standing
             *below* the filament that is a lie. */}
         <mesh position={[0, worldY(cageBot + 6), 0]} receiveShadow>
           <sphereGeometry args={[6, 10, 8]} />

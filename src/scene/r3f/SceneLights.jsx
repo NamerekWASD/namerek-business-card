@@ -4,9 +4,10 @@ import { lampsAt } from '../model/lighting.js';
 import { openFloor } from '../../lift/ride.js';
 import { worldY } from '../renderers/r3f/camera.js';
 import {
-  LAYER_LANDING, LAYER_SHAFT, lightRig, maxLights, seatRoom,
+  LAYER_LANDING, LAYER_SHAFT, lightRig, maxLights,
 } from '../renderers/r3f/lighting.js';
 import { readLight, useLightTuning } from '../renderers/r3f/tuning.js';
+import { syncLightMasks } from '../renderers/r3f/roomLights.js';
 
 // Every physical source in the scene, and nothing else. This component decides
 // nothing: `lightRig` returns the whole rig as data and this writes it onto a
@@ -19,12 +20,12 @@ import { readLight, useLightTuning } from '../renderers/r3f/tuning.js';
 // for the row had to travel as the row passed, and there is no way to travel
 // between two fittings that does not read as a jump.
 //
-// Each light is confined to its own room by a layer — the nearest shaft fitting
-// and the landing pendant now cast real shadows too, but the layer is what keeps
-// the *light* itself out of the wrong room even where a shadow isn't involved:
-// without it the shaft's lamps light the far side of the back wall and the
-// landing stops being a room you look into. A light that only sees its own room
-// is the wall, stated in the one place it can be stated cheaply.
+// Each light is confined to its own room, and it is `syncLightMasks` that
+// confines it — not the layer beside it. three tests a light's layers against
+// the *camera*, and this scene's camera is on every layer, so until NBC-74 the
+// shaft's fittings were lighting the far side of the back wall and the landing
+// was a picture of a room rather than a room seen into. The mask is that wall,
+// stated once, in the same loop that positions the light. See `roomLights.js`.
 //
 // **And the rig rides the ticker, not React.** That is the third, and it is a
 // bug fix rather than an optimisation. Everything else that moves during a trip
@@ -42,14 +43,8 @@ import { readLight, useLightTuning } from '../renderers/r3f/tuning.js';
 // The props that are *not* per-frame — the intro's supply, the boot warm-up, the
 // bench — stay props, and are read through a ref so the per-frame write always
 // sees the latest without re-subscribing.
-// Which rooms this canvas has geometry for. Both, unless a canvas says
-// otherwise — `NearScene` holds only the shaft's, and a seat lighting a room
-// that is not there still owns a full cube map and still rasterises its six
-// faces on every change. See `casts` below.
-const BOTH_ROOMS = ['shaft', 'landing'];
-
 function SceneLights({
-  vw, vh, floorPx, ticker, deck, ride, intro = 0, warm = false, dim = 1, rooms = BOTH_ROOMS,
+  vw, vh, floorPx, ticker, deck, ride, intro = 0, warm = false, dim = 1,
 }) {
   const lights = useRef([]);
   // Subscribed, not read: a bench slider has to reach this component, and the
@@ -88,6 +83,11 @@ function SceneLights({
 
   const apply = (rig) => {
     const { dim: supply } = props.current;
+    // Which room each seat lights, written from the rig itself rather than
+    // asked of `seatRoom` a second time. `light.layers` below says the same
+    // thing and three ignores it — see `roomLights.js` for what actually
+    // carries the wall, and why the two lines have to come from one value.
+    syncLightMasks(rig.map((spec) => spec.kind));
     for (const [index, light] of lights.current.entries()) {
       const spec = rig[index];
       if (!light || !spec) continue;
@@ -99,14 +99,14 @@ function SceneLights({
       light.decay = spec.decay;
       light.color.set(spec.colour);
 
-      const layer = spec.kind === 'landing' ? LAYER_LANDING : LAYER_SHAFT;
-      light.layers.set(layer);
-      // A point light's own shadow camera does not inherit `layers` from the
-      // light it belongs to — it starts on the default layer like any fresh
-      // camera — so left alone it would draw the *other* room's geometry into
-      // this one's shadow map, right through the wall `Room` otherwise makes
-      // opaque to light.
-      light.shadow.camera.layers.set(layer);
+      // The room this fitting stands in, as a layer. It is a *tag* and nothing
+      // more: three tests a light's layers against the camera's rather than
+      // against each receiver's, and this scene's camera sees every layer, so
+      // this line has never kept a lamp out of a room. `syncLightMasks` above
+      // is what does — see `roomLights.js`. Kept because everything else in
+      // the backend reads a room off a layer, and a light that disagreed with
+      // its own fitting would be the next hour lost.
+      light.layers.set(spec.kind === 'landing' ? LAYER_LANDING : LAYER_SHAFT);
       // Off the bench, and asked again every pass rather than set once: three
       // reads `mapSize` only when it has no map to reuse, so a slider that
       // moves has to hand the old cube back or nothing happens. At 2048 one
@@ -198,19 +198,20 @@ function SceneLights({
   // allocated from the driver and six more handed back — per floor, per canvas,
   // in the middle of a ride. It is the reason a four-floor trip hitched where a
   // one-floor trip did not: the cost was linear in the distance travelled.
-  const casts = (index) => rooms.includes(seatRoom(index));
-
   return Array.from({ length: maxLights() }).map((_, index) => (
     <pointLight
       // eslint-disable-next-line react/no-array-index-key
       key={index}
       ref={(node) => { lights.current[index] = node; }}
-      // Every fitting casts, not just the nearest one — asked for the richer
-      // scene over the cost, since the cabinet and the wall props are lit by
-      // whichever shaft lamp actually rakes across them. The exception is a
-      // seat whose room this canvas does not hold: its cube would be six passes
-      // over an empty layer, drawn into a map nothing samples.
-      castShadow={casts(index)}
+      // Every seat casts, in both canvases, without exception. It used to be
+      // every seat whose *room* this canvas held — on the reasoning that a
+      // shadow camera confined to a layer would be six passes over nothing.
+      // That reasoning was wrong twice over: three filters a shadow pass by the
+      // main camera's layers rather than the shadow camera's, so the pass was
+      // never empty; and the pendant's seat has real work to do in the near
+      // canvas, since it is what lays the doorway's own shape across the cage
+      // floor. See `rooms={['shaft', 'landing']}` in `NearScene`, and NBC-74.
+      castShadow
     />
   ));
 }
