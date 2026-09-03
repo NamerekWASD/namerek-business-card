@@ -156,10 +156,30 @@ export const BELT = {
     YAW: 0.09, // the biggest twist a landing may put on a box, radians
     LEN: 1.02, // the section, along the way out of the wall
     BACK: 0.02, // how far in front of the plaster its back end stops
+    // ── why a finger is a plain bar ────────────────────────────────────────
+    // It used to be a box section with eight small rollers set into it, eight
+    // per finger, thirty-two turning wheels on a machine that carries one
+    // parcel every ten seconds. Mykolai's objection is not a rendering one:
+    // "нелогично то, что там микроролики, которые не вписываются в тематику
+    // дизельпанка" — and the escape he offers with it is the right one, that
+    // nothing has to be *shown* pushing the box out of the wall for the wall to
+    // be where it came from.
+    //
+    // So a finger is bar stock now: four round bars reaching out of the
+    // opening over the run, hung off the beam behind it, and the box slides off
+    // them when the run takes it. Nothing on the lift turns. `FINGER_W` is
+    // their diameter as well as their width across the run, which is the one
+    // thing it was always measuring — it has to live in the gap between two
+    // rollers, see `combClearance`.
+    //
+    // `BAR_H` is how deep they are, and it is a legibility figure rather than a
+    // structural one: this camera looks straight down the length of them, so
+    // what is actually drawn is four end faces `FINGER_W` across. At the old
+    // section's depth that is a 34x50 mm chip of dark iron standing against an
+    // opening painted black, and it disappears. On edge, it reads.
     FINGERS: 4,
-    FINGER_W: 0.034, // across — has to live in the gap between two rollers
-    WHEEL: 0.062, // the small rollers on a finger
-    WHEEL_PITCH: 0.13,
+    FINGER_W: 0.034,
+    BAR_H: 0.1,
     // The counterweight's radius. It is here rather than in the JSX because it
     // is the widest thing on the wall gear at the height of the roller line,
     // which makes it the member `TAIL` has to stay clear of.

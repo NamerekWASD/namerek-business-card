@@ -1681,23 +1681,35 @@ function RollerRun({
 /**
  * The lift, and the mechanism on the wall that answers for it.
  *
- * The section is four fingers of small wheels hung from a beam that runs behind
- * the conveyor, so the fingers reach out over the run and drop between its
- * rollers — the comb `combClearance` measures. It is deliberately not the
- * chunky full-width bed the reference draws: at full width its rollers would be
- * crosswise to the run's, and two cylinders crossing at a right angle cannot
- * interleave at any pitch, so a bed like that has to stop above the run and
- * never actually lets the box go.
+ * The section is four bars hung from a beam that runs behind the conveyor, so
+ * they reach out over the run and drop between its rollers — the comb
+ * `combClearance` measures. It is deliberately not the chunky full-width bed
+ * the reference draws: at full width its rollers would be crosswise to the
+ * run's, and two cylinders crossing at a right angle cannot interleave at any
+ * pitch, so a bed like that has to stop above the run and never actually lets
+ * the box go.
+ *
+ * Bars rather than the little rollers this shipped with, and the argument is
+ * Mykolai's: a bed of micro-rollers is a second conveyor riding on the first
+ * one, which is neither dieselpunk nor a thing a works would build. Nothing
+ * here turns. What sends the box out of the wall is inside the wall.
  *
  * The guide, the sprocket, the chain and the cylindrical counterweight are the
  * reference's, and they are what make the drop read as a machine rather than as
  * a box changing height. Only the counterweight and the two chain runs move.
  */
 function LiftSection({
-  M, wheelsRef, wheelGeo, wheelCount, steel, iron, guideX, guideZ,
+  M, steel, iron, guideX, guideZ,
 }) {
   const fingers = fingerXs();
-  const railY = -BELT.LIFT.WHEEL * M - 0.025 * M;
+  // The group's origin is the surface the box rides on, so a bar's top face is
+  // y = 0 and the bar hangs its whole depth under that. The beam is then hung
+  // so that its top face is where the bars stop — they lie *on* it rather than
+  // floating a hand's width above it, which is what the old wheel bed did and
+  // is the one detail that made the comb read as a separate machine.
+  const barH = BELT.LIFT.BAR_H * M;
+  const beamH = 0.13 * M;
+  const railY = -barH - beamH / 2;
   const zc = (-BELT.OUT + BELT.LIFT.BACK) * M + (BELT.LIFT.LEN * M) / 2;
   const beamZ = (-BELT.OUT + 0.05) * M;
 
@@ -1705,8 +1717,8 @@ function LiftSection({
     <group>
       {/* the beam the fingers are hung from — behind the run's far channel, in
           the hand's width of air between it and the plaster */}
-      <mesh position={[(guideX - 0.3 * M) / 2, railY - 0.03 * M, beamZ]} castShadow receiveShadow>
-        <boxGeometry args={[guideX + 0.3 * M, 0.13 * M, 0.05 * M]} />
+      <mesh position={[(guideX - 0.3 * M) / 2, railY, beamZ]} castShadow receiveShadow>
+        <boxGeometry args={[guideX + 0.3 * M, beamH, 0.05 * M]} />
         <meshStandardMaterial {...steel} />
       </mesh>
       {/* the shoe that runs in the wall guide */}
@@ -1714,20 +1726,19 @@ function LiftSection({
         <boxGeometry args={[0.13 * M, 0.22 * M, 0.06 * M]} />
         <meshStandardMaterial {...steel} />
       </mesh>
+      {/* ── the bars ────────────────────────────────────────────────────────
+          Four of them, reaching out of the opening over the run and dropping
+          between its rollers. Flat stock on edge rather than the box section
+          with wheels set into it this replaces: nothing on the lift turns, and
+          nothing needs to — what comes out of the wall is pushed from inside
+          it, which is the reading Mykolai offered and the only one that does
+          not put a roller conveyor inside a machine already standing on one. */}
       {fingers.map((fx) => (
-        <mesh key={fx} position={[fx * M, railY, zc]} castShadow receiveShadow>
-          <boxGeometry args={[BELT.LIFT.FINGER_W * M, 0.05 * M, BELT.LIFT.LEN * M]} />
+        <mesh key={fx} position={[fx * M, -barH / 2, zc]} castShadow receiveShadow>
+          <boxGeometry args={[BELT.LIFT.FINGER_W * M, barH, BELT.LIFT.LEN * M]} />
           <meshStandardMaterial {...iron} />
         </mesh>
       ))}
-      <instancedMesh
-        ref={wheelsRef}
-        args={[undefined, undefined, Math.max(1, wheelCount)]}
-        geometry={wheelGeo}
-        castShadow
-      >
-        <meshStandardMaterial {...steel} flatShading />
-      </instancedMesh>
     </group>
   );
 }
@@ -1834,25 +1845,7 @@ function useBeltMotion(rig, boxes, path, count, pitch, M, projectRef, onStamp, l
       }
       rollers.instanceMatrix.needsUpdate = true;
     }
-    const wheels = rig.wheels.current;
-    if (wheels) {
-      // Smaller, so faster: a wheel that turned at the roller's rate would be
-      // one being dragged, which is the fault this replaced in the first place.
-      const wa = a * (BELT.ROLL.D / BELT.LIFT.WHEEL);
-      const wheelY = -(BELT.LIFT.WHEEL / 2) * M;
-      let n = 0;
-      for (const wx of rig.wheelXs) {
-        for (const wz of rig.wheelZs) {
-          beltDummy.position.set(wx, wheelY, wz);
-          beltDummy.rotation.set(wa, 0, 0);
-          beltDummy.updateMatrix();
-          wheels.setMatrixAt(n, beltDummy.matrix);
-          n += 1;
-        }
-      }
-      wheels.instanceMatrix.needsUpdate = true;
-    }
-  }, [rig, M]);
+  }, [rig]);
 
   useLayoutEffect(() => { lay(travel.current); layRollers(); });
 
@@ -1939,16 +1932,7 @@ function Conveyor({ M, x, floorY, z, ambient, leftEnd, live }) {
     for (let k = -Math.floor(stop / p); k * p <= run && xs.length < 200; k += 1) xs.push(-k * p);
     return xs;
   }, [tail, run, M]);
-  const wheelXs = useMemo(() => fingerXs().map((f) => f * M), [M]);
-  const wheelZs = useMemo(() => {
-    const n = Math.round(BELT.LIFT.LEN / BELT.LIFT.WHEEL_PITCH);
-    const from = (-BELT.OUT + BELT.LIFT.BACK) * M;
-    const step = (BELT.LIFT.LEN * M) / n;
-    return Array.from({ length: n }, (_, i) => from + (i + 0.5) * step);
-  }, [M]);
-
   const rollerGeo = useTurnedCylinder(rD / 2, BELT.WIDE * M, 'z');
-  const wheelGeo = useTurnedCylinder((BELT.LIFT.WHEEL / 2) * M, BELT.LIFT.FINGER_W * M, 'x');
 
   // The chain hangs off a sprocket over the guide; one run down to the lift's
   // shoe, one down to the counterweight. Both are drawn from the sprocket and
@@ -1959,26 +1943,25 @@ function Conveyor({ M, x, floorY, z, ambient, leftEnd, live }) {
   // could possibly need.
   const sprocketY = 1.62 * M;
   const weightY = 0.42 * M;
+  // Where the chain has to reach down to: the shoe, which hangs off the same
+  // beam the bars lie on. `LiftSection` derives that height the same way — one
+  // bar depth plus half a beam under the carrying surface.
   const shoeY = (BELT.TOP + BELT.LIFT.RISE) * M
-    - (BELT.LIFT.WHEEL + 0.025) * M + 0.11 * M;
+    - (BELT.LIFT.BAR_H + 0.065) * M + 0.11 * M;
   const rollers = useRef(null);
-  const wheels = useRef(null);
   const liftRef = useRef(null);
   const weight = useRef(null);
   const chainUp = useRef(null);
   const chainDown = useRef(null);
   const hinges = useRef([]);
   const rig = useMemo(() => ({
-    rollers, wheels, lift: liftRef, weight, chainUp, chainDown, hinges,
+    rollers, lift: liftRef, weight, chainUp, chainDown, hinges,
     rollerXs,
-    wheelXs,
-    wheelZs,
     mouthZ: -out + 0.075 * M,
     weightY,
     chainUpY: sprocketY - shoeY,
     chainDownY: sprocketY - weightY - 0.17 * M,
-  }), [rollerXs, wheelXs, wheelZs, out, M, weightY, sprocketY, shoeY]);
-  const wheelCount = wheelXs.length * wheelZs.length;
+  }), [rollerXs, out, M, weightY, sprocketY, shoeY]);
 
   // ── what each box is stamped with ──────────────────────────────────────────
   // One entry per box, written only when that box is back at the mouth. A box
@@ -2018,6 +2001,16 @@ function Conveyor({ M, x, floorY, z, ambient, leftEnd, live }) {
   // x ambient, one flat product of the material's own colour. On a vertical
   // face in this room the albedo *is* the picture, and it is the only lever
   // with any authority.
+  //
+  // ── and what that measurement does not cover ───────────────────────────────
+  // All of the above is about the *web*, which faces the room. It is not about
+  // the rollers, and reading it as though it were is how the run stayed black
+  // through a second pass: they face the pendant square-on, they were getting
+  // the light, and they were losing it in the shadow map. Painted white with
+  // the lamp's shadows off they came back a bright gold; painted white with the
+  // shadows on they stayed black. The fault was the blur radius against their
+  // own diameter and the fix is `shadowNormalBias` in `SceneLights` — nothing
+  // here.
   //
   // So the frame comes off `SURFACES.iron` rather than `SURFACES.steel`, and
   // the argument is the one already written against the lift's guide a hundred
@@ -2098,16 +2091,13 @@ function Conveyor({ M, x, floorY, z, ambient, leftEnd, live }) {
 
       {/* ── the lift ─────────────────────────────────────────────────────────
           Its group's y is the one thing on it that moves, and the ticker owns
-          it. At rest the fingers' wheels carry the box exactly `RISE` above the
-          rollers, which is what puts the mouth back where it always was. */}
+          it. At rest the tops of the bars carry the box exactly `RISE` above
+          the rollers, which is what puts the mouth back where it always was. */}
       <group ref={(g) => { rig.lift.current = g; }} position={[0, (BELT.TOP + BELT.LIFT.RISE) * M, 0]}>
         <LiftSection
           M={M}
-          wheelsRef={rig.wheels}
-          wheelGeo={wheelGeo}
-          wheelCount={wheelCount}
           steel={liftAt(2.15)}
-          iron={ironAt(1.9)}
+          iron={ironAt(2.6)}
           guideX={guideX}
           guideZ={guideZ}
         />

@@ -133,6 +133,16 @@ function SceneLights({
       // meant to be spent on, since a blurred edge is what tells a soft shadow
       // apart from a low-resolution one.
       light.shadow.radius = readLight().shadowRadius;
+      // The other half of that radius, and it is not optional at this one. The
+      // blur is measured in texels of a cube face and a texel here is over a
+      // centimetre of room, so a generous radius is a lookup taken up to twenty
+      // centimetres off the point being shaded — further than a conveyor roller
+      // is wide. Everything thinner than the blur was reading its own body as
+      // the occluder and rendering fully shadowed: the run's rollers, its
+      // channels and its trestles came out as one black band, which is what
+      // "ролики всё ещё чёрные" was. `normalBias` steps the lookup out along the
+      // surface normal, so it costs a flat wall nothing and rescues a tube.
+      light.shadow.normalBias = readLight().shadowNormalBias;
 
       // A dark light still has a shadow map, and three would still redraw its
       // six cube faces every frame for a contribution of exactly nothing. The

@@ -321,6 +321,27 @@ export const LIGHT_KNOBS = [
     min: 0, max: 20, step: 0.5,
     note: 'blur radius, flat cost — it hides the seams a smaller map leaves',
   },
+  // ── what the softness above costs, and the only thing that pays it ─────────
+  // The radius is in *texels*, and a texel of a point light's cube is a real
+  // distance in the room: a 1024 face is 90 degrees wide, so at the far side of
+  // this corridor one texel is about a centimetre and a half and a radius of 14
+  // reaches twenty-odd centimetres either way. Every member of the conveyor is
+  // thinner than that — a roller is 11 cm across, a trestle leg 5 — so each one
+  // was fetching its own occlusion from a sample taken clean off itself and
+  // coming back fully shadowed. Not acne, and not too little bias: a shadow
+  // blur wider than the object casting it.
+  //
+  // `normalBias` walks the lookup out along the surface's own normal before it
+  // is taken, which is the one correction that scales with the geometry rather
+  // than with depth — a flat wall never notices it and a 35-pixel tube is
+  // rescued by it. It has to be in the same neighbourhood as the blur it is
+  // paying for, hence a figure this large against a `bias` of thousandths: they
+  // are not the same unit and not the same fault.
+  {
+    key: 'shadowNormalBias', group: 'shadows', label: 'normal bias', kind: 'number',
+    min: 0, max: 30, step: 0.5,
+    note: 'scene px along the normal — at 0, anything thinner than the blur shadows itself black',
+  },
 ];
 
 export const LIGHT_GROUPS = ['shaft', 'landing', 'surfaces', 'shadows'];

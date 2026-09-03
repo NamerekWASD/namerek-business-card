@@ -71,10 +71,10 @@ export const LIGHT_SETUP = {
   glowOpacity: 0.46,
 
   // LANDING — the pendant in the corridor
-  landingToneCurve: 'neutral',
-  landingExposure: 1.22,
-  landingChroma: 1.61,
-  landingAmbient: 0.185,
+  landingToneCurve: 'agx',
+  landingExposure: 1.63,
+  landingChroma: 1.43,
+  landingAmbient: 0.145,
   landingBounce: '#fff3e6',
   landingEnv: 0.95,
   landingEnvColor: '#4c3720',
@@ -93,5 +93,6 @@ export const LIGHT_SETUP = {
 
   // SHADOWS — what they cost, not how bright they are
   shadowMapSize: 1024,
-  shadowRadius: 14,
+  shadowRadius: 10,
+  shadowNormalBias: 1.5,
 };

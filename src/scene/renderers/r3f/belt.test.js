@@ -155,7 +155,7 @@ describe('the lift, and its comb', () => {
   });
 
   // The section has to end up *below* the roller tops or the box never leaves
-  // it, and it has to be below by more than the wheels it carries stand proud.
+  // it, and it has to be below by more than the bars it carries stand proud.
   it('goes further down than it lets the box down', () => {
     expect(BELT.LIFT.CLEAR).toBeGreaterThan(0);
     expect(BELT.LIFT.RISE + BELT.LIFT.CLEAR).toBeGreaterThan(BELT.LIFT.RISE);
