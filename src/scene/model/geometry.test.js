@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   ASTRAGAL_W_FRAC, LANDING_CEILING_CLEARANCE, LEAF_PARK_FRAC, PENDANT_DROP, PENDANT_HEAD_RISE,
-  PENDANT_LINKS, PENDANT_LINK_PITCH, PENDANT_SCALE, landingCeilingY, pendantAnchorY,
+  PENDANT_LINKS, PENDANT_LINK_PITCH, PENDANT_SCALE, landingCeilingY, masonrySlots, pendantAnchorY,
   pendantChainTopY,
 } from './geometry.js';
 
@@ -64,5 +64,35 @@ describe('a leaf parked open', () => {
   // running under the frame on its outer side.
   it('does not eat the opening', () => {
     expect(LEAF_PARK_FRAC).toBeLessThan(0.08);
+  });
+});
+
+describe('the stretch of masonry that gets built', () => {
+  // It used to be a window of five slots around wherever the cage was, slid as
+  // the cage moved — and sliding it *mounts* a panel, which means a material
+  // made and a program linked on a frame somebody is riding through. Measured
+  // 2026-09-03: three fresh materials and two program links on the first EG →
+  // 2. UG trip, 229 ms of one frame, and nothing at all on the second trip.
+  // A lift with four floors can only ever look at eight slots, so all eight are
+  // built once and the window stops moving.
+  it('covers every slot the old window could ever have reached', () => {
+    const slots = masonrySlots(4);
+    for (let here = 0; here < 4; here += 1) {
+      for (const f of [here - 2, here - 1, here, here + 1, here + 2]) {
+        expect(slots).toContain(f);
+      }
+    }
+  });
+
+  it('does not build a floor no window could reach', () => {
+    // Cheap is not free: every slot is masonry drawn in the shadow pass of every
+    // fitting near it.
+    expect(masonrySlots(4)).toHaveLength(8);
+    expect(Math.min(...masonrySlots(4))).toBe(-2);
+    expect(Math.max(...masonrySlots(4))).toBe(5);
+  });
+
+  it('is the same list every time it is asked, so nothing remounts', () => {
+    expect(masonrySlots(4)).toEqual(masonrySlots(4));
   });
 });

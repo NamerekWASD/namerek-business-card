@@ -5,7 +5,7 @@ import {
   BACK_OVERSCAN, COUNTERWEIGHT_INSET_X, COUNTERWEIGHT_Z, DOORWAY_H_FRAC, DOORWAY_W_FRAC,
   LANDING_SETBACK, PENDANT_HEAD_RISE, PENDANT_LINKS, PENDANT_LINK_PITCH, PENDANT_LINK_R,
   PENDANT_LINK_STRETCH, PENDANT_LINK_T, PENDANT_SCALE, counterweightY, landingCeilingY,
-  landingFloorY, openingTop,
+  landingFloorY, masonrySlots, openingTop,
 } from '../model/geometry.js';
 import { SURFACES } from '../model/materials.js';
 import { LAMPS } from '../model/lighting.js';
@@ -654,8 +654,7 @@ function BackWall({ vw, vh, pos, floorPx, ticker, ride, deck, intro, warm }) {
   const w = vw * DOORWAY_W_FRAC;
   const h = vh * DOORWAY_H_FRAC;
   const left = (vw - w) / 2;
-  const here = Math.round(pos);
-  const slots = [here - 2, here - 1, here, here + 1, here + 2];
+  const slots = masonrySlots(DECKS.length);
 
   // The whole stack of floors rides on one group, written straight to the
   // object every ride frame. `pos` still decides which stretch of masonry is
@@ -692,10 +691,12 @@ function BackWall({ vw, vh, pos, floorPx, ticker, ride, deck, intro, warm }) {
           <TradePlate key={d.id} vw={vw} vh={vh} floorPx={floorPx} floor={f} />
         ))}
 
-        {/* The masonry: a window of five floors around wherever the cage is,
-            because the shaft is unbounded and the wall has to be built as it
-            arrives. Every panel here shares one material with the wall above
-            and below it, so sliding this window compiles nothing. */}
+        {/* The masonry, all of it, for the life of the page — the same rule the
+            landings below already follow. It was a five-slot window slid along
+            with the cage, on the reasoning that the shaft is unbounded; it is
+            not, it has four floors, and sliding the window mounted a panel and
+            linked a program on a frame someone was riding through. See
+            `masonrySlots`. */}
         {slots.map((f) => {
           const top = openingTop(vh, floorPx, f);
           const isDeck = f >= 0 && f < DECKS.length;
@@ -1062,7 +1063,9 @@ function Counterweight({ vw, vh, pos, floorPx, ticker }) {
   );
 }
 
-function ShaftScene({ vw, vh, pos, floorPx, ticker, ride, deck, intro, warm, dim = 1, onSettle }) {
+function ShaftScene({
+  vw, vh, pos, floorPx, ticker, ride, deck, intro, warm, settling, dim = 1, onSettle,
+}) {
   // the room we can actually see into, which during a trip is not the deck we
   // set off from — see
   return (
@@ -1083,7 +1086,7 @@ function ShaftScene({ vw, vh, pos, floorPx, ticker, ride, deck, intro, warm, dim
       </Room>
       {/* last, so its effect runs once every sibling above has attached its
           meshes and there is a whole scene to compile */}
-      <CanvasBoot name="shaft" onSettle={onSettle} />
+      <CanvasBoot name="shaft" onSettle={onSettle} again={settling} />
     </>
   );
 }

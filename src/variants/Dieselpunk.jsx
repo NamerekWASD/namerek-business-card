@@ -73,6 +73,9 @@ export default function Dieselpunk() {
 
   const boot = useBoot();
   const booted = boot.phase === 'fade' || boot.phase === 'done';
+  // Every job has reported and the gears are freewheeling: the last half-second
+  // in which the scene can be drawn at nobody's expense. See `CanvasBoot`.
+  const settling = boot.phase === 'spin';
   const { t, setT, playing, play } = useIntroClock(DOOR_TOTAL_MS, booted);
   // The supply coming up: one scalar handed to every source in both canvases,
   // and to the DOM haze that stands in for the air between them.
@@ -226,7 +229,7 @@ export default function Dieselpunk() {
           // in place, every light on. That is what the boot screen is for —
           // `CanvasBoot` compiles what it can see, and what it cannot see it
           // leaves for the frame someone is looking at. See `ShaftScene`.
-          warm={!booted}
+          warm={!booted} settling={settling}
           dim={dim} onSettle={boot.settle}
         />
       </SceneCanvas>
@@ -315,7 +318,7 @@ export default function Dieselpunk() {
         <NearScene
           vw={vw} vh={vh} pos={floorPos} floorPx={floorPitch}
           deck={deckIndex} intro={introClosure(t)} ticker={ticker}
-          ride={ride}
+          ride={ride} settling={settling}
           dim={dim} onSettle={boot.settle}
         />
       </SceneCanvas>

@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useThree } from '@react-three/fiber';
+import { warmDraw } from './warmDraw.js';
 
 // The job the old barrier never had: waiting for the renderer to compile.
 //
@@ -16,9 +17,9 @@ import { useThree } from '@react-three/fiber';
 // graph its siblings build has been committed.
 
 /**
- * @param {{ name: string, onSettle: (name: string) => void }} props
+ * @param {{ name: string, onSettle: (name: string) => void, again?: boolean }} props
  */
-export default function CanvasBoot({ name, onSettle }) {
+export default function CanvasBoot({ name, onSettle, again = false }) {
   const gl = useThree((s) => s.gl);
   const scene = useThree((s) => s.scene);
   const camera = useThree((s) => s.camera);
@@ -28,6 +29,12 @@ export default function CanvasBoot({ name, onSettle }) {
     let live = true;
     const done = () => {
       if (!live) return;
+      // Compiled is not uploaded. One draw with the frustum test off puts every
+      // geometry's buffers and every texture's storage on the card while the
+      // black rectangle is still up — including the three landings the camera
+      // cannot see from here, which is the whole reason `warm` was not enough
+      // on its own. See `warmDraw`.
+      warmDraw(gl, scene, camera);
       // The canvas is `frameloop="demand"`: compiling a program does not draw
       // with it, and a scene that is compiled but never drawn still shows its
       // first frame late. Ask for the draw, then let it land — two frames,
@@ -53,6 +60,24 @@ export default function CanvasBoot({ name, onSettle }) {
     }
     return () => { live = false; };
   }, [gl, scene, camera, invalidate, name, onSettle]);
+
+  // And once more at the end of the wait, which is a different moment and
+  // catches a different thing. The draw above happens the instant this canvas
+  // has compiled — before the other four jobs have necessarily reported, before
+  // the shared bakes have landed on the materials that wear them, and before
+  // every prop's own effect has had its first commit. Anything that arrives
+  // after it is a program linked on the frame it is first *seen*, which on this
+  // scene means the frame a floor's doors part. Measured on 2026-09-03: two
+  // programs, 79 ms and 186 ms, on the first EG → 2. UG trip and never again.
+  //
+  // `again` is the boot's spin — every job in, the gears freewheeling, the black
+  // rectangle still up and `warm` still holding every landing visible. It is the
+  // last moment at which this is free.
+  useEffect(() => {
+    if (!again) return;
+    warmDraw(gl, scene, camera);
+    invalidate();
+  }, [again, gl, scene, camera, invalidate]);
 
   return null;
 }

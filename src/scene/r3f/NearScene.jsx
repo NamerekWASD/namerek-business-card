@@ -489,7 +489,9 @@ function Cage({ vw, vh }) {
   );
 }
 
-function NearScene({ vw, vh, pos, floorPx, deck, intro, ticker, ride, dim = 1, onSettle }) {
+function NearScene({
+  vw, vh, pos, floorPx, deck, intro, ticker, ride, settling, dim = 1, onSettle,
+}) {
   return (
     <>
       <SceneWarmup onSettle={onSettle} />
@@ -510,7 +512,7 @@ function NearScene({ vw, vh, pos, floorPx, deck, intro, ticker, ride, dim = 1, o
         <Cage vw={vw} vh={vh} />
       </Room>
       {/* last, for the same reason it is last in `ShaftScene` */}
-      <CanvasBoot name="near" onSettle={onSettle} />
+      <CanvasBoot name="near" onSettle={onSettle} again={settling} />
     </>
   );
 }

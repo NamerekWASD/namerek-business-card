@@ -76,6 +76,25 @@ export const FRAME_TIERS = [
 export const openingTop = (vh, floorPitch, floor) =>
   vh * CAM_ORIGIN_Y - (vh * DOORWAY_H_FRAC) / 2 - floor * floorPitch;
 
+// Which stretches of the shaft's masonry get built.
+//
+// The wall used to be a sliding window: five slots around wherever the cage
+// was, rebuilt as it moved. That is the right shape for an unbounded shaft and
+// the wrong one for this building, which has four floors and a lift that cannot
+// leave them. Sliding the window *mounts* a `Panel`, and a mounted panel is a
+// material made and a program linked on a frame somebody is riding through —
+// measured on the first EG → 2. UG trip as one 229 ms frame, and as nothing at
+// all on the second trip, which is the signature of the whole class of bug.
+//
+// So the window is opened wide enough to hold every slot the old one could ever
+// have reached and then left alone. Off-screen masonry is culled by the frustum
+// like anything else, and `warmDraw` gets its buffers onto the card while the
+// boot screen is up.
+//
+/** @param {number} floors how many decks the shaft serves @returns {number[]} */
+export const masonrySlots = (floors) =>
+  Array.from({ length: floors + 4 }, (_, i) => i - 2);
+
 // How much deeper the landing sits than the shaft wall. It is a different room,
 // so it gets its own depth, its own colour and its own light — sharing all three
 // with the shaft is what made the far end read as one flat backdrop.
