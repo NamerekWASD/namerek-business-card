@@ -13,6 +13,9 @@ import { invalidateScene } from '../renderers/r3f/frames.js';
 import {
   gallerySurface, loadShot, paintSlide, paintStandby, readyShot,
 } from '../renderers/r3f/gallery.js';
+import {
+  PING_REACH, mapLayout, mapPing, mapSurface, paintMap, pingAt, sizeMap,
+} from '../renderers/r3f/nrwMap.js';
 import { SLIDES } from '../../decks/projects.js';
 import ScreenFrame, { frameMetrics } from './ScreenFrame.jsx';
 import { useFullscreenGallery } from './fullscreenImage.js';
@@ -365,6 +368,119 @@ function RequestFlow({ y, z, w, h, live }) {
 }
 
 /**
+ * The 3. UG screen: the route card of the district this workshop stands in.
+ *
+ * ── the mounting is the terminal's, whole ───────────────────────────────────
+ * Built once and never unbuilt, the canvas carrying the state, every write
+ * asking the *scene* for a frame rather than this canvas. All three are argued
+ * at length on `TerminalLog` above and none is a style.
+ *
+ * ── and the sheet is the glass ──────────────────────────────────────────────
+ * The whole opening, edge to edge, and not a drawing fitted inside it. The
+ * canvas is **rebuilt** at the glass's own shape rather than stretched onto it —
+ * a map stretched is a map with the wrong distances on it, which is the one
+ * thing this screen may not have. See the head of `nrwMap.js`.
+ *
+ * The only thing that repaints is a change of shape. What moves is a single
+ * ring of light out of the cross, written straight to its material and its
+ * transform — never through React state, which would re-render the whole
+ * landing eighteen times a second for two floats.
+ */
+function NrwMap({ y, z, w, h, live }) {
+  const aspect = w / h;
+  const [surface] = useState(() => (
+    typeof document === 'undefined' ? null : mapSurface(aspect)
+  ));
+  const ring = useRef(null);
+  const ringMat = useRef(null);
+  // What the ring is drawn across, held in a ref: a resize must move and resize
+  // the ring, not restart the beacon in the middle of a run.
+  const across = useRef([w, h, aspect]);
+  across.current = [w, h, aspect];
+
+  const pingMap = mapPing();
+
+  useEffect(() => {
+    if (!surface) return;
+    // `sizeMap` first, and only then paint: writing `canvas.width` wipes the
+    // canvas, so the order is not a preference.
+    sizeMap(surface, aspect);
+    paintMap(surface.canvas, aspect);
+    surface.texture.needsUpdate = true;
+    invalidateScene();
+  }, [surface, aspect]);
+
+  useEffect(() => {
+    // Back to nothing, which is the card at rest — the settle `useScreenLife`
+    // performs, and for its reason: a landing that goes dark mid-run must not
+    // come back with a ring frozen half way out.
+    const settle = () => {
+      if (ringMat.current) ringMat.current.opacity = 0;
+      invalidateScene();
+    };
+
+    if (!live) {
+      settle();
+      return undefined;
+    }
+
+    const t0 = performance.now();
+    let timer = 0;
+    const step = () => {
+      const [pw, ph, a] = across.current;
+      const L = mapLayout(a);
+      const { k, alpha } = pingAt(performance.now() - t0);
+      if (ringMat.current) ringMat.current.opacity = alpha;
+      if (ring.current) {
+        // canvas pixels to the plane's own space: +x right, +y *up*, and the
+        // ring stays a circle because the canvas is built at the plane's own
+        // shape — its pixels are square in the room.
+        ring.current.position.x = (L.home.px / L.w - 0.5) * pw;
+        ring.current.position.y = (0.5 - L.home.py / L.h) * ph;
+        const reach = (L.field.h * PING_REACH * 2 * k) / L.h;
+        ring.current.scale.setScalar(Math.max(1e-4, reach * ph));
+      }
+      invalidateScene();
+      timer = setTimeout(step, FLOW_TICK_MS);
+    };
+    step();
+
+    return () => {
+      clearTimeout(timer);
+      settle();
+    };
+  }, [live]);
+
+  if (!surface) return null;
+
+  return (
+    <group position={[0, y, z]}>
+      <mesh>
+        <planeGeometry args={[w, h]} />
+        <meshBasicMaterial map={surface.texture} transparent depthWrite={false} toneMapped={false} />
+      </mesh>
+      {pingMap && (
+        // A unit plane the tick scales, rather than a geometry rebuilt per
+        // frame: a `planeGeometry` written eighteen times a second is eighteen
+        // buffers a second for the driver to let go of.
+        <mesh ref={ring} position={[0, 0, 0.3]}>
+          <planeGeometry args={[1, 1]} />
+          <meshBasicMaterial
+            ref={ringMat}
+            map={pingMap}
+            transparent
+            opacity={0}
+            blending={AdditiveBlending}
+            depthWrite={false}
+            toneMapped={false}
+          />
+        </mesh>
+      )}
+    </group>
+  );
+}
+
+/**
  * The 2. OG screen's picture tube: whichever shot of the archive the console has
  * paged to.
  *
@@ -590,6 +706,22 @@ function LandingScreen({
           w={m.glassW * t.screenFill} h={m.glassH * t.screenFill}
           page={page} aspect={m.glassW / m.glassH}
           onImageClick={openFullscreenImage}
+        />
+      )}
+      {floor === 3 && (
+        // The whole glass, edge to edge — the 1. UG's rule and not the picture
+        // tube's `screenFill`. A map is the one drawing on this wall that must
+        // not be scaled to fit something: the distances printed on it are the
+        // point of it. See the head of `nrwMap.js`.
+        //
+        // On `live` rather than `doorOpen`, like the request sheet above: a
+        // beacon does not wait for somebody to arrive, and `doorOpen` is the
+        // wiring that left the valve rack dead in an open doorway for the
+        // better part of a second. See `Landing`.
+        <NrwMap
+          y={m.glassY} z={m.glassZ + 0.5}
+          w={m.glassW} h={m.glassH}
+          live={live}
         />
       )}
       {raster && (
