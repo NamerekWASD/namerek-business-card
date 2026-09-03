@@ -6,6 +6,28 @@ import { roomEnvMap } from './roomEnv.js';
 import { roomLight, useLightTuning } from './tuning.js';
 
 /**
+ * Tells three that this material's `map` is not the one its shader was built
+ * with. Answers whether it had to.
+ *
+ * Split out of the traverse below because it is the one rule in this file that
+ * can be checked without a GPU, and it has already been got wrong twice by
+ * being left to the call sites. See the note at its call site for what it is
+ * for; the short version is that assigning a texture to a material is not the
+ * same as telling three about it, and every grain in this scene is assigned
+ * after the fact.
+ *
+ * @param {{ map?: unknown, needsUpdate?: boolean, userData: Record<string, unknown> }} material
+ * @returns {boolean}
+ */
+export function claimMap(material) {
+  const map = material.map ?? null;
+  if (material.userData.mapAt === map) return false;
+  material.userData.mapAt = map;
+  material.needsUpdate = true;
+  return true;
+}
+
+/**
  * Puts everything under it in one room — and a room, here, is the whole of what
  * "the light in here" means.
  *
@@ -115,6 +137,31 @@ function Room({ room, visible = true, children }) {
           }
           material.envMapIntensity = env ?? 1;
         }
+        // **A map that arrives late is a map three never hears about.** R3F
+        // writes a changed prop straight onto the material and never touches
+        // `needsUpdate`; three keys its program on which maps a material
+        // carries and only re-reads that when the flag says so. Every grain in
+        // this scene is baked asynchronously and lands a commit or two after
+        // the material it belongs to was made, so the texture ends up on the
+        // object and never in the shader. Measured on 2026-09-03: 42 materials
+        // across the two canvases holding a `map` whose own program had no
+        // `USE_MAP` in it — the astragals, the pendant's stem and globe, the
+        // valve rack's bottles.
+        //
+        // Everything that is not self-lit was being rescued by accident a few
+        // lines down: `emissiveMap` is set from the same texture and *that*
+        // sets the flag. The self-lit ones return before they reach it, which
+        // is exactly why the list was exactly the self-lit ones. So the flag is
+        // raised here instead, above the return, where it covers both.
+        //
+        // It is also the last of NBC-76's door hitches. Which program a
+        // material ended up with depended on whether its bake landed before or
+        // after its first draw: at boot it lands after, so the leaves compiled
+        // flat and the mapped program was never linked — and then a doorway
+        // mounted mid-ride was born with the bake already cached, wanted that
+        // program, and linked it on the frame its own leaves were parting. One
+        // state per material, one program, and `warmDraw` covers it.
+        claimMap(material);
         // A lamp's glass, a pilot light, a lit marquee: surfaces that are their
         // own source. Their emissive says something, and the ambience is not
         // entitled to overwrite it.

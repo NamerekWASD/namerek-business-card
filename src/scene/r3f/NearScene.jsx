@@ -4,7 +4,7 @@ import { SHAFT_DEPTH } from '../model/camera.js';
 import {
   ARCHITRAVE_DEPTH, ARCHITRAVE_MEMBER_W, ASTRAGAL_W_FRAC, CAGE_DEPTH, CAGE_FAR, CAGE_FLOOR_Y,
   CAGE_NEAR, CAGE_POST_Z, CAGE_ROOF_Y, DOORWAY_H_FRAC, DOORWAY_W_FRAC, FRAME_TIERS,
-  LEAF_PARK_FRAC, cageInset, openingTop,
+  LEAF_PARK_FRAC, cageInset, doorwaySlots, openingTop,
 } from '../model/geometry.js';
 import { SURFACES } from '../model/materials.js';
 import { Box, Panel } from '../renderers/r3f/Surface.jsx';
@@ -316,17 +316,26 @@ function Doorway({ vw, vh, top, floor, deck, intro, ticker }) {
   );
 }
 
-/** The frames and leaves of the floors in view, riding on one group. */
+/**
+ * The frames and leaves of every floor, riding on one group.
+ *
+ * Every floor, for the life of the page — the third window in this scene to be
+ * opened all the way, after the masonry (`masonrySlots`) and the landings, and
+ * for the same reason. It was three slots slid along with the cage, which meant
+ * a doorway *mounted* while somebody was riding towards it: two leaves' worth
+ * of geometry built and their materials made on the approach, and — because a
+ * material made after the bakes have landed is born carrying its grain, unlike
+ * the ones made at boot — a shader program linked on the exact frame the leaves
+ * were parting. Four floors is not a stack worth sliding a window along.
+ */
 function Doorways({ vw, vh, pos, floorPx, deck, intro, ticker }) {
-  const here = Math.round(pos);
-  const slots = [here - 1, here, here + 1].filter((f) => f >= 0 && f < DECKS.length);
   const stack = useRideMotion(ticker, (group, floorPos) => {
     group.position.y = worldY(floorPos * floorPx);
   }, pos, [floorPx]);
 
   return (
     <group ref={stack}>
-      {slots.map((f) => (
+      {doorwaySlots(DECKS.length).map((f) => (
         <Doorway
           key={f}
           vw={vw} vh={vh} top={openingTop(vh, floorPx, f)}

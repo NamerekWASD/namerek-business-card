@@ -95,6 +95,23 @@ export const openingTop = (vh, floorPitch, floor) =>
 export const masonrySlots = (floors) =>
   Array.from({ length: floors + 4 }, (_, i) => i - 2);
 
+// And which floors get a doorway built into that masonry: all of them, and it
+// is written here rather than as a `DECKS.map` at the call site so the rule sits
+// beside the one above and is asked the same question — *does this depend on
+// where the cage is?* — the next time somebody edits either.
+//
+// It was three slots slid along with the cage, and it cost the same thing the
+// masonry's window cost, twice over: a doorway that mounts on the approach
+// builds two leaves' worth of geometry and makes their materials while somebody
+// is riding towards it. Worse than the masonry, in fact, because a leaf's grain
+// arrives from a bake — so a doorway made at boot compiles flat and one made
+// mid-ride is born carrying its map, wants a program nothing has linked, and
+// links it on the frame its own leaves are parting. See `Room`, which is where
+// that second half is actually fixed.
+//
+/** @param {number} floors how many decks the shaft serves @returns {number[]} */
+export const doorwaySlots = (floors) => Array.from({ length: floors }, (_, i) => i);
+
 // How much deeper the landing sits than the shaft wall. It is a different room,
 // so it gets its own depth, its own colour and its own light — sharing all three
 // with the shaft is what made the far end read as one flat backdrop.

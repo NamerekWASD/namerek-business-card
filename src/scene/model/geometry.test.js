@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   ASTRAGAL_W_FRAC, LANDING_CEILING_CLEARANCE, LEAF_PARK_FRAC, PENDANT_DROP, PENDANT_HEAD_RISE,
-  PENDANT_LINKS, PENDANT_LINK_PITCH, PENDANT_SCALE, landingCeilingY, masonrySlots, pendantAnchorY,
-  pendantChainTopY,
+  PENDANT_LINKS, PENDANT_LINK_PITCH, PENDANT_SCALE, doorwaySlots, landingCeilingY, masonrySlots,
+  pendantAnchorY, pendantChainTopY,
 } from './geometry.js';
 
 const vh = 962;
@@ -94,5 +94,35 @@ describe('the stretch of masonry that gets built', () => {
 
   it('is the same list every time it is asked, so nothing remounts', () => {
     expect(masonrySlots(4)).toEqual(masonrySlots(4));
+  });
+});
+
+describe('the doorways that get built', () => {
+  // The same lesson one layer in front of the masonry, and it cost more: a
+  // doorway that mounts on the approach builds two leaves and makes their
+  // materials while somebody is riding towards it, and a leaf's material made
+  // after the bakes have landed carries a grain the ones made at boot do not —
+  // so it wants a shader program nothing has linked and links it on the frame
+  // its own leaves are parting. Measured 2026-09-03 as the one program link
+  // left on a first arrival, on every floor reached by riding rather than by
+  // booting into it.
+  it('builds one for every deck, wherever the cage happens to be', () => {
+    for (let floors = 1; floors <= 6; floors += 1) {
+      const slots = doorwaySlots(floors);
+      expect(slots).toHaveLength(floors);
+      for (let f = 0; f < floors; f += 1) expect(slots).toContain(f);
+    }
+  });
+
+  it('is the same list every time it is asked, so nothing remounts', () => {
+    expect(doorwaySlots(4)).toEqual(doorwaySlots(4));
+  });
+
+  // The masonry runs two slots past either end of the building — dead shaft
+  // above the top floor and below the bottom one — and a doorway into dead
+  // shaft is a doorway into nothing.
+  it('does not open a doorway where the shaft has no floor', () => {
+    expect(Math.min(...doorwaySlots(4))).toBe(0);
+    expect(Math.max(...doorwaySlots(4))).toBe(3);
   });
 });
