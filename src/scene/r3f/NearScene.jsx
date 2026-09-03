@@ -15,6 +15,7 @@ import { doorLeafFace, gateLattice, hazardStripe } from '../renderers/r3f/patter
 import { MARK_RISE, MARK_SPAN, leafMark } from '../renderers/r3f/leafMark.js';
 import useRideMotion from '../renderers/r3f/useRideMotion.js';
 import SceneLights from './SceneLights.jsx';
+import PendantCage from './PendantCage.jsx';
 import Room, { AlsoLit } from '../renderers/r3f/Room.jsx';
 import { DECKS } from '../../lift/decks.js';
 import { doorClosureAt } from '../../lift/ride.js';
@@ -518,10 +519,17 @@ function NearScene({
         // Every seat in this canvas casts, the pendant's included — see
         // `SceneLights`. The landing's own surfaces are in the other canvas,
         // but the cage and the architrave in this one stand in the open
-        // doorway and are lit *by* the pendant, and an unshadowed pendant
-        // washes them flat where what an opening actually throws onto a lift
-        // floor is a pool the shape of the opening. NBC-74's second reference
-        // is a red line drawn along that missing edge.
+        // doorway and are lit *by* the pendant.
+        //
+        // And a light with nothing in front of it lays a wash. The fixture
+        // lives in the other canvas, so the pendant reached this one as a bare
+        // point source and the lift floor took an even smear where the landing
+        // floor a metre behind it carries the guard's ring and its eight bars.
+        // That is what NBC-74's second reference draws in red: the bars leaving
+        // the doorway and running on across the floor of the lift. So the near
+        // canvas gets the guard too — its shadow only, since the lamp you can
+        // see is the far canvas's job.
+        fixture={<PendantCage shadowOnly />}
       />
       {/* The doors and the cage face the shaft, so they are lit by it — and
           the cage is *also* lit by whatever floor it is standing at, which is

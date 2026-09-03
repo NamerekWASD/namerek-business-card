@@ -3,9 +3,9 @@ import { CatmullRomCurve3, DoubleSide, ExtrudeGeometry, Object3D, Shape, Vector3
 import { CAM_ORIGIN_Y, SHAFT_DEPTH } from '../model/camera.js';
 import {
   BACK_OVERSCAN, COUNTERWEIGHT_INSET_X, COUNTERWEIGHT_Z, DOORWAY_H_FRAC, DOORWAY_W_FRAC,
-  LANDING_SETBACK, PENDANT_HEAD_RISE, PENDANT_LINKS, PENDANT_LINK_PITCH, PENDANT_LINK_R,
-  PENDANT_LINK_STRETCH, PENDANT_LINK_T, PENDANT_SCALE, counterweightY, landingCeilingY,
-  landingFloorY, masonrySlots, openingTop,
+  LANDING_SETBACK, PENDANT_GUARD, PENDANT_HEAD_RISE, PENDANT_LINKS, PENDANT_LINK_PITCH,
+  PENDANT_LINK_R, PENDANT_LINK_STRETCH, PENDANT_LINK_T, PENDANT_SCALE, counterweightY,
+  landingCeilingY, landingFloorY, masonrySlots, openingTop,
 } from '../model/geometry.js';
 import { SURFACES } from '../model/materials.js';
 import { LAMPS } from '../model/lighting.js';
@@ -28,6 +28,7 @@ import { seeded } from '../renderers/r3f/wear.js';
 import { pendantAt } from '../renderers/r3f/lighting.js';
 import { useLightTuning } from '../renderers/r3f/tuning.js';
 import useRideMotion from '../renderers/r3f/useRideMotion.js';
+import PendantCage from './PendantCage.jsx';
 import LandingProps from './LandingProps.jsx';
 import LandingScreen from './LandingScreen.jsx';
 import { DECKS, SCREEN_SIDE } from '../../lift/decks.js';
@@ -228,7 +229,6 @@ function Pendant({ vw, vh, top }) {
   // Scaling the two apart is what let the body come off the chain and hang in
   // mid-air; there is no longer a way to do it from here.
   const S = PENDANT_SCALE;
-  const R = 62;      // across the dome
   const headY = -36; // the finned casting the shade hangs off
   const headTop = -PENDANT_HEAD_RISE;
 
@@ -241,16 +241,6 @@ function Pendant({ vw, vh, top }) {
   const linkY = PENDANT_LINK_STRETCH; // stretched from a ring into a link
   const pitch = PENDANT_LINK_PITCH;
   const links = PENDANT_LINKS;
-
-  // The guard. It is a barrel, not a cylinder: wider where it meets the shade
-  // and drawn in under the bulb, so each upright leans by its own taper.
-  const cageTop = 2;
-  const cageBot = 44;
-  const rTop = 25;
-  const rBot = 17;
-  const bars = 8;
-  const lean = Math.atan2(rTop - rBot, cageBot - cageTop);
-  const barLen = Math.hypot(cageBot - cageTop, rTop - rBot);
 
   // The ceiling mount. The chain stops `LANDING_CEILING_CLEARANCE` short of
   // the ceiling line, so it gets hardware to hang from instead of fading into
@@ -344,20 +334,6 @@ function Pendant({ vw, vh, top }) {
           <meshStandardMaterial {...cast} />
         </mesh>
 
-        {/* the dome, and its lip — a shade with no rim reads as a paper cone.
-            The rim sits at the guard's own top ring rather than above it: the
-            shade has to reach down far enough to nest the guard inside it, or
-            the two read as separate fixtures with the wall showing through the
-            gap between them. */}
-        <mesh position={[0, worldY(2), 0]} castShadow receiveShadow>
-          <sphereGeometry args={[R, 24, 10, 0, Math.PI * 2, 0, Math.PI / 2]} />
-          <meshStandardMaterial {...cast} side={DoubleSide} />
-        </mesh>
-        <mesh position={[0, worldY(4), 0]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
-          <torusGeometry args={[R * 0.99, 3, 6, 28]} />
-          <meshStandardMaterial {...steel} />
-        </mesh>
-
         {/* the glass */}
         <mesh position={[0, worldY(20), 0]} scale={[1, 1.2, 1]}>
           <sphereGeometry args={[16, 16, 12]} />
@@ -370,41 +346,6 @@ function Pendant({ vw, vh, top }) {
           />
         </mesh>
 
-        {/* and the guard over it — the fitting's whole signature, dark uprights
-            against a bright bulb */}
-        {Array.from({ length: bars }).map((_, i) => (
-          <group key={i} rotation={[0, (i / bars) * Math.PI * 2, 0]}>
-            <mesh
-              position={[0, worldY((cageTop + cageBot) / 2), (rTop + rBot) / 2]}
-              rotation={[lean, 0, 0]}
-              castShadow
-              receiveShadow
-            >
-              <boxGeometry args={[2.6, barLen, 2.6]} />
-              <meshStandardMaterial {...steel} />
-            </mesh>
-          </group>
-        ))}
-        {/* The two rings of the guard — and only the lower one casts.
-            That is a measurement rather than a preference. The source stands
-            at the fitting's own centre, so the *upper* ring is barely two
-            pixels below it and its shadow projects to something the size of
-            the corridor; the lower one is thirty-odd below and throws a ring
-            on the floor about the width of the pool, which is what a caged
-            pendant actually lays down and what NBC-74's second reference
-            circles in red. */}
-        {[[cageTop, rTop], [cageBot, rBot]].map(([v, r]) => (
-          <mesh
-            key={v}
-            position={[0, worldY(v), 0]}
-            rotation={[Math.PI / 2, 0, 0]}
-            castShadow={v === cageBot}
-            receiveShadow
-          >
-            <torusGeometry args={[r, 2.4, 6, 20]} />
-            <meshStandardMaterial {...steel} />
-          </mesh>
-        ))}
         {/* The finial closing the cage under the bulb.
             ── and it alone does not cast ──────────────────────────────
             It sits directly under the point the light comes from, and a point
@@ -421,11 +362,17 @@ function Pendant({ vw, vh, top }) {
             the wall and the lower ring throws a ring on the floor, which is a
             caged lamp's whole signature — it is only the solid thing standing
             *below* the filament that is a lie. */}
-        <mesh position={[0, worldY(cageBot + 6), 0]} receiveShadow>
+        <mesh position={[0, worldY(PENDANT_GUARD.bot + 6), 0]} receiveShadow>
           <sphereGeometry args={[6, 10, 8]} />
           <meshStandardMaterial {...steel} />
         </mesh>
       </group>
+
+      {/* The dome and the guard, in their own file — because the near canvas
+          needs them too and must have exactly these. See `PendantCage`: it
+          carries the same `PENDANT_SCALE` group this one does, so its members
+          sit where they always sat. */}
+      <PendantCage cast={cast} steel={steel} />
     </group>
   );
 }

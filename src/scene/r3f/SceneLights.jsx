@@ -4,7 +4,7 @@ import { lampsAt } from '../model/lighting.js';
 import { openFloor } from '../../lift/ride.js';
 import { worldY } from '../renderers/r3f/camera.js';
 import {
-  LAYER_LANDING, LAYER_SHAFT, lightRig, maxLights,
+  LAYER_LANDING, LAYER_SHAFT, lightRig, maxLights, seatRoom,
 } from '../renderers/r3f/lighting.js';
 import { readLight, useLightTuning } from '../renderers/r3f/tuning.js';
 import { syncLightMasks } from '../renderers/r3f/roomLights.js';
@@ -43,8 +43,14 @@ import { syncLightMasks } from '../renderers/r3f/roomLights.js';
 // The props that are *not* per-frame — the intro's supply, the boot warm-up, the
 // bench — stay props, and are read through a ref so the per-frame write always
 // sees the latest without re-subscribing.
+//
+// `fixture` is the lamp itself, for a canvas that holds the landing's light
+// without holding the landing's lamp. It is hung on the pendant's own seat, so
+// it cannot end up anywhere but where the light comes from — see `PendantCage`,
+// and NBC-74 for what a light with no fitting in front of it does to the floor
+// of the lift standing in the doorway.
 function SceneLights({
-  vw, vh, floorPx, ticker, deck, ride, intro = 0, warm = false, dim = 1,
+  vw, vh, floorPx, ticker, deck, ride, intro = 0, warm = false, dim = 1, fixture = null,
 }) {
   const lights = useRef([]);
   // Subscribed, not read: a bench slider has to reach this component, and the
@@ -212,7 +218,13 @@ function SceneLights({
       // canvas, since it is what lays the doorway's own shape across the cage
       // floor. See `rooms={['shaft', 'landing']}` in `NearScene`, and NBC-74.
       castShadow
-    />
+    >
+      {/* The lamp, parented to its own light. A child of an `Object3D` rides
+          its transform, so the fixture is at the source by construction rather
+          than by two call sites agreeing — which is the same rule `pendantAt`
+          already exists to enforce, one level down. */}
+      {seatRoom(index) === 'landing' ? fixture : null}
+    </pointLight>
   ));
 }
 

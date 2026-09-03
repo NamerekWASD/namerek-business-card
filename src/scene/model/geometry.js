@@ -166,6 +166,51 @@ export const PENDANT_SCALE = 0.8;        // the shade assembly's own size
 const SHADE_YOKE_SEAT = 51;              // yoke above the lamp's centre, at full size
 export const PENDANT_HEAD_RISE = SHADE_YOKE_SEAT * PENDANT_SCALE;
 
+// The shade and the wire guard under it, at full size and measured *down* from
+// the lamp's own centre — the point the light comes from. They live here rather
+// than inside the component that draws them because they are not decoration:
+// between them they are the only thing standing between the source and the
+// room, so they decide the shape of everything the pendant lays on a floor.
+// Both canvases build them from these numbers — see `PendantCage`.
+export const PENDANT_SHADE_R = 62;       // across the dome
+export const PENDANT_GUARD = {
+  top: 2,    // where the basket meets the shade's rim
+  bot: 44,   // and where it draws in under the bulb
+  rTop: 25,
+  rBot: 17,
+  bars: 8,
+  bar: 2.6,  // an upright, square
+  ring: 2.4, // and the two hoops
+};
+
+/**
+ * How far below the lamp's centre a ray leaves the guard's basket, for a ray
+ * taking `depression` radians below horizontal. `null` if the ray never meets
+ * the basket at all — above the top hoop at a graze, or out of the open bottom
+ * at the nadir.
+ *
+ * Scale-free: an angle does not care what `PENDANT_SCALE` is set to.
+ *
+ * This is the whole argument for the near canvas carrying a copy of the
+ * fixture. The lift floor is seen from the lamp at between about 35 and 50
+ * degrees below horizontal, and at every one of those angles the sight line
+ * passes through the wall of the basket — so what belongs on that floor is the
+ * guard's own shadow, eight bars of it, spreading as it comes forward.
+ *
+ * @param {number} depression radians below horizontal, 0 to pi/2
+ * @param {typeof PENDANT_GUARD} [guard]
+ * @returns {number | null}
+ */
+export function guardCrossing(depression, guard = PENDANT_GUARD) {
+  const tan = Math.tan(depression);
+  if (!(tan > 0)) return null;
+  // the barrel's radius as a straight line in h, and the ray's as another
+  const taper = (guard.rBot - guard.rTop) / (guard.bot - guard.top);
+  const h = (guard.rTop - taper * guard.top) / (1 / tan - taper);
+  if (!Number.isFinite(h) || h < guard.top || h > guard.bot) return null;
+  return h;
+}
+
 // The chain, one link at a time. Consecutive links have to overlap by well
 // over their own wall thickness — a pitch of one whole link leaves them merely
 // stacked — which is what the 0.6 is for. `PENDANT_LINKS` is the knob: fewer
