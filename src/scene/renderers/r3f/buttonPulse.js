@@ -44,11 +44,34 @@ import { invalidateScene } from './frames.js';
  * numbers is what makes handing the material back and forth invisible.
  */
 export const GLOW = {
+  dead: 0,
   idle: 0.22,
   peak: 1.5,
   hover: 0.55,
   press: 0.9,
 };
+
+/**
+ * Where a control sits when nothing is happening to it.
+ *
+ * There are two resting levels, not one, and that is the whole of NBC-26. A
+ * control that will do nothing was only ever *skipped* by the swell, which left
+ * it at `idle` — and `idle` is where every live lamp spends most of its cycle,
+ * because the waveform is squared and holds near its floor. So PREV on the
+ * first picture and NEXT on the last were, in any still frame, the same object
+ * as the two beside them: same legend, same reveal, same amber. The one signal
+ * was the cursor, and a viewer who does not hover slowly never sees it.
+ *
+ * The panel's own idiom settles it: a lamp in a socket either glows or it does
+ * not. Dark is `0` rather than a dim value, because both lamps this drives are
+ * additive — at zero they add nothing at all, and what is left is the cap's own
+ * face, where the legend is *engraved* as well as lit (see `buttonFace`). The
+ * dead control keeps its lettering, in grey, a step off the phenolic it is cut
+ * into, with no light round its edge. Which is what a dead button looks like.
+ *
+ * @param {boolean} enabled whether pressing it would do anything
+ */
+export const rest = (enabled) => (enabled ? GLOW.idle : GLOW.dead);
 
 /** How often the swell is resampled. See the note on cost above. */
 const TICK_MS = 60;
@@ -116,7 +139,7 @@ export default function useButtonPulse(legends, hot, specs, live) {
       for (let i = 0; i < plan.length; i += 1) {
         if (hot.current?.[i]) continue;
         for (const material of lamps(legends.current?.[i])) {
-          material.emissiveIntensity = GLOW.idle;
+          material.emissiveIntensity = rest(!!plan[i]);
         }
       }
       invalidateScene();
@@ -137,7 +160,7 @@ export default function useButtonPulse(legends, hot, specs, live) {
         const spec = plan[i];
         const want = spec
           ? GLOW.idle + (GLOW.peak - GLOW.idle) * wave(t, spec.period, spec.phase)
-          : GLOW.idle;
+          : GLOW.dead;
         for (const material of lamps(legends.current?.[i])) {
           if (material.emissiveIntensity === want) continue;
           material.emissiveIntensity = want;

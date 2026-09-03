@@ -1,5 +1,7 @@
-import { describe, expect, it } from 'vitest';
-import { GLOW, wave } from './buttonPulse.js';
+// @vitest-environment jsdom
+import { describe, expect, it, vi } from 'vitest';
+import { renderHook } from '@testing-library/react';
+import useButtonPulse, { GLOW, rest, wave } from './buttonPulse.js';
 
 // The waveform, and the one property of the row that a test can hold: that the
 // three controls never line up. Whether the swell reads as an invitation is a
@@ -74,5 +76,61 @@ describe('the levels', () => {
 
   it('crests above anything the pointer can do to it, so an idle row is the loudest thing on the panel', () => {
     expect(GLOW.peak).toBeGreaterThan(GLOW.press);
+  });
+});
+
+// ── a dead control has to look dead ──────────────────────────────────────────
+// The row's invitation already skips a control that has nothing to offer, but
+// skipping it only meant leaving it at `idle` — the very level every live lamp
+// spends most of its cycle at. So PREV on the first picture and NEXT on the
+// last were, in a still frame, indistinguishable from the two beside them:
+// same legend, same reveal, and the only signal was the cursor. In this panel's
+// own idiom a lamp in a socket either glows or it does not, so a control that
+// will do nothing is carried below the floor a live one never drops under.
+
+describe('a control with nothing to offer', () => {
+  const lamps = () => [{ emissiveIntensity: -1 }, { emissiveIntensity: -1 }];
+  const mount = (live) => {
+    const legends = { current: [lamps(), lamps(), lamps()] };
+    const hot = { current: [false, false, false] };
+    const specs = [null, { period: 1700, phase: 0.38 }, { period: 2900, phase: 0.62 }];
+    const view = renderHook(() => useButtonPulse(legends, hot, specs, live));
+    return { legends, view };
+  };
+
+  it('rests under the level a live lamp never drops below', () => {
+    expect(GLOW.dead).toBeLessThan(GLOW.idle);
+  });
+
+  it('is written dark by the driver, and stays there through a whole cycle', () => {
+    vi.useFakeTimers();
+    try {
+      const { legends } = mount(true);
+      let lit = 0;
+      for (let t = 0; t < 6000; t += 60) {
+        vi.advanceTimersByTime(60);
+        for (const material of legends.current[0]) {
+          expect(material.emissiveIntensity).toBe(GLOW.dead);
+        }
+        if (legends.current[1][0].emissiveIntensity > GLOW.idle) lit += 1;
+      }
+      // and the neighbour it is being told apart from really did light
+      expect(lit).toBeGreaterThan(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('is dark behind shut doors too, where a live one only falls to idle', () => {
+    const { legends } = mount(false);
+    expect(legends.current[0][0].emissiveIntensity).toBe(GLOW.dead);
+    expect(legends.current[1][0].emissiveIntensity).toBe(GLOW.idle);
+  });
+});
+
+describe('the resting level', () => {
+  it('is idle for a control that will act and dark for one that will not', () => {
+    expect(rest(true)).toBe(GLOW.idle);
+    expect(rest(false)).toBe(GLOW.dead);
   });
 });

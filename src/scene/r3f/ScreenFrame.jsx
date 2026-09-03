@@ -7,7 +7,7 @@ import {
 } from '../renderers/r3f/propArt.js';
 import { buttonRecess } from '../renderers/r3f/patterns.js';
 import { invalidateScene } from '../renderers/r3f/frames.js';
-import useButtonPulse, { GLOW } from '../renderers/r3f/buttonPulse.js';
+import useButtonPulse, { GLOW, rest } from '../renderers/r3f/buttonPulse.js';
 
 // ── the wall screen's frame ──────────────────────────────────────────────────
 // What was here before was a slab: one box the size of the panel with the glass
@@ -405,8 +405,13 @@ const CAP_LIT = 0.45;
  * until it drops again.
  *
  * A button with no `onPress` is dead metal and answers nothing: no cursor, no
- * lift under the pointer, no travel. NEXT on the last picture used to light and
- * go down and do nothing, which is the same lie the pulse is gated to avoid.
+ * lift under the pointer, no travel — and, since NBC-26, no lamp either. It
+ * used to rest at `GLOW.idle` like everything else, which is the level a live
+ * lamp spends most of its cycle at, so PREV on the first picture was pixel for
+ * pixel the button beside it. Its bulb is out instead: `rest` decides which of
+ * the two floors this button falls back to, and it is the same call the row's
+ * pulse makes, so the two cannot disagree about a button the pointer has just
+ * left.
  */
 function PressButton({
   x, y, w, h, label, glyph, cap: capMaterial, bezel, base, band,
@@ -418,6 +423,10 @@ function PressButton({
   const lit = useRef([]);
   const face = buttonFace(label, glyph);
   const legend = buttonLegend(label, glyph);
+  // Whether this control would do anything, and so which floor its lamp sits
+  // on. `onPress` is the single fact: the deck hands one down only for a
+  // control that has somewhere to go.
+  const floor = rest(!!onPress);
   // Ten scene pixels of relief at the band this frame is built to, and half of
   // that in travel. Both were a third of this in the first cut, and a cap
   // standing three pixels off its bezel is a printed rectangle whichever way it
@@ -485,7 +494,7 @@ function PressButton({
             color="#000000"
             emissive="#ffb45e"
             emissiveMap={glow}
-            emissiveIntensity={GLOW.idle}
+            emissiveIntensity={floor}
             roughness={1}
             metalness={0}
             transparent
@@ -503,7 +512,7 @@ function PressButton({
           if (!onPress) return;
           mark(true); cursor('pointer'); set(base, GLOW.hover);
         }}
-        onPointerOut={() => { mark(false); cursor(''); set(base, GLOW.idle); }}
+        onPointerOut={() => { mark(false); cursor(''); set(base, floor); }}
         onPointerDown={(e) => {
           e.stopPropagation();
           if (!onPress) return;
@@ -555,7 +564,7 @@ function PressButton({
               color="#000000"
               emissive="#ffd7a2"
               emissiveMap={legend}
-              emissiveIntensity={GLOW.idle}
+              emissiveIntensity={floor}
               roughness={1}
               metalness={0}
               transparent
