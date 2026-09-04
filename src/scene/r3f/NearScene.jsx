@@ -13,10 +13,11 @@ import { materialKey, useFittingMaterial } from '../renderers/r3f/useSurfaceMate
 import { worldY } from '../renderers/r3f/camera.js';
 import { doorLeafFace, gateLattice, hazardStripe } from '../renderers/r3f/patterns.js';
 import { MARK_RISE, MARK_SPAN, leafMark } from '../renderers/r3f/leafMark.js';
+import { useLightTuning } from '../renderers/r3f/tuning.js';
 import useRideMotion from '../renderers/r3f/useRideMotion.js';
 import SceneLights from './SceneLights.jsx';
 import PendantCage from './PendantCage.jsx';
-import Room, { AlsoLit } from '../renderers/r3f/Room.jsx';
+import Room, { AlsoLit, LitBy } from '../renderers/r3f/Room.jsx';
 import { DECKS } from '../../lift/decks.js';
 import { doorClosureAt } from '../../lift/ride.js';
 import SceneWarmup from './SceneWarmup.jsx';
@@ -392,6 +393,11 @@ function CageDeck({ vw, y, isRoof }) {
   const hazard = hazardStripe();
   const iron = useFittingMaterial(SURFACES.iron, isRoof ? 0.92 : 1.2, [width, 9]);
   const threshold = useFittingMaterial(SURFACES.iron, 0.58, [width, 12]);
+  // The floor's own albedo, on the bench beside the landing floor's. It is the
+  // one surface in this canvas lit by the corridor alone — see `LitBy` at the
+  // call site — so it lost the shaft lamps' fill and gets the level back here,
+  // from the deck rather than from a lamp that had no business reaching it.
+  const { cageFloorShade } = useLightTuning();
 
   return (
     <>
@@ -400,6 +406,7 @@ function CageDeck({ vw, y, isRoof }) {
         hinge="top" pitch={isRoof ? -90 : 90}
         left={inset} top={y} w={width} h={CAGE_DEPTH}
         z={isRoof ? CAGE_NEAR : CAGE_FAR}
+        shade={isRoof ? 1 : cageFloorShade}
       />
       {/* The bright hairline was the raw near edge of the floor plane catching
           the shaft light at a grazing angle. A lift has a steel threshold here;
@@ -466,7 +473,15 @@ function Cage({ vw, vh }) {
   return (
     <>
       <CageDeck vw={vw} y={CAGE_ROOF_Y} isRoof />
-      <CageDeck vw={vw} y={floorY} isRoof={false} />
+      {/* The floor takes the corridor's lamps and nothing else. Everything else
+          in the cage is a vertical member facing the shaft and keeps both
+          rooms; the deck is the one horizontal surface in here, it faces the
+          open doorway, and a bulkhead lamp bolted to the back wall was laying
+          its brightest patch on it in the corner nearest that wall. See
+          `LitBy` for the measurement. */}
+      <LitBy room="landing">
+        <CageDeck vw={vw} y={floorY} isRoof={false} />
+      </LitBy>
 
       {/* only the two end posts are solid; the gate fills between them */}
       {[inset, vw - inset].map((x) => CAGE_POST_Z.map((z) => (

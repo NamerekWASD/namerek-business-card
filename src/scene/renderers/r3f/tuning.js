@@ -151,6 +151,17 @@ export const LIGHT_KNOBS = [
     note: 'three.js Lambert carries a 1/pi the CSS model does not; pi puts it back',
   },
   { key: 'shaftColor', group: 'shaft', label: 'colour', kind: 'color' },
+  // The same argument `floorShade` makes one room over, for the deck we are
+  // standing on. It is the only surface in the shaft lit by the *landing* (see
+  // `LitBy` in `Room`), so it lost the wall lamps' fill when that landed and
+  // has to get the level back from its own albedo rather than from a lamp that
+  // should not be reaching it. In the shaft's group because that is the room it
+  // stands in, whatever is lighting it.
+  {
+    key: 'cageFloorShade', group: 'shaft', label: 'lift floor albedo', kind: 'number',
+    min: 0.4, max: 2.4, step: 0.01,
+    note: 'the deck against the cage steel at 1.0 — it faces the open doorway, so it should win',
+  },
   {
     key: 'glassEmissive', group: 'shaft', label: 'glass', kind: 'number',
     min: 0, max: 8, step: 0.05,
