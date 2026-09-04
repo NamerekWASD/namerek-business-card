@@ -43,6 +43,7 @@ const velocityOf = (ride) => {
  * @returns {{
  *   subscribe: (fn: (s: RideSnapshot) => void) => () => void,
  *   startRide: (to: number) => boolean,
+ *   setInstant: (value: boolean) => void,
  *   setScrub: (scrub: Ride | null) => void,
  *   getSnapshot: () => RideSnapshot,
  *   dispose: () => void,
@@ -53,6 +54,12 @@ export function createRideTicker() {
   let activeRide = null; // { from, to, p, dur, t0 }
   let scrubOverride = null;
   let rafId = null;
+  // NBC-25. A visitor who has asked their machine to stop moving things at them
+  // still changes floors; they simply arrive. Held here rather than at the
+  // components because the ride is one number that the whole scene reads, and
+  // stilling the walls while the doors kept folding through their phases would
+  // be two clocks again — see `rideMotion.test.jsx`.
+  let instant = false;
   const subscribers = new Set();
 
   const snapshotOf = (ride) => ({
@@ -93,10 +100,22 @@ export function createRideTicker() {
     },
     startRide(to) {
       if (to === deckIndex || activeRide) return false;
+      if (instant) {
+        // No trip is ever published, so nothing that keys off one — the doors,
+        // the blur, the fittings' shading — has anything to play. The one
+        // notification carries the destination, which is also what wakes the
+        // demand-driven canvases to draw the floor we are suddenly on.
+        deckIndex = to;
+        notify();
+        return true;
+      }
       activeRide = { from: deckIndex, to, p: 0, dur: liftDuration(Math.abs(to - deckIndex)), t0: performance.now() };
       notify();
       rafId = requestAnimationFrame(tick);
       return true;
+    },
+    setInstant(value) {
+      instant = !!value;
     },
     setScrub(scrub) {
       scrubOverride = scrub;

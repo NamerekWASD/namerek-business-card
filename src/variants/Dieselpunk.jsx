@@ -26,6 +26,7 @@ import useIntroClock from '../lift/useIntroClock.js';
 import useBoot from '../boot/useBoot.js';
 import BootScreen from '../boot/BootScreen.jsx';
 import useViewport from '../hooks/useViewport.js';
+import useReducedMotion from '../motion/reduced.js';
 import DebugPanel from '../debug/DebugPanel.jsx';
 import LightingPanel from '../debug/LightingPanel.jsx';
 import useShotStates from '../debug/shots.js';
@@ -76,7 +77,13 @@ export default function Dieselpunk() {
   // Every job has reported and the gears are freewheeling: the last half-second
   // in which the scene can be drawn at nobody's expense. See `CanvasBoot`.
   const settling = boot.phase === 'spin';
-  const { t, setT, playing, play } = useIntroClock(DOOR_TOTAL_MS, booted);
+  // NBC-25. Nothing in this scene may move at a visitor who has asked it not
+  // to. The intro is the first thing that would — a shudder and a flicker,
+  // played before anyone has touched anything — so it is handed its own end
+  // state instead of its beginning; `motion/reduced.js` holds the rest of the
+  // rule and who else obeys it.
+  const stillness = useReducedMotion();
+  const { t, setT, playing, play } = useIntroClock(DOOR_TOTAL_MS, booted, stillness);
   // The supply coming up: one scalar handed to every source in both canvases,
   // and to the DOM haze that stands in for the air between them.
   const dim = booted ? introDim(t) : 0;

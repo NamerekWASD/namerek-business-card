@@ -42,6 +42,7 @@
 
 import { useEffect } from 'react';
 import { invalidateScene } from './frames.js';
+import useReducedMotion from '../../../motion/reduced.js';
 
 /** How often the panel is resampled — its refresh, in every sense. */
 const TICK_MS = 55;
@@ -131,6 +132,13 @@ const lamps = (refs) => refs.flatMap((r) => (r?.current ? r.current.filter(Boole
  * @param {boolean} live whether anyone can see this landing at all.
  */
 export default function useScreenLife(glow, bar, live) {
+  // NBC-25. The roll is a band travelling down the picture and the hum is the
+  // whole panel breathing: motion and flicker, in the prop the visitor stands
+  // closest to. The settled state this already keeps for a landing behind shut
+  // doors is exactly the still, lit screen they should be looking at, so it is
+  // the same door — `settle`, and then nothing.
+  const still = useReducedMotion();
+
   useEffect(() => {
     const settle = () => {
       for (const m of lamps(glow)) m.emissiveIntensity = restOf(m);
@@ -138,7 +146,7 @@ export default function useScreenLife(glow, bar, live) {
       invalidateScene();
     };
 
-    if (!live) {
+    if (!live || still) {
       settle();
       return undefined;
     }
@@ -162,5 +170,5 @@ export default function useScreenLife(glow, bar, live) {
       clearTimeout(timer);
       settle();
     };
-  }, [glow, bar, live]);
+  }, [glow, bar, live, still]);
 }

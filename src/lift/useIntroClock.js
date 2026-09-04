@@ -8,9 +8,14 @@ import { useEffect, useRef, useState } from 'react';
  *
  * @param {number} totalMs
  * @param {boolean} [autoplay] whether the one-off intro may begin
+ * @param {boolean} [instant] NBC-25: play it by arriving at the end of it. The
+ *   intro is a shudder and a flicker — the two things `prefers-reduced-motion`
+ *   names by name — and both are this clock, so a visitor who has asked for
+ *   stillness gets the settled scene the intro was on its way to: leaves open,
+ *   lamps up, no frame ever asked for.
  * @returns {{ t: number, setT: (v: number) => void, playing: boolean, play: (from?: number) => void, stop: () => void }}
  */
-export default function useIntroClock(totalMs, autoplay = true) {
+export default function useIntroClock(totalMs, autoplay = true, instant = false) {
   const [t, setT] = useState(0);
   const [playing, setPlaying] = useState(false);
   const rafRef = useRef(null);
@@ -23,6 +28,7 @@ export default function useIntroClock(totalMs, autoplay = true) {
 
   const play = (from = 0) => {
     stop();
+    if (instant) { setT(totalMs); return; }
     setPlaying(true);
     setT(from);
     startRef.current = performance.now() - from;
@@ -44,7 +50,7 @@ export default function useIntroClock(totalMs, autoplay = true) {
     play(0);
     return stop;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoplay]);
+  }, [autoplay, instant]);
 
   return { t, setT: (v) => { stop(); setT(v); }, playing, play, stop };
 }

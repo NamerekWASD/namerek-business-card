@@ -134,3 +134,53 @@ describe('the resting level', () => {
     expect(rest(false)).toBe(GLOW.dead);
   });
 });
+
+// ── the invitation, for someone who cannot be waved at ───────────────────────
+// NBC-25. A lamp that swells and fades on its own is motion by any reading of
+// the preference, and the panel loses nothing by dropping it: the reason the
+// legend is lit at all is that *an illuminated pushbutton advertises itself*,
+// and a lamp holding steady advertises exactly as well as one that breathes.
+// So the swell is not skipped — skipping it would leave a live control at
+// `idle`, which is the mistake NBC-26 fixed — it is replaced by a level of its
+// own, above the one a lit lamp idles at and below what the pointer can do.
+
+describe('the row held still', () => {
+  const stub = (matches) => {
+    window.matchMedia = () => ({
+      matches, addEventListener: () => {}, removeEventListener: () => {},
+    });
+  };
+
+  it('carries a live control above idle and below anything the pointer does', () => {
+    expect(GLOW.steady).toBeGreaterThan(GLOW.idle);
+    expect(GLOW.steady).toBeLessThan(GLOW.hover);
+  });
+
+  it('still puts a dead control out, so the two never read alike', () => {
+    expect(rest(true, true)).toBe(GLOW.steady);
+    expect(rest(false, true)).toBe(GLOW.dead);
+  });
+
+  it('writes those levels once and then leaves the panel alone', () => {
+    stub(true);
+    vi.useFakeTimers();
+    try {
+      const legends = {
+        current: [
+          [{ emissiveIntensity: -1 }], [{ emissiveIntensity: -1 }], [{ emissiveIntensity: -1 }],
+        ],
+      };
+      const hot = { current: [false, false, false] };
+      const specs = [null, { period: 1700, phase: 0.38 }, { period: 2900, phase: 0.62 }];
+      renderHook(() => useButtonPulse(legends, hot, specs, true));
+
+      const written = () => legends.current.map((l) => l[0].emissiveIntensity);
+      expect(written()).toEqual([GLOW.dead, GLOW.steady, GLOW.steady]);
+      vi.advanceTimersByTime(6000);
+      expect(written()).toEqual([GLOW.dead, GLOW.steady, GLOW.steady]);
+    } finally {
+      vi.useRealTimers();
+      delete window.matchMedia;
+    }
+  });
+});

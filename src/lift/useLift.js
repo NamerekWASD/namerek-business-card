@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createRideTicker } from './rideTicker.js';
+import useReducedMotion from '../motion/reduced.js';
 
 /**
  * @typedef {{ from: number, to: number, p: number, dur: number }} Ride
@@ -40,6 +41,14 @@ export default function useLift() {
 
   const [scrub, setScrubState] = useState(null);
   const [snapshot, setSnapshot] = useState(() => ticker.getSnapshot());
+
+  // NBC-25. Committed before anything can ask for a ride — nothing in this
+  // scene can be pressed until the tree has mounted — and kept current after
+  // that, because the preference is a thing a visitor reaches for *because* of
+  // what the scene is doing to them. A lift that only checked at load would
+  // charge them a reload for being heard.
+  const reduced = useReducedMotion();
+  useEffect(() => { ticker.setInstant(reduced); }, [ticker, reduced]);
 
   useEffect(() => {
     const unsubscribe = ticker.subscribe(setSnapshot);

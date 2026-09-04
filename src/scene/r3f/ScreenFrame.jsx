@@ -8,6 +8,7 @@ import {
 import { buttonRecess } from '../renderers/r3f/patterns.js';
 import { invalidateScene } from '../renderers/r3f/frames.js';
 import useButtonPulse, { GLOW, rest } from '../renderers/r3f/buttonPulse.js';
+import useReducedMotion from '../../motion/reduced.js';
 
 // ── the wall screen's frame ──────────────────────────────────────────────────
 // What was here before was a slab: one box the size of the panel with the glass
@@ -426,7 +427,12 @@ function PressButton({
   // Whether this control would do anything, and so which floor its lamp sits
   // on. `onPress` is the single fact: the deck hands one down only for a
   // control that has somewhere to go.
-  const floor = rest(!!onPress);
+  // The same call the row's pulse makes, with the same answer — including
+  // NBC-25's held level, which is where a live control sits for a visitor who
+  // has asked the panel to stop breathing at them. Nobody can hover a button on
+  // a landing they cannot see into, so `live` needs no part in it here.
+  const still = useReducedMotion();
+  const floor = rest(!!onPress, still);
   // Ten scene pixels of relief at the band this frame is built to, and half of
   // that in travel. Both were a third of this in the first cut, and a cap
   // standing three pixels off its bezel is a printed rectangle whichever way it

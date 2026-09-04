@@ -27,6 +27,7 @@ import {
 import { lampGlow } from '../renderers/r3f/patterns.js';
 import usePilotLamps from '../renderers/r3f/pilotLamps.js';
 import { SCREEN_SIDE } from '../../lift/decks.js';
+import useReducedMotion from '../../motion/reduced.js';
 
 // One identifying object per landing, so a floor is somewhere rather than a
 // number.
@@ -1776,6 +1777,13 @@ function LiftSection({
  * @param {boolean} live
  */
 function useBeltMotion(rig, boxes, path, count, pitch, M, projectRef, onStamp, live) {
+  // NBC-25. A run that never stops is the one thing in this room that moves
+  // whether or not anybody asked it to, and it is in peripheral vision the
+  // whole time the visitor reads the wall. It stops where a landing behind shut
+  // doors already stops it: `lay` still runs from the layout effect, so the
+  // boxes, the lift, the counterweight and the curtain all stand exactly where
+  // they were — a belt at rest rather than an empty station.
+  const still = useReducedMotion();
   const travel = useRef(0);
   const spin = useRef(0);
   const trips = useRef([]);
@@ -1850,7 +1858,7 @@ function useBeltMotion(rig, boxes, path, count, pitch, M, projectRef, onStamp, l
   useLayoutEffect(() => { lay(travel.current); layRollers(); });
 
   useEffect(() => {
-    if (!live) return undefined;
+    if (!live || still) return undefined;
     let raf = 0;
     let last = performance.now();
     const period = 1000 / BELT.HZ;
@@ -1884,7 +1892,7 @@ function useBeltMotion(rig, boxes, path, count, pitch, M, projectRef, onStamp, l
 
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [count, pitch, M, projectRef, onStamp, live, lay, layRollers]);
+  }, [count, pitch, M, projectRef, onStamp, live, still, lay, layRollers]);
 }
 
 function Conveyor({ M, x, floorY, z, ambient, leftEnd, live }) {

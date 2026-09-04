@@ -36,6 +36,7 @@
 
 import { useEffect } from 'react';
 import { invalidateScene } from './frames.js';
+import useReducedMotion from '../../../motion/reduced.js';
 
 /**
  * What a legend glows at, in `emissiveIntensity`. Exported because the pointer
@@ -49,6 +50,13 @@ export const GLOW = {
   peak: 1.5,
   hover: 0.55,
   press: 0.9,
+  // NBC-25. What a live control is worth to someone who has asked for nothing
+  // to move at them. The swell is not *skipped* for them — skipping it is what
+  // left a dead button at `idle` and cost NBC-26 to undo — it is replaced, by
+  // one level that says the same thing standing still: clear of `idle`, so the
+  // button reads as lit rather than as merely not-out, and under `hover`, so
+  // the pointer still has somewhere to take it.
+  steady: 0.42,
 };
 
 /**
@@ -70,8 +78,13 @@ export const GLOW = {
  * into, with no light round its edge. Which is what a dead button looks like.
  *
  * @param {boolean} enabled whether pressing it would do anything
+ * @param {boolean} [still] whether the row has been asked to hold its light
+ *   rather than swell it — see `GLOW.steady`
  */
-export const rest = (enabled) => (enabled ? GLOW.idle : GLOW.dead);
+export const rest = (enabled, still = false) => {
+  if (!enabled) return GLOW.dead;
+  return still ? GLOW.steady : GLOW.idle;
+};
 
 /** How often the swell is resampled. See the note on cost above. */
 const TICK_MS = 60;
@@ -128,6 +141,8 @@ const lamps = (entry) => {
  *   must not be keeping the scene awake.
  */
 export default function useButtonPulse(legends, hot, specs, live) {
+  // NBC-25: the row still lights, it simply stops breathing. See `GLOW.steady`.
+  const still = useReducedMotion();
   // Serialised, so the effect re-runs when a button becomes available or stops
   // being available — which is exactly when PREV or NEXT reaches the end of the
   // run and has to go dark — and not on every render of the frame around it.
@@ -135,18 +150,22 @@ export default function useButtonPulse(legends, hot, specs, live) {
 
   useEffect(() => {
     const plan = JSON.parse(shape);
-    const dark = () => {
+    const settle = () => {
       for (let i = 0; i < plan.length; i += 1) {
         if (hot.current?.[i]) continue;
         for (const material of lamps(legends.current?.[i])) {
-          material.emissiveIntensity = rest(!!plan[i]);
+          // Behind shut doors nobody is being invited to anything, so a live
+          // control falls back to `idle` there whatever the preference says;
+          // `steady` is the *invitation* held still, and it belongs to a panel
+          // someone is standing in front of.
+          material.emissiveIntensity = rest(!!plan[i], still && live);
         }
       }
       invalidateScene();
     };
 
-    if (!live || !plan.some(Boolean)) {
-      dark();
+    if (!live || still || !plan.some(Boolean)) {
+      settle();
       return undefined;
     }
 
@@ -174,7 +193,7 @@ export default function useButtonPulse(legends, hot, specs, live) {
 
     return () => {
       clearTimeout(timer);
-      dark();
+      settle();
     };
-  }, [legends, hot, shape, live]);
+  }, [legends, hot, shape, live, still]);
 }

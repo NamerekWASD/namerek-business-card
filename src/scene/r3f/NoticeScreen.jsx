@@ -10,6 +10,7 @@ import {
 import { SLIDES } from '../../decks/projects.js';
 import ScreenFrame, { frameMetrics } from './ScreenFrame.jsx';
 import { useFullscreenGallery } from './fullscreenImage.js';
+import useReducedMotion from '../../motion/reduced.js';
 
 // ── the works notice, 2. UG ──────────────────────────────────────────────────
 // The description of whatever job is on the glass, on a screen of its own on
@@ -49,6 +50,7 @@ const IDLE_MS = 90;
  *   every other prop on this wall does it.
  */
 function NoticeScreen({ x, y, z, w, live = true }) {
+  const still = useReducedMotion();
   const gallery = useFullscreenGallery();
   const slide = SLIDES[gallery?.page ?? 0] ?? null;
   // Which project, not which frame. Six shots of one job are one job, and a
@@ -82,8 +84,17 @@ function NoticeScreen({ x, y, z, w, live = true }) {
       return;
     }
     if (shown.current === blurb) return;
+    // NBC-25. The strike is the tube going dark and coming back up — a flicker,
+    // and the one this scene plays *at* the visitor rather than around them.
+    // The new text goes up in its place, with no interval in which the screen
+    // is anything but a lit screen.
+    if (still) {
+      paint(blurb);
+      invalidateScene();
+      return;
+    }
     changedAt.current = performance.now();
-  }, [blurb, paint]);
+  }, [blurb, paint, still]);
 
   const panel = useRef([]);
   const spill = useRef([]);
@@ -105,6 +116,16 @@ function NoticeScreen({ x, y, z, w, live = true }) {
 
   useEffect(() => {
     if (!live) return undefined;
+    if (still) {
+      // Including a strike caught half way through by the preference being
+      // turned on: the new text goes up now and the print goes back to its
+      // resting colour, rather than being left mid-fade.
+      changedAt.current = null;
+      paint(blurbRef.current);
+      if (print.current) print.current.color.setScalar(warmUp(null));
+      invalidateScene();
+      return undefined;
+    }
     let raf = 0;
     let last = 0;
     const tick = (now) => {
@@ -128,7 +149,7 @@ function NoticeScreen({ x, y, z, w, live = true }) {
     // resting level, so the first tick after the landing comes back puts a
     // screen that went dark mid-strike back where it belongs.
     return () => cancelAnimationFrame(raf);
-  }, [live, paint]);
+  }, [live, still, paint]);
 
   // The glass is what is sized here, not the panel: the print is a canvas of
   // fixed proportions and the opening has to be that shape or the frame is

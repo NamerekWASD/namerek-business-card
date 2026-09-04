@@ -7,6 +7,7 @@ import FloorStart from './FloorStart.jsx';
 import FloorLeistungen from './FloorLeistungen.jsx';
 import FloorProjekte from './FloorProjekte.jsx';
 import FloorKontakt from './FloorKontakt.jsx';
+import { prefersReducedMotion } from '../motion/reduced.js';
 
 // The second rendering of the card: the same building, told without a lift.
 //
@@ -66,7 +67,12 @@ export default function FlatCard() {
     const el = scrollerRef.current;
     if (!el?.scrollTo) return;
     const clamped = Math.min(FLOORS.length - 1, Math.max(0, index));
-    el.scrollTo({ top: clamped * el.clientHeight, behavior: 'smooth' });
+    // NBC-25. `.bld` already drops to `scroll-behavior: auto` under the
+    // preference, and a `behavior` passed here would override that CSS rather
+    // than obey it — an explicit option always wins. Read at the click, not at
+    // mount, so the preference can be turned on mid-visit.
+    const behavior = prefersReducedMotion() ? 'auto' : 'smooth';
+    el.scrollTo({ top: clamped * el.clientHeight, behavior });
   }, []);
 
   // NBC-62: the rail is the scrollbar now, so it has to be able to drive the

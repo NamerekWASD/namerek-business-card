@@ -19,6 +19,7 @@ import {
 import { SLIDES } from '../../decks/projects.js';
 import ScreenFrame, { frameMetrics } from './ScreenFrame.jsx';
 import { useFullscreenGallery } from './fullscreenImage.js';
+import useReducedMotion from '../../motion/reduced.js';
 
 // The wall screen every landing shares: a fluted glass panel recessed into a
 // frame on the back wall, the same ribbing the arcade cabinet's own screen
@@ -113,6 +114,7 @@ export const SCREEN_TUNING = [
  * was measured rather than a style.
  */
 function TerminalLog({ y, z, w, h, open, shut }) {
+  const still = useReducedMotion();
   // The glass's own shape. The page inside stays a fixed grid; what follows the
   // opening is the tube around it — see the note at the head of `terminal.js`.
   const aspect = w / h;
@@ -145,6 +147,16 @@ function TerminalLog({ y, z, w, h, open, shut }) {
     }
     if (!open || playing.current) return undefined;
     playing.current = true;
+    if (still) {
+      // NBC-25. The print is text arriving line by line, which is motion the
+      // visitor did not ask for and cannot look away from — the page is the
+      // point of it, so they get the page. The log is what a finished build
+      // leaves on the tube anyway.
+      paintTerminal(surface.canvas, LOG.length, aspect);
+      surface.texture.needsUpdate = true;
+      invalidateScene();
+      return undefined;
+    }
     let live = true;
     // `paintTerminal` re-lays the whole page, with two shadow passes per line —
     // cheap two dozen times, not sixty times a second. rAF ticks far more often
@@ -173,7 +185,7 @@ function TerminalLog({ y, z, w, h, open, shut }) {
     show(0);
     raf.current = requestAnimationFrame(step);
     return () => { live = false; cancelAnimationFrame(raf.current); };
-  }, [surface, open, shut, aspect]);
+  }, [surface, open, shut, aspect, still]);
 
   if (!surface) return null;
   // **Built once, and never unbuilt.** This mesh used to be gated on the reveal
@@ -236,6 +248,7 @@ const FLOW_EDGE = 0.04;
  * held in a ref so a viewport resize does not restart the run.
  */
 function RequestFlow({ y, z, w, h, live }) {
+  const still = useReducedMotion();
   // The glass's own shape, which is what the sheet is built to — the canvas is
   // rebuilt at it rather than the drawing being stretched onto it. Rounded by
   // `flowAspect`, so a viewport that moves by a pixel is not a repaint.
@@ -275,7 +288,10 @@ function RequestFlow({ y, z, w, h, live }) {
       invalidateScene();
     };
 
-    if (!live) {
+    // NBC-25: the impulse is a bead travelling down a wire. `settle` leaves the
+    // sheet at rest — the diagram itself, painted and lit — which is the whole
+    // of what the screen has to say without it.
+    if (!live || still) {
       settle();
       return undefined;
     }
@@ -310,7 +326,7 @@ function RequestFlow({ y, z, w, h, live }) {
       clearTimeout(timer);
       settle();
     };
-  }, [live]);
+  }, [live, still]);
 
   if (!surface) return null;
 
@@ -387,6 +403,7 @@ function RequestFlow({ y, z, w, h, live }) {
  * landing eighteen times a second for two floats.
  */
 function NrwMap({ y, z, w, h, live }) {
+  const still = useReducedMotion();
   const aspect = w / h;
   const [surface] = useState(() => (
     typeof document === 'undefined' ? null : mapSurface(aspect)
@@ -419,7 +436,10 @@ function NrwMap({ y, z, w, h, live }) {
       invalidateScene();
     };
 
-    if (!live) {
+    // NBC-25: the ping is a ring going out across the map, and a ring going out
+    // is travel. `settle` leaves the card at rest, which still names every town
+    // on it.
+    if (!live || still) {
       settle();
       return undefined;
     }
@@ -449,7 +469,7 @@ function NrwMap({ y, z, w, h, live }) {
       clearTimeout(timer);
       settle();
     };
-  }, [live]);
+  }, [live, still]);
 
   if (!surface) return null;
 

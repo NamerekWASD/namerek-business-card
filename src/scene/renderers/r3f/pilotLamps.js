@@ -32,6 +32,7 @@
 
 import { useEffect, useRef } from 'react';
 import { invalidateScene } from './frames.js';
+import useReducedMotion from '../../../motion/reduced.js';
 
 /** How hard a lamp glows lit, and how hard its cold filament glows dark. */
 // Measured on screen rather than guessed: at 2.8 against 0.22 the change was
@@ -78,9 +79,23 @@ export default function usePilotLamps(
   // Held across renders so a re-render mid-blink does not restart the board on
   // a fresh pattern — the lamps keep whatever state they were in.
   const state = useRef(null);
+  // NBC-25. There is no gentler blink available here — a slow one is still a
+  // blink — so the board states its condition instead of performing it: a
+  // circuit with a cord in it is lit, one without is dark, and nothing changes
+  // again. That is what any single frame of the working board looks like
+  // anyway, so the prop reads the same; what it loses is the traffic.
+  const still = useReducedMotion();
 
   useEffect(() => {
     if (!live) return undefined;
+    if (still) {
+      for (let i = 0; i < patched.length; i += 1) {
+        const material = materials.current?.[i];
+        if (material) material.emissiveIntensity = patched[i] ? levels.lit : levels.dark;
+      }
+      invalidateScene();
+      return undefined;
+    }
     const rnd = seeded(seed);
     const now = () => performance.now();
 
@@ -135,5 +150,5 @@ export default function usePilotLamps(
 
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [live, seed]);
+  }, [live, seed, still]);
 }

@@ -15,6 +15,7 @@ import { FRAMES, SPAN, markStrip, markSurface, paintMark } from '../renderers/r3
 import metalPlateDiff from '../../assets/textures/polyhaven/metal_plate_diff.jpg';
 import metalPlateRough from '../../assets/textures/polyhaven/metal_plate_rough.jpg';
 import metalPlateNor from '../../assets/textures/polyhaven/metal_plate_nor.jpg';
+import useReducedMotion from '../../motion/reduced.js';
 
 const MODEL = '/models/ArcadeCabinetDieselpunk.glb';
 
@@ -428,6 +429,11 @@ let revealed = false;
  */
 function ScreenMark({ screen }) {
   const invalidate = useThree((s) => s.invalidate);
+  // NBC-25. The mark draws itself on across two seconds. It is the finished
+  // mark that is worth having, so that is what goes up — the same frame the
+  // reveal was on its way to, and the same one a second visit to this floor
+  // already gets.
+  const still = useReducedMotion();
   const [surface] = useState(() => (typeof document === 'undefined' ? null : markSurface()));
   const [ready, setReady] = useState(false);
   const raf = useRef(0);
@@ -444,7 +450,7 @@ function ScreenMark({ screen }) {
         // the scene renders on demand, so new pixels are not new frames
         invalidate();
       };
-      if (revealed) { show(last); setReady(true); return; }
+      if (revealed || still) { show(last); setReady(true); revealed = true; return; }
       revealed = true;
       const t0 = performance.now();
       const step = () => {
@@ -458,7 +464,7 @@ function ScreenMark({ screen }) {
       raf.current = requestAnimationFrame(step);
     });
     return () => { live = false; cancelAnimationFrame(raf.current); };
-  }, [surface, invalidate]);
+  }, [surface, invalidate, still]);
 
   if (!surface || !ready || !screen) return null;
   const size = screen.height * MARK_H;
