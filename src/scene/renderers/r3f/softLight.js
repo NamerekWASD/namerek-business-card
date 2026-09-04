@@ -48,6 +48,7 @@
 import { MeshBasicMaterial, MeshStandardMaterial, ShaderChunk, SpriteMaterial } from 'three';
 import { LIGHT_WRAP } from '../../model/lighting.js';
 import { bindTone } from './roomTone.js';
+import { bindRoomLights, lightMasks } from './roomLights.js';
 
 /**
  * One uniform per room, each shared by every material in that room.
@@ -139,6 +140,14 @@ export function installSoftLight() {
     const room = this.userData.room in wrapUniforms ? this.userData.room : 'shaft';
     shader.uniforms.shaftWrap = wrapUniforms[room];
     bindTone(shader, room);
+    // Which sources reach this surface at all — the wall, which three's own
+    // layers turned out not to be. A prop standing in an open doorway is lit
+    // from both sides and says so with its own key; see `roomLights.js` and
+    // `alsoLit` in `Room`. It is bound off `lit` rather than `room` because
+    // the wrap and the grade are properties of the room a surface is *in*,
+    // while this one is about the rooms it can *see*.
+    const lit = this.userData.lit in lightMasks ? this.userData.lit : room;
+    bindRoomLights(shader, lit);
   }
   for (const Material of [MeshStandardMaterial, MeshBasicMaterial, SpriteMaterial]) {
     Material.prototype.onBeforeCompile = bindRoom;

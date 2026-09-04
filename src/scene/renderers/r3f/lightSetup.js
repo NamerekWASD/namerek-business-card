@@ -66,6 +66,7 @@ export const LIGHT_SETUP = {
   lampReach: 420,
   keyGain: 3.34,
   shaftColor: '#ffc286',
+  cageFloorShade: 1.88,
   glassEmissive: 0.9,
   glowSize: 4,
   glowOpacity: 0.46,

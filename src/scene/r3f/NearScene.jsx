@@ -13,9 +13,11 @@ import { materialKey, useFittingMaterial } from '../renderers/r3f/useSurfaceMate
 import { worldY } from '../renderers/r3f/camera.js';
 import { doorLeafFace, gateLattice, hazardStripe } from '../renderers/r3f/patterns.js';
 import { MARK_RISE, MARK_SPAN, leafMark } from '../renderers/r3f/leafMark.js';
+import { useLightTuning } from '../renderers/r3f/tuning.js';
 import useRideMotion from '../renderers/r3f/useRideMotion.js';
 import SceneLights from './SceneLights.jsx';
-import Room from '../renderers/r3f/Room.jsx';
+import PendantCage from './PendantCage.jsx';
+import Room, { AlsoLit, LitBy } from '../renderers/r3f/Room.jsx';
 import { DECKS } from '../../lift/decks.js';
 import { doorClosureAt } from '../../lift/ride.js';
 import SceneWarmup from './SceneWarmup.jsx';
@@ -291,9 +293,18 @@ function Doorway({ vw, vh, top, floor, deck, intro, ticker }) {
           sill only. The two upright ones are gone on purpose: they were the
           last vertical surface at the sides of the opening, and a lit panel
           exactly where the corridor is supposed to run out is a wall, whatever
-          it is called in the code. */}
-      <Panel surface={SURFACES.doorFrame} shade={1.15} hinge="top" pitch={-90} left={left} top={top} w={w} h={ARCHITRAVE_DEPTH} z={-SHAFT_DEPTH + ARCHITRAVE_DEPTH} />
-      <Panel surface={SURFACES.doorFrame} shade={0.7} hinge="top" pitch={90} left={left} top={top + h} w={w} h={ARCHITRAVE_DEPTH} z={-SHAFT_DEPTH + ARCHITRAVE_DEPTH} />
+          it is called in the code.
+          The reveal and the architrave around it line the hole, so they see
+          both rooms — the pendant rakes across the sill on its way out to the
+          cage, and it is that grazing light on the threshold that makes the
+          opening read as a way through rather than a picture hung on a wall. */}
+      <AlsoLit room="landing">
+        <Panel surface={SURFACES.doorFrame} shade={1.15} hinge="top" pitch={-90} left={left} top={top} w={w} h={ARCHITRAVE_DEPTH} z={-SHAFT_DEPTH + ARCHITRAVE_DEPTH} />
+        <Panel surface={SURFACES.doorFrame} shade={0.7} hinge="top" pitch={90} left={left} top={top + h} w={w} h={ARCHITRAVE_DEPTH} z={-SHAFT_DEPTH + ARCHITRAVE_DEPTH} />
+        {FRAME_TIERS.map((tier, ti) => (
+          <Tier key={ti} vw={vw} vh={vh} top={top} tier={tier} />
+        ))}
+      </AlsoLit>
 
       {/* the leaves, set back inside the frame */}
       <group ref={leaves} position={[0, 0, 0]}>
@@ -308,10 +319,6 @@ function Doorway({ vw, vh, top, floor, deck, intro, ticker }) {
           </group>
         ))}
       </group>
-
-      {FRAME_TIERS.map((tier, ti) => (
-        <Tier key={ti} vw={vw} vh={vh} top={top} tier={tier} />
-      ))}
     </group>
   );
 }
@@ -386,6 +393,11 @@ function CageDeck({ vw, y, isRoof }) {
   const hazard = hazardStripe();
   const iron = useFittingMaterial(SURFACES.iron, isRoof ? 0.92 : 1.2, [width, 9]);
   const threshold = useFittingMaterial(SURFACES.iron, 0.58, [width, 12]);
+  // The floor's own albedo, on the bench beside the landing floor's. It is the
+  // one surface in this canvas lit by the corridor alone — see `LitBy` at the
+  // call site — so it lost the shaft lamps' fill and gets the level back here,
+  // from the deck rather than from a lamp that had no business reaching it.
+  const { cageFloorShade } = useLightTuning();
 
   return (
     <>
@@ -394,6 +406,7 @@ function CageDeck({ vw, y, isRoof }) {
         hinge="top" pitch={isRoof ? -90 : 90}
         left={inset} top={y} w={width} h={CAGE_DEPTH}
         z={isRoof ? CAGE_NEAR : CAGE_FAR}
+        shade={isRoof ? 1 : cageFloorShade}
       />
       {/* The bright hairline was the raw near edge of the floor plane catching
           the shaft light at a grazing angle. A lift has a steel threshold here;
@@ -460,7 +473,15 @@ function Cage({ vw, vh }) {
   return (
     <>
       <CageDeck vw={vw} y={CAGE_ROOF_Y} isRoof />
-      <CageDeck vw={vw} y={floorY} isRoof={false} />
+      {/* The floor takes the corridor's lamps and nothing else. Everything else
+          in the cage is a vertical member facing the shaft and keeps both
+          rooms; the deck is the one horizontal surface in here, it faces the
+          open doorway, and a bulkhead lamp bolted to the back wall was laying
+          its brightest patch on it in the corner nearest that wall. See
+          `LitBy` for the measurement. */}
+      <LitBy room="landing">
+        <CageDeck vw={vw} y={floorY} isRoof={false} />
+      </LitBy>
 
       {/* only the two end posts are solid; the gate fills between them */}
       {[inset, vw - inset].map((x) => CAGE_POST_Z.map((z) => (
@@ -510,15 +531,30 @@ function NearScene({
       <SceneLights
         vw={vw} vh={vh} floorPx={floorPx} ticker={ticker}
         deck={deck} ride={ride} intro={intro} dim={dim}
-        // everything below is `<Room room="shaft">`, so the pendant's seat here
-        // lights nothing and needs no shadow of its own — the landing itself is
-        // in the other canvas, with the other copy of this rig
-        rooms={['shaft']}
+        // Every seat in this canvas casts, the pendant's included — see
+        // `SceneLights`. The landing's own surfaces are in the other canvas,
+        // but the cage and the architrave in this one stand in the open
+        // doorway and are lit *by* the pendant.
+        //
+        // And a light with nothing in front of it lays a wash. The fixture
+        // lives in the other canvas, so the pendant reached this one as a bare
+        // point source and the lift floor took an even smear where the landing
+        // floor a metre behind it carries the guard's ring and its eight bars.
+        // That is what NBC-74's second reference draws in red: the bars leaving
+        // the doorway and running on across the floor of the lift. So the near
+        // canvas gets the guard too — its shadow only, since the lamp you can
+        // see is the far canvas's job.
+        fixture={<PendantCage shadowOnly />}
       />
-      {/* the doors and the cage face the shaft, so they are lit by it */}
+      {/* The doors and the cage face the shaft, so they are lit by it — and
+          the cage is *also* lit by whatever floor it is standing at, which is
+          the whole of what an open door does. Its deck takes the pendant's
+          pool, its posts and rails take the edge of it. */}
       <Room room="shaft">
         <Doorways vw={vw} vh={vh} pos={pos} floorPx={floorPx} deck={deck} intro={intro} ticker={ticker} />
-        <Cage vw={vw} vh={vh} />
+        <AlsoLit room="landing">
+          <Cage vw={vw} vh={vh} />
+        </AlsoLit>
       </Room>
       {/* last, for the same reason it is last in `ShaftScene` */}
       <CanvasBoot name="near" onSettle={onSettle} again={settling} />
