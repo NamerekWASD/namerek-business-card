@@ -2343,16 +2343,19 @@ function PostBox({ M, x, floorY, z, ambient, yaw }) {
         <meshStandardMaterial color="#26241f" roughness={1} metalness={0} />
       </mesh>
 
-      {/* the shell — its own skin per face, because the wear has a position and
-          a tiled one would put the same corner damage in the middle */}
+      {/* The shell — its own skin per face, because the wear has a position and
+          a tiled one would put the same corner damage in the middle. Each of
+          them has to *say* which face it is for: a bare row attaches every
+          material to `material`, the last one wins, and the box wore the front's
+          chipping round its top and flanks for as long as it stood here. See
+          `ArtifactBox` above, where the same mistake was found first. */}
       <mesh position={[0, bodyY, 0]} castShadow receiveShadow>
         <boxGeometry args={[bodyW, bodyH, bodyD]} />
-        {panel(skin.side)}
-        {panel(skin.side)}
-        {panel(skin.top)}
-        {panel(skin.under)}
-        {panel(skin.face)}
-        {panel(skin.face)}
+        {[skin.side, skin.side, skin.top, skin.under, skin.face, skin.face].map((art, i) => (
+          <meshStandardMaterial
+            key={i} attach={`material-${i}`} {...(art ? { ...art, ...enamel } : fallback)}
+          />
+        ))}
       </mesh>
       {/* the top cap, standing a little proud all round the way a pressed lid
           does — the reference's crispest edge */}
