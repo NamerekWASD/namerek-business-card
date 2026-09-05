@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   BELT, beltAt, beltCount, beltTrip, boxHop, boxRise, boxYaw, combClearance, fingerXs, liftDrop,
-  liftWait, minPitch, mouthClearance, pathLength, posAt, rollPitch, rollerSpin, slatPush,
+  liftWait, minPitch, mouthClearance, mouthFade, pathLength, posAt, rollPitch, rollerSpin, slatPush,
   slatSwing,
 } from './belt.js';
 
@@ -497,5 +497,64 @@ describe('the strip curtain', () => {
       expect(Math.abs(now - last)).toBeLessThan(0.12);
       last = now;
     }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NBC-77 — coming out of the dark
+// ─────────────────────────────────────────────────────────────────────────────
+// The box used to be born at full brightness on the plane of the plaster: the
+// backing behind the opening is opaque, so what looked like a box emerging from
+// a dark tunnel was a box being un-occluded, all of it lit the instant any of it
+// was visible. These are the clauses on the ramp that replaced that, and every
+// one of them fails silently — a fade that finishes too late is a box still
+// half in shadow while it stands on the rollers in the middle of the shot.
+describe('the mouth, and coming out of it', () => {
+  it('is black on the plane the box is born on', () => {
+    expect(mouthFade(0)).toBe(0);
+    expect(mouthFade(-1)).toBe(0);
+  });
+
+  it('is whole by the end of the ramp, and stays whole', () => {
+    expect(mouthFade(BELT.MOUTH.FADE)).toBe(1);
+    expect(mouthFade(BELT.MOUTH.FADE * 4)).toBe(1);
+  });
+
+  it('never steps, and never goes back', () => {
+    let last = mouthFade(-0.1);
+    for (let dz = -0.1; dz < BELT.MOUTH.FADE + 0.1; dz += 0.005) {
+      const now = mouthFade(dz);
+      expect(now).toBeGreaterThanOrEqual(last);
+      expect(now - last).toBeLessThan(0.05);
+      last = now;
+    }
+  });
+
+  // The one clause the whole feature turns on. The fade is keyed on the box's
+  // *depth into the room*, so the last face of it to come up to full brightness
+  // is its back one — and that face has to be there before the lift lets go, or
+  // a box is set down on the rollers still carrying the wall's shadow on it.
+  it('has the whole box lit before the lift lets go of it', () => {
+    expect(BELT.MOUTH.FADE).toBeLessThanOrEqual(mouthClearance(BELT.OUT) - BELT.MOUTH.BACK);
+  });
+
+  // And it is a fade rather than a wall: shorter than the box, so a box is
+  // never entirely inside the ramp with nothing of it at full brightness.
+  it('is shorter than the box it grades', () => {
+    expect(BELT.MOUTH.FADE).toBeLessThan(BELT.BOX.d);
+  });
+
+  // The reveal is what the fade is a fade *into*. It stands proud of the
+  // plaster rather than being cut back into it — the landing wall is one panel
+  // — so it has to end before the box stops, or the station is inside a chute.
+  it('stands the reveal clear of the box at the station', () => {
+    expect(BELT.MOUTH.REVEAL).toBeGreaterThan(BELT.MOUTH.BACK);
+    expect(BELT.MOUTH.REVEAL).toBeLessThan(mouthClearance(BELT.OUT));
+  });
+
+  // The curtain hangs at the mouth of the chute, not on the plaster behind it.
+  it('hangs the curtain inside the reveal', () => {
+    expect(BELT.CURTAIN.Z).toBeGreaterThan(BELT.MOUTH.BACK);
+    expect(BELT.CURTAIN.Z).toBeLessThan(BELT.MOUTH.REVEAL);
   });
 });

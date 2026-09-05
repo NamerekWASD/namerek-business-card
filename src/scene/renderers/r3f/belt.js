@@ -111,7 +111,31 @@ export const BELT = {
   // rather than in the JSX because the curtain's swing is arithmetic off it.
   // `FRAME` is the pressed surround's member width, here because the run's end
   // is measured to its outer edge.
-  MOUTH: { W: 1.16, H: 0.94, SILL: 0.12, FRAME: 0.09 },
+  //
+  // ── NBC-77: the three numbers that make it a hole ──────────────────────────
+  // `BACK` is where the black behind the opening stands, off the plaster, and
+  // it is the plane a box is *born* on: the backing is opaque, so nothing
+  // behind it is drawn at all. That is the whole of the old fault — what read
+  // as a box coming out of a dark tunnel was a box being un-occluded, every
+  // face of it at full brightness the instant any of it was visible.
+  //
+  // `REVEAL` is how far the surround stands proud of the plaster, which is the
+  // only depth this opening can have: the landing wall is one panel and cutting
+  // a hole in it is a subtraction the whole room would pay for, so the chute is
+  // built *out* into the room rather than back into the masonry. The inner
+  // faces of the four members are the reveal, and they are painted darker than
+  // the front of the same member — in a room whose bounce is a flat product of
+  // albedo, a surface turned away from the camera is not dark unless it is
+  // painted dark. See `vertical faces` in `LandingProps.jsx`.
+  //
+  // `FADE` is the ramp itself: metres in front of `BACK` over which a box comes
+  // up from black to its own brightness. It is bounded above by the station —
+  // see the clause in `belt.test.js`, which is the only thing standing between
+  // this number and a box set down on the rollers still carrying the wall's
+  // shadow across its back.
+  MOUTH: {
+    W: 1.16, H: 0.94, SILL: 0.12, FRAME: 0.09, BACK: 0.02, REVEAL: 0.15, FADE: 0.22,
+  },
 
   // ── the run behind the wall ────────────────────────────────────────────────
   // How far a box travels inside the tunnel before its nose reaches the
@@ -201,7 +225,14 @@ export const BELT = {
   // cloth here and we keep the seven rubber strips, because the strips already
   // swing and cloth would be paying for working mechanics twice. The one thing
   // taken off the picture is the weight of the tone.
-  CURTAIN: { SLATS: 7, HANG: 0.47, DROP: 0.34, RAMP: 0.12, FALL: 0.3, LIFT: 0.05 },
+  // `Z` is where it hangs, off the plaster: at the front of the reveal, which
+  // is where a strip curtain actually hangs and is also the only place it can
+  // still be seen. Two callers have to agree on it to the millimetre — the JSX
+  // that hangs the slats and the ticker that decides which of them a box is
+  // under — so it is a number here rather than one in each of them.
+  CURTAIN: {
+    SLATS: 7, HANG: 0.47, DROP: 0.34, RAMP: 0.12, FALL: 0.3, LIFT: 0.05, Z: 0.125,
+  },
 
   // ── the two numbers that decide what this costs ────────────────────────────
   // Both canvases are `frameloop="demand"` at rest and that is deliberate: a
@@ -292,6 +323,26 @@ export const minPitch = () => BELT.LIFT.HOLD + liftWait() + BELT.LIFT.RETURN
  * @param {number} out how far the station stands off the wall
  */
 export const mouthClearance = (out) => out - BELT.BOX.d / 2;
+
+/**
+ * How much of its own brightness a surface `dz` metres in front of the backing
+ * plane is allowed to show: 0 on the plane it is born on, 1 by the end of the
+ * ramp.
+ *
+ * It is a function of *depth into the room* and of nothing else — not of the
+ * box's index, not of the machine's travel, not of time. That is deliberate and
+ * it is what keeps this off the ticker's clock: the shader evaluates the same
+ * curve per fragment off the world position it already has, so a box emerging
+ * carries the ramp across its own nose rather than being dimmed as a whole. See
+ * `mouthFade.js`, which is this function again in GLSL, and the two are held
+ * together only by being the same three lines — a smoothstep over `FADE`.
+ *
+ * @param {number} dz metres in front of `MOUTH.BACK`
+ */
+export function mouthFade(dz) {
+  const t = Math.min(1, Math.max(0, dz / BELT.MOUTH.FADE));
+  return t * t * (3 - 2 * t);
+}
 
 /**
  * @typedef {{ lead?: number, out: number, hold?: number, run: number }} Path

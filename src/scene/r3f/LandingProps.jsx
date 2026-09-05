@@ -7,6 +7,7 @@ import {
 import { useFullscreenGallery } from './fullscreenImage.js';
 import NoticeScreen from './NoticeScreen.jsx';
 import { invalidateScene } from '../renderers/r3f/frames.js';
+import { bindMouthFadeTree, mouthFadeUniform } from '../renderers/r3f/mouthFade.js';
 import {
   AdditiveBlending, BufferAttribute, BufferGeometry, CatmullRomCurve3, CylinderGeometry,
   DoubleSide, LatheGeometry, Object3D, Vector2, Vector3,
@@ -1285,8 +1286,16 @@ function Workbench({ M, x, floorY, z, ambient, yaw }) {
  * at luminance 35 — two black lines lying across the one face on this box that
  * has anything to say.
  */
-function ArtifactBox({ M, mark, spec, ambient, strap, ...rest }) {
+function ArtifactBox({ M, mark, spec, ambient, strap, fade, ...rest }) {
   const { w, h, d } = BELT.BOX;
+  // ── NBC-77: the box comes up out of the dark rather than appearing in it ───
+  // Bound by traverse rather than by hand, and on every commit rather than
+  // once: the faces are rebuilt whenever the console pages to another project,
+  // and the eighth material somebody adds to this box later is faded because it
+  // is on the box, not because they remembered. `bindMouthFade` is idempotent,
+  // which is what makes running it on every commit free.
+  const body = useRef(null);
+  useLayoutEffect(() => { bindMouthFadeTree(body.current, fade); });
   const face = artifactFace(mark, spec, true);
   const side = artifactFace(mark, spec, false);
   const faceArt = artwork(face, ambient);
@@ -1306,7 +1315,7 @@ function ArtifactBox({ M, mark, spec, ambient, strap, ...rest }) {
   const faces = [sideArt, sideArt, lidArt, underArt, faceArt, sideArt];
 
   return (
-    <group {...rest}>
+    <group {...rest} ref={body}>
       <mesh castShadow receiveShadow>
         <boxGeometry args={[w * M, h * M, d * M]} />
         {faces.map((art, i) => (art
@@ -1331,6 +1340,11 @@ function ArtifactBox({ M, mark, spec, ambient, strap, ...rest }) {
     </group>
   );
 }
+
+// Scratch, for reading the run's own world position out of its matrix. Module
+// level for the same reason `beltDummy` is: nothing reads it between two
+// writes.
+const beltWorld = new Vector3();
 
 // One transform, borrowed by every instanced member down here. Module level
 // because it is scratch: nothing reads it between two writes.
@@ -1424,22 +1438,50 @@ function BeltMouth({ M, x, y, z, hinges }) {
   // on a small member is a small member that glows.
   const ironAt = useFittingShades(SURFACES.iron, [w, h]);
   const surround = ironAt(1);
+  // The reveal's own paint. Dark enough to read as the inside of a chute rather
+  // than as more of the surround, and it has to be *painted* that way: the
+  // room's bounce is albedo x ambient, one flat product, so a face turned away
+  // from the camera is not darker for being turned away. It is the same
+  // argument as the conveyor's frame a hundred lines up, in the other
+  // direction.
+  const lining = ironAt(0.34);
+  const reveal = BELT.MOUTH.REVEAL * M;
   const slats = BELT.CURTAIN.SLATS;
   const drop = BELT.CURTAIN.DROP * h;
   return (
     <group position={[x, y, z]}>
-      {/* the dark of the tunnel behind the wall */}
-      <mesh position={[0, 0, 0.02 * M]}>
+      {/* The black at the back of the chute, and the plane every box on the run
+          is born on: it is opaque, so nothing behind it is drawn at all. The
+          fade `Conveyor` hangs on the boxes is measured from here — see
+          `mouthFade.js`. */}
+      <mesh position={[0, 0, BELT.MOUTH.BACK * M]}>
         <planeGeometry args={[w, h]} />
         <meshStandardMaterial color="#050403" roughness={1} metalness={0} />
       </mesh>
       {/* The pressed steel surround, standing proud of the plaster. Its outer
-          edge is where the run's end frame stops — see `TAIL`. */}
-      {[[0, h / 2, w, frame], [0, -h / 2, w, frame],
-        [-w / 2, 0, frame, h], [w / 2, 0, frame, h]].map(([rx, ry, rw, rh]) => (
-          <mesh key={`${rx},${ry}`} position={[rx, ry, 0.05 * M]} castShadow receiveShadow>
-            <boxGeometry args={[rw, rh, 0.07 * M]} />
-            <meshStandardMaterial {...surround} />
+          edge is where the run's end frame stops — see `TAIL`.
+
+          ── NBC-77: it is as deep as it is so the opening has an inside ──────
+          The landing wall is one panel and cutting a hole in it is a
+          subtraction the whole room would pay for, so this chute is built out
+          into the room instead of back into the masonry. Every member runs from
+          the plaster to `REVEAL`, and each one laps the opening by half its own
+          width — which means the face of it turned *inward* is a strip of the
+          tunnel's wall, and painting that strip dark is the whole of what makes
+          this read as a hole rather than as a black panel in a frame.
+          `BoxGeometry` orders its groups +X −X +Y −Y +Z −Z, and the fourth
+          number below says which of those faces the inside is. */}
+      {[[0, h / 2, w, frame, 3], [0, -h / 2, w, frame, 2],
+        [-w / 2, 0, frame, h, 0], [w / 2, 0, frame, h, 1]].map(([rx, ry, rw, rh, inner]) => (
+          <mesh key={`${rx},${ry}`} position={[rx, ry, reveal / 2]} castShadow receiveShadow>
+            <boxGeometry args={[rw, rh, reveal]} />
+            {[0, 1, 2, 3, 4, 5].map((f) => (
+              <meshStandardMaterial
+                key={f}
+                attach={`material-${f}`}
+                {...(f === inner ? lining : surround)}
+              />
+            ))}
           </mesh>
       ))}
       {/* The corner plates, off the reference: the architrave there is four
@@ -1449,7 +1491,7 @@ function BeltMouth({ M, x, y, z, hinges }) {
       {[[-1, -1], [-1, 1], [1, -1], [1, 1]].map(([sx, sy]) => (
         <mesh
           key={`${sx}${sy}`}
-          position={[sx * w / 2, sy * h / 2, 0.095 * M]}
+          position={[sx * w / 2, sy * h / 2, reveal + 0.011 * M]}
           castShadow
           receiveShadow
         >
@@ -1460,7 +1502,12 @@ function BeltMouth({ M, x, y, z, hinges }) {
       {/* The hood, tipped out over the opening. It is the whole reason this
           reads as a hole rather than a dark panel: a lit lip along the top with
           its own shadow falling into the black under it. */}
-      <mesh position={[0, h / 2 + 0.045 * M, 0.1 * M]} rotation={[-0.34, 0, 0]} castShadow receiveShadow>
+      <mesh
+        position={[0, h / 2 + 0.045 * M, reveal + 0.015 * M]}
+        rotation={[-0.34, 0, 0]}
+        castShadow
+        receiveShadow
+      >
         <boxGeometry args={[w + 0.05 * M, 0.115 * M, 0.018 * M]} />
         <meshStandardMaterial {...ironAt(1.2)} />
       </mesh>
@@ -1482,7 +1529,7 @@ function BeltMouth({ M, x, y, z, hinges }) {
         <group
           key={i}
           ref={(g) => { if (hinges) hinges.current[i] = g; }}
-          position={[(i - (slats - 1) / 2) * (w / slats), BELT.CURTAIN.HANG * h, 0.075 * M]}
+          position={[(i - (slats - 1) / 2) * (w / slats), BELT.CURTAIN.HANG * h, BELT.CURTAIN.Z * M]}
         >
           <mesh position={[0, -drop / 2, 0]} rotation={[0, 0, (i % 3 - 1) * 0.035]} castShadow>
             <boxGeometry args={[w / slats * 0.86, drop, 0.014 * M]} />
@@ -1965,7 +2012,7 @@ function Conveyor({ M, x, floorY, z, ambient, leftEnd, live }) {
   const rig = useMemo(() => ({
     rollers, lift: liftRef, weight, chainUp, chainDown, hinges,
     rollerXs,
-    mouthZ: -out + 0.075 * M,
+    mouthZ: -out + BELT.CURTAIN.Z * M,
     weightY,
     chainUpY: sprocketY - shoeY,
     chainDownY: sprocketY - weightY - 0.17 * M,
@@ -1990,6 +2037,25 @@ function Conveyor({ M, x, floorY, z, ambient, leftEnd, live }) {
 
   const boxes = useRef([]);
   useBeltMotion(rig, boxes, path, count, pitch, M, projectRef, onStamp, live);
+
+  // ── NBC-77: where the dark ends ────────────────────────────────────────────
+  // One object, shared by every material on every box, holding the plane a box
+  // is born on and the length of the ramp in front of it. Shared rather than
+  // copied because it is written *after* the materials exist — the origin is
+  // measured off this group's own world matrix rather than assumed off `z`, so
+  // an ancestor that ever acquires a transform cannot silently move the ramp
+  // off the wall — and a value written into a bound uniform reaches the next
+  // frame with nothing recompiled.
+  const root = useRef(null);
+  const fade = useMemo(() => mouthFadeUniform(0, 1), []);
+  useLayoutEffect(() => {
+    const g = root.current;
+    if (!g) return;
+    g.updateWorldMatrix(true, false);
+    g.getWorldPosition(beltWorld);
+    fade.value[0] = beltWorld.z - out + BELT.MOUTH.BACK * M;
+    fade.value[1] = BELT.MOUTH.FADE * M;
+  });
 
   // ── why the frame is iron and shaded this far up ───────────────────────────
   // Measured, on the branch, against the belt this replaced. What the eye used
@@ -2033,7 +2099,7 @@ function Conveyor({ M, x, floorY, z, ambient, leftEnd, live }) {
   const liftAt = useFittingShades(SURFACES.steel, [BELT.LIFT.LEN * M, 0.13 * M]);
 
   return (
-    <group position={[x, worldY(floorY), z]}>
+    <group ref={root} position={[x, worldY(floorY), z]}>
       <RollerRun
         M={M}
         tail={tail}
@@ -2136,6 +2202,7 @@ function Conveyor({ M, x, floorY, z, ambient, leftEnd, live }) {
             spec={PROJECTS[p]?.stack ?? ''}
             ambient={ambient}
             strap={ironAt(2.1)}
+            fade={fade}
           />
         </group>
       ))}
