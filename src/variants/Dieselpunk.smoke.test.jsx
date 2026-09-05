@@ -71,6 +71,21 @@ describe('Dieselpunk', () => {
     expect(screen.queryByText(/door intro debug/)).toBeNull();
   });
 
+  // NBC-79. The deck column's transform is written every ride frame, and a
+  // reference filter anywhere above it takes that transform off the compositor:
+  // the whole opening is repainted and convolved on the main thread instead,
+  // which is what Mykolai saw as the text running at its own slower rate while
+  // the scene behind it stayed smooth. jsdom cannot measure that, so what is
+  // held here is the shape of the fix — no live filter over the moving layer.
+  it('hangs no filter over the moving decks', () => {
+    const { container } = render(<Dieselpunk />);
+    for (const el of container.querySelectorAll('*')) {
+      expect(el.style.filter || 'none').not.toMatch(/url\(/);
+    }
+    // and no filter definitions left mounted for one to point at
+    expect(container.querySelector('filter')).toBeNull();
+  });
+
   it('survives a resize, which rebuilds every dimension in the scene', () => {
     render(<Dieselpunk />);
     window.innerWidth = 480;

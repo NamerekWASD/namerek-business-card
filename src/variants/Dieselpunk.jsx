@@ -6,14 +6,13 @@ import { LAYERS } from '../scene/layers.js';
 import { ironFace } from '../ui/surfaceStyle.js';
 import { CAM_PERSPECTIVE, CAM_ORIGIN_Y, BACK_WALL_SCALE } from '../scene/model/camera.js';
 import {
-  CAGE_FAR, DOORWAY_H_FRAC, DOORWAY_W_FRAC, LANDING_WALL_SCALE, cageInset,
+  CAGE_FAR, DOORWAY_H_FRAC, DOORWAY_W_FRAC, cageInset,
 } from '../scene/model/geometry.js';
 import SceneCanvas from '../scene/renderers/r3f/SceneCanvas.jsx';
 import ShaftScene from '../scene/r3f/ShaftScene.jsx';
 import NearScene from '../scene/r3f/NearScene.jsx';
-import { DEBUG_PANEL, useBlurBudget } from '../scene/effects/quality.js';
+import { DEBUG_PANEL, useDetailBudget } from '../scene/effects/quality.js';
 import Lighting from '../scene/effects/Lighting.jsx';
-import MotionBlurDef from '../scene/effects/MotionBlurDef.jsx';
 import { CONTENT_RISE, DECKS, SCREEN_SIDE } from '../lift/decks.js';
 import { BG_PARALLAX, DECK_GAP, doorClosure } from '../lift/ride.js';
 import { DOOR_TOTAL_MS, introClosure, introDim } from '../lift/intro.js';
@@ -31,12 +30,13 @@ import DebugPanel from '../debug/DebugPanel.jsx';
 import LightingPanel from '../debug/LightingPanel.jsx';
 import useShotStates from '../debug/shots.js';
 import FloorSelector from '../ui/FloorSelector.jsx';
+import DeckReveal from '../decks/DeckReveal.jsx';
 import { DECK_BODIES } from '../decks/index.js';
 import { SLIDES } from '../decks/projects.js';
 
 export default function Dieselpunk() {
   const {
-    floorPos, deckIndex, moving, velocity, rideTo, scrub, setScrub, ride, ridePhase, ticker,
+    floorPos, deckIndex, moving, rideTo, scrub, setScrub, ride, ridePhase, ticker,
   } = useLift();
   const { vw, vh } = useViewport();
   // Nothing is shown until the scene is genuinely ready to be shown — every
@@ -94,19 +94,10 @@ export default function Dieselpunk() {
   // These are the same distance three times over and used to be called `step`,
   // `floorPxWall` and `contentStep`, which said nothing about how they relate.
   const floorPitch = vh + vh * DECK_GAP;
-  // **The content travels at the landing wall's rate, because that is what it
-  // is standing on.** It used to travel at the *doorway's* — welded to the
-  // leaves that frame it rather than to the plaster behind it — and those are
-  // two different planes at two different depths, so the text slid against the
-  // wall throughout every trip and the brakes' overshoot left the two settling
-  // out of step at the end of one. That is what Mykolai saw as the headings and
-  // the plates shaking loose from the scene as a ride finished, and moving them
-  // back to the wall is the whole of the fix. See `LANDING_WALL_SCALE`.
-  //
-  // Only the *travel* moves with it. The decks are still laid out and clipped in
-  // the aperture's own screen pixels, so nothing changes size: this is the same
-  // text at the same scale, riding the right plane.
-  const contentFloorPitch = floorPitch * LANDING_WALL_SCALE;
+  // The content travels at the landing wall's rate, because that is what it is
+  // standing on — and it is *seen through* the hole its floor has in the shaft
+  // wall, which is a nearer plane and therefore a faster one. Both rates live in
+  // `landingReveal` now, and `DeckReveal` is what writes them.
   // the intro and a ride drive the same leaves, so whichever wants them more
   // shut wins — that also makes the very first frame a shut door rather than a
   // scene that has to be covered up by something else
@@ -120,14 +111,9 @@ export default function Dieselpunk() {
   const aperture = { left: (vw - apW) / 2, top: vh * CAM_ORIGIN_Y - apH / 2, width: apW, height: apH };
   // the cage's rear frame, where the selector is mounted
   const headInset = vw / 2 + (cageInset(vw) - vw / 2) * (CAM_PERSPECTIVE / (CAM_PERSPECTIVE - CAGE_FAR));
-  const speed = Math.abs(velocity);
-  // Quantised into steps. Every distinct stdDeviation is a different filter as
-  // far as the compositor is concerned, so a continuously varying one threw away
-  // the cached result on every single frame; nine buckets look identical in
-  // motion and let it be reused.
-  const blurAllowed = useBlurBudget(moving);
-  // A machine that has already given the motion blur up has told us what it can
-  // afford; asking it for four times the pixels as well is not a kindness.
+  // What this machine has shown it can afford. It used to decide whether the
+  // vertical motion smear was drawn; there is no smear any more (NBC-79), so
+  // what is left of the budget is the pixels themselves.
   //
   // The ceiling is 1.5 rather than 2, and that is a memory decision. Both
   // canvases are `antialias: true`, so a pixel of framebuffer is four samples of
@@ -136,11 +122,8 @@ export default function Dieselpunk() {
   // texture or shadow map is allocated. Measured: 137 MB at 1, 546 at 2. Half a
   // step of sharpening is not worth 400 MB on a card the shadow rig is already
   // sharing.
-  const dprCeiling = blurAllowed ? 1.5 : 1.25;
-  const blurAmount = blurAllowed ? Math.round(Math.min(16, speed * 5.5) / 2) * 2 : 0;
-  // the decks get a touch of the same vertical smear — razor-sharp text flying
-  // past at speed is the giveaway that nothing is really moving
-  const contentSmear = blurAllowed ? Math.round(Math.min(3.2, speed * 1.1)) : 0;
+  const detailAllowed = useDetailBudget(moving);
+  const dprCeiling = detailAllowed ? 1.5 : 1.25;
   // ── nothing on a deck has its own motion, and that is deliberate ──────────
   // There used to be an inertia here: the plates and the headings trailed the
   // cabin under acceleration and settled a beat after it stopped, written to
@@ -153,8 +136,8 @@ export default function Dieselpunk() {
   // and made it smooth; it was never a timing bug. A sign bolted to a wall does
   // not have mass of its own.
   //
-  // The smear below is not that. A filter blurs the text where it already is;
-  // it does not put it anywhere the wall is not.
+  // The vertical smear that used to sit beside this note is gone too, and for a
+  // different reason: see NBC-79 and `DeckReveal`.
 
   // the decks are one screen each and the shaft owns the vertical axis, so the
   // document itself must never scroll
@@ -164,20 +147,16 @@ export default function Dieselpunk() {
     return () => { document.body.style.overflow = prev; };
   }, []);
 
-  // Backdrop drift and the content column's travel are both a plain transform
-  // on one wrapper each, and nothing else about either div depends on the
-  // ride — so they are the motion tier: written straight to the DOM every
-  // ride frame via the ticker, instead of through a `floorPos` prop that
-  // would re-render this whole component to change one string twice. The
-  // layout effect covers everything the ticker itself does not run for —
-  // mount, resize, and the settled position between rides.
+  // The backdrop's drift is a plain transform on one wrapper, and nothing else
+  // about that div depends on the ride — so it is the motion tier: written
+  // straight to the DOM every ride frame via the ticker, instead of through a
+  // `floorPos` prop that would re-render this whole component to change one
+  // string. The layout effect covers everything the ticker itself does not run
+  // for — mount, resize, and the settled position between rides. Each `DeckReveal`
+  // does the same for itself.
   const backdropRef = useRef(null);
-  const contentWrapRef = useRef(null);
   const writeMotion = (fp) => {
     if (backdropRef.current) backdropRef.current.style.transform = `translateY(${(fp * floorPitch * BG_PARALLAX).toFixed(1)}px)`;
-    const wrap = contentWrapRef.current;
-    if (!wrap) return;
-    wrap.style.transform = `translateY(${(fp * contentFloorPitch).toFixed(1)}px)`;
   };
   // Mount, resize, and everything the ticker itself does not run for. **The
   // position comes off the ticker even here**, and falls back to the props only
@@ -206,7 +185,6 @@ export default function Dieselpunk() {
           overlay — the other half of the trap `FullscreenImageModal` builds
           on its own side. */}
       <div inert={fullscreenOpen} aria-hidden={fullscreenOpen}>
-      <MotionBlurDef amount={blurAmount} contentAmount={contentSmear} />
       <Grain opacity={0.06} />
 
       {/* backdrop — the deepest plane, so it drifts slowest. Transform is
@@ -243,78 +221,73 @@ export default function Dieselpunk() {
 
       {DEBUG_PANEL && (
         <div style={{ pointerEvents: 'auto' }}>
-          <DebugPanel t={t} setT={setT} playing={playing} play={play} scrub={scrub} setScrub={setScrub} blurEnabled={blurAllowed} />
+          <DebugPanel t={t} setT={setT} playing={playing} play={play} scrub={scrub} setScrub={setScrub} hiDpr={detailAllowed} />
           <LightingPanel />
         </div>
       )}
 
-      {/* The decks, clipped to the doorway and streaming behind it. Keeping the
-          column moving rather than cross-fading is what makes a departing floor
-          read as leaving: text escaping through a narrowing gap is a floor going
-          away, where a fade is just a layer switching off. */}
+      {/* The decks, each seen through its own floor's opening and streaming
+          behind the cage's. Keeping the column moving rather than cross-fading
+          is what makes a departing floor read as leaving: text escaping through
+          a narrowing gap is a floor going away, where a fade is just a layer
+          switching off. */}
       <div
         style={{
           position: 'absolute',
           left: aperture.left, top: aperture.top, width: aperture.width, height: aperture.height,
           overflow: 'hidden', zIndex: LAYERS.content,
-          filter: contentSmear > 0.2 ? 'url(#deckBlur)' : 'none',
-          // The column is 48% of the aperture; these wrappers are all of it.
-          // Left interactive they sit over the other half — the half the wall
-          // screen stands on — and swallow every pointer event on their way
-          // down to the shaft canvas, which is how Projekte's buttons could be
-          // built, lit and animated and still never respond to a finger. The
-          // column itself takes it back below.
+          // The column is 48% of the aperture; this wrapper is all of it. Left
+          // interactive it sits over the other half — the half the wall screen
+          // stands on — and swallows every pointer event on its way down to the
+          // shaft canvas, which is how Projekte's buttons could be built, lit and
+          // animated and still never respond to a finger. The column itself takes
+          // it back below.
           pointerEvents: 'none',
         }}
       >
-        <div ref={contentWrapRef} style={{ position: 'absolute', inset: 0 }}>
-          {/* Behind a shut door there is nothing to see, so there is nothing to
-              build. The leaves are opaque and they cover the whole aperture, so
-              the deck underneath is not dimmed or clipped — it is invisible, and
-              at 0.985 it has been invisible for a few frames already. */}
-          {closure < 0.985 && DECKS.map((d, i) => {
-            if (Math.abs(i - floorPos) > 1.2) return null;
-            const Body = DECK_BODIES[i];
-            // The wall screen (`LandingScreen`, in the WebGL half of this same
-            // landing) stands on `SCREEN_SIDE[i]`; the content takes the other
-            // half so the two never fight for the same wall.
-            const contentSide = SCREEN_SIDE[i] === 'left' ? 'right' : 'left';
-            // Up to three of these are mounted at once — this floor and the
-            // neighbour peeking in above or below it mid-ride — but only the
-            // one the visitor is standing on should answer to Tab or a screen
-            // reader. `inert` on the rest is what keeps the other two out of
-            // both.
-            const isActiveDeck = i === deckIndex;
-            return (
-              <div
-                key={d.id}
-                inert={!isActiveDeck}
-                aria-hidden={!isActiveDeck}
-                style={{
-                  position: 'absolute', left: 0, right: 0, top: -i * contentFloorPitch, height: aperture.height,
-                  display: 'flex', flexDirection: 'column', justifyContent: 'center',
-                  // …and then lifted off that centre by whatever this floor's
-                  // own furniture needs — see `CONTENT_RISE`. A transform
-                  // rather than a changed `justifyContent`, so a rise of 0 is
-                  // exactly the layout this had before there was anything
-                  // standing on the landing to collide with.
-                  transform: `translateY(${-(CONTENT_RISE[i] ?? 0) * aperture.height}px)`,
-                  padding: '1.4rem 5.8rem',
-                  boxSizing: 'border-box',
-                }}
+        {/* Behind a shut door there is nothing to see, so there is nothing to
+            build. The leaves are opaque and they cover the whole aperture, so
+            the deck underneath is not dimmed or clipped — it is invisible, and
+            at 0.985 it has been invisible for a few frames already. */}
+        {closure < 0.985 && DECKS.map((d, i) => {
+          // Generous, and deliberately so: what decides whether a deck can be
+          // *seen* is its own opening (`revealSpan`, about two thirds of a
+          // floor), and this only decides whether it is built. `floorPos` is
+          // React's throttled mirror of the ride, so cutting it as fine as the
+          // mask would pop a heading out mid-ride.
+          if (Math.abs(i - floorPos) > 1.2) return null;
+          const Body = DECK_BODIES[i];
+          // The wall screen (`LandingScreen`, in the WebGL half of this same
+          // landing) stands on `SCREEN_SIDE[i]`; the content takes the other
+          // half so the two never fight for the same wall.
+          const contentSide = SCREEN_SIDE[i] === 'left' ? 'right' : 'left';
+          return (
+            <DeckReveal
+              key={d.id}
+              floor={i}
+              settled={floorPos}
+              floorPitch={floorPitch}
+              height={aperture.height}
+              // …lifted off centre by whatever this floor's own furniture needs;
+              // see `CONTENT_RISE`.
+              rise={CONTENT_RISE[i] ?? 0}
+              // Up to three decks are mounted at once — this floor and the
+              // neighbour peeking in above or below it mid-ride — but only the
+              // one the visitor is standing on should answer to Tab or a screen
+              // reader.
+              active={i === deckIndex}
+            >
+              <div style={{
+                width: '48%',
+                marginLeft: contentSide === 'right' ? 'auto' : 0,
+                pointerEvents: 'auto',
+              }}
               >
-                <div style={{
-                  width: '48%',
-                  marginLeft: contentSide === 'right' ? 'auto' : 0,
-                  pointerEvents: 'auto',
-                }}
-                >
-                  <Body pos={floorPos} />
-                </div>
+                <Body pos={floorPos} />
               </div>
-            );
-          })}
-        </div>
+            </DeckReveal>
+          );
+        })}
       </div>
 
       {/* The near canvas: everything that has to stand in front of the decks —

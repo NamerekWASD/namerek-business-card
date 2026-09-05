@@ -5,7 +5,7 @@ import FpsMeter from './FpsMeter.jsx';
 import LiftScrub from './LiftScrub.jsx';
 import { btnStyle } from './btnStyle.js';
 
-function DebugPanel({ t, setT, playing, play, scrub, setScrub, blurEnabled }) {
+function DebugPanel({ t, setT, playing, play, scrub, setScrub, hiDpr }) {
   return (
     <div
       style={{
@@ -26,7 +26,7 @@ function DebugPanel({ t, setT, playing, play, scrub, setScrub, blurEnabled }) {
         color: '#fff',
       }}
     >
-      <FpsMeter blurEnabled={blurEnabled} />
+      <FpsMeter hiDpr={hiDpr} />
       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
         <span>door intro debug</span>
         <span>{Math.round(t)}ms / {DOOR_TOTAL_MS}ms</span>

@@ -3,7 +3,7 @@
 // renderer would keep every number in this file unchanged — that is the test
 // for whether something belongs here.
 
-import { CAM_ORIGIN_Y, CAM_PERSPECTIVE, SHAFT_DEPTH } from './camera.js';
+import { BACK_WALL_SCALE, CAM_ORIGIN_Y, CAM_PERSPECTIVE, SHAFT_DEPTH } from './camera.js';
 
 /** @import { Shade } from './types.js' */
 
@@ -138,6 +138,30 @@ export const LANDING_SETBACK = 678;
 // number: see `contentFloorPitch` in `Dieselpunk.jsx`.
 export const LANDING_WALL_SCALE =
   CAM_PERSPECTIVE / (CAM_PERSPECTIVE + SHAFT_DEPTH + LANDING_SETBACK);
+
+// ── a floor seen through its own doorway ─────────────────────────────────────
+// Where a landing's opening and the text standing on the wall behind it end up
+// on screen, `away` floors from the cage. Two planes at two depths, so two
+// rates — and the hole in the masonry is the nearer of the two, which makes it
+// the faster. That difference is the whole of NBC-78: clipped to the cage's own
+// opening alone, a heading stayed on screen long after the brick should have
+// covered it, and floors being passed flickered through the wall.
+/**
+ * @param {number} floorPitch one floor, in screen pixels, at the cage
+ * @param {number} away floors between the cage and this landing
+ * @returns {{ hole: number, wall: number }} on-screen offsets, in pixels
+ */
+export const landingReveal = (floorPitch, away) => ({
+  hole: away * floorPitch * BACK_WALL_SCALE,
+  wall: away * floorPitch * LANDING_WALL_SCALE,
+});
+
+// How many floors away a landing's opening has gone entirely behind the brick.
+// The perspective divide falls on the doorway's height and on the pitch it
+// travels alike, so it cancels: this is a plain ratio of the building's own
+// proportions, and it is what decides how long a deck can be seen at all.
+/** @param {number} vh @param {number} floorPitch @returns {number} */
+export const revealSpan = (vh, floorPitch) => (vh * DOORWAY_H_FRAC) / floorPitch;
 
 // How tall the arcade cabinet hangs, in scene pixels.
 //

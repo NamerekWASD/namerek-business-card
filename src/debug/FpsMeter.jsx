@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 // A frame meter, so the cost of a change is a number rather than an impression.
 // It keeps its own state and updates twice a second, which is the whole point:
 // it must not be able to re-render the scene it is measuring.
-function FpsMeter({ blurEnabled }) {
+function FpsMeter({ hiDpr }) {
   const [read, setRead] = useState({ fps: 0, worst: 0 });
   useEffect(() => {
     let id;
@@ -32,10 +32,10 @@ function FpsMeter({ blurEnabled }) {
   const bad = read.fps > 0 && read.fps < 45;
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', color: bad ? '#ff9d5c' : '#8de08d' }}>
-      {/* whether the blur is currently on is stated, not implied — when the
-          frame rate suddenly changes, the first thing worth knowing is whether
-          the auto-downgrade did it */}
-      <span>frame · blur {blurEnabled ? 'on' : 'off'}</span>
+      {/* whether the canvases are still being built at the full dpr is stated,
+          not implied — when the frame rate suddenly changes, the first thing
+          worth knowing is whether the auto-downgrade did it */}
+      <span>frame · dpr {hiDpr ? 'hi' : 'lo'}</span>
       <span>{read.fps} fps · worst {read.worst}ms</span>
     </div>
   );

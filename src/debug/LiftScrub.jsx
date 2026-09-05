@@ -17,6 +17,8 @@ function LiftScrub({ scrub, setScrub, deckCount }) {
       />
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         <button onClick={() => set({ from: 0, to: 1 })} style={btnStyle}>1→2</button>
+        <button onClick={() => set({ from: 0, to: 2 })} style={btnStyle}>1→3</button>
+        <button onClick={() => set({ from: 2, to: 0 })} style={btnStyle}>3→1</button>
         <button onClick={() => set({ from: 0, to: 3 })} style={btnStyle}>1→4</button>
         <button onClick={() => set({ from: 3, to: 0 })} style={btnStyle}>4→1</button>
         <button onClick={() => setScrub(null)} style={btnStyle}>release</button>

@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
-  ASTRAGAL_W_FRAC, LANDING_CEILING_CLEARANCE, LEAF_PARK_FRAC, PENDANT_DROP, PENDANT_HEAD_RISE,
-  PENDANT_LINKS, PENDANT_LINK_PITCH, PENDANT_SCALE, doorwaySlots, landingCeilingY, masonrySlots,
-  pendantAnchorY, pendantChainTopY,
+  ASTRAGAL_W_FRAC, DOORWAY_H_FRAC, LANDING_CEILING_CLEARANCE, LEAF_PARK_FRAC, PENDANT_DROP,
+  PENDANT_HEAD_RISE, PENDANT_LINKS, PENDANT_LINK_PITCH, PENDANT_SCALE, doorwaySlots,
+  landingCeilingY, landingReveal, masonrySlots, pendantAnchorY, pendantChainTopY, revealSpan,
 } from './geometry.js';
+import { BACK_WALL_SCALE } from './camera.js';
 
 const vh = 962;
 const top = 30;
@@ -124,5 +125,41 @@ describe('the doorways that get built', () => {
   it('does not open a doorway where the shaft has no floor', () => {
     expect(Math.min(...doorwaySlots(4))).toBe(0);
     expect(Math.max(...doorwaySlots(4))).toBe(3);
+  });
+});
+
+// ── a floor seen through its own doorway ─────────────────────────────────────
+// NBC-78. The text on a landing is behind the hole it is looked at through, and
+// the two are a room apart, so they cannot travel together on screen. Getting
+// this backwards is not a subtle mistake to look at: it puts a heading on the
+// brick between two floors.
+describe('a landing and the opening it is seen through', () => {
+  const floorPitch = vh * 1.4; // `DECK_GAP`, the pitch `Dieselpunk` works in
+
+  it('moves the opening faster than the wall behind it', () => {
+    const { hole, wall } = landingReveal(floorPitch, 1);
+    expect(hole).toBeGreaterThan(wall);
+    // and both in the same direction — a landing above stays above
+    expect(landingReveal(floorPitch, -1)).toEqual({ hole: -hole, wall: -wall });
+  });
+
+  it('has the brick over the text while the text is still inside the cage s opening', () => {
+    // This is the bug, in numbers. Half a doorway of masonry has slid across the
+    // opening — so half of that landing is behind brick — and yet the text has
+    // not travelled far enough to leave the cage's opening, which is all that
+    // used to clip it. Whatever hides it has to be the hole, not the cage.
+    const doorway = vh * DOORWAY_H_FRAC * BACK_WALL_SCALE;
+    const away = revealSpan(vh, floorPitch) / 2;
+    const { hole, wall } = landingReveal(floorPitch, away);
+
+    expect(hole).toBeCloseTo(doorway / 2);
+    expect(wall).toBeLessThan(doorway / 2);
+  });
+
+  it('closes over a landing entirely one span away, whatever the pitch', () => {
+    for (const pitch of [vh, vh * 1.4, vh * 2]) {
+      const doorway = vh * DOORWAY_H_FRAC * BACK_WALL_SCALE;
+      expect(landingReveal(pitch, revealSpan(vh, pitch)).hole).toBeCloseTo(doorway);
+    }
   });
 });

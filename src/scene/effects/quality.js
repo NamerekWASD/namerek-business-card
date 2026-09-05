@@ -1,17 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 
-// Quality. The vertical motion blur is an SVG filter over a full-viewport 3D
-// subtree, which is far and away the most expensive thing in this scene, and it
-// is also the only one that is pure garnish — nothing is unreadable without it.
-// So it is the first thing to give up. 'auto' measures and decides; 'on' and
-// 'off' override.
+// Quality. What this budget used to buy was the vertical motion smear — an SVG
+// filter over the deck column — and that is gone (NBC-79): a reference filter is
+// not composited, so it took a layer that moves every frame off the compositor
+// and had the text repainted, convolved and handed over at its own slower rate
+// while the canvases behind it ran on. What is left to give up is the pixels
+// themselves, the dpr ceiling the two canvases are built at. 'auto' measures and
+// decides; 'on' and 'off' override.
 //
 // Words, not booleans, and that is a bug fix rather than a preference: the
 // switch used to read 'auto' | true | false, so writing the obvious thing —
-// blur: 'off' — turned it fully *on*, because a non-empty string is truthy and
+// detail: 'off' — turned it fully *on*, because a non-empty string is truthy and
 // the value was handed straight back as the answer. A switch whose off position
 // is on is a switch that will lie to whoever measures with it.
-export const QUALITY = { blur: 'on' };
+export const QUALITY = { detail: 'on' };
 
 export const DEBUG_PANEL = import.meta.env.DEV
   && (typeof location !== 'undefined' && location.search.includes('debug'));
@@ -19,15 +21,15 @@ export const DEBUG_PANEL = import.meta.env.DEV
 // Frames longer than this are under 25fps and you can see it.
 export const SLOW_FRAME_MS = 40;
 
-// Watches what frames actually cost while the lift is moving, and gives the blur
-// up for good once the machine has shown it cannot afford it. Measured rather
-// than guessed from the user agent, because the thing that matters is this
-// machine drawing this scene, not what it says it is.
-export function useBlurBudget(moving) {
+// Watches what frames actually cost while the lift is moving, and gives the
+// extra detail up for good once the machine has shown it cannot afford it.
+// Measured rather than guessed from the user agent, because the thing that
+// matters is this machine drawing this scene, not what it says it is.
+export function useDetailBudget(moving) {
   const [afford, setAfford] = useState(true);
   const slow = useRef(0);
   useEffect(() => {
-    if (QUALITY.blur !== 'auto' || !moving || !afford) return undefined;
+    if (QUALITY.detail !== 'auto' || !moving || !afford) return undefined;
     let id;
     let last = 0;
     const tick = (t) => {
@@ -47,5 +49,5 @@ export function useBlurBudget(moving) {
     id = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(id);
   }, [moving, afford]);
-  return QUALITY.blur === 'auto' ? afford : QUALITY.blur === 'on';
+  return QUALITY.detail === 'auto' ? afford : QUALITY.detail === 'on';
 }
