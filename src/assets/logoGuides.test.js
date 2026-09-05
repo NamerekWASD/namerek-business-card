@@ -83,3 +83,39 @@ describe('the construction frame against the letter it describes', () => {
     }
   });
 });
+
+// A guide is a drafting line: the letter is drawn over it, not under it. The
+// animated copy had the solid letterform painted first, so every guide that
+// crossed a stroke sat on top of the black as a slightly darker dashed seam —
+// the guides read as scratches on the mark instead of the frame it was built
+// from. Order is what hides them, not colour: they stay full length underneath.
+describe('paint order in the animated copy', () => {
+  const body = svg.slice(svg.indexOf('<g id="g1"'), svg.indexOf('</g>'));
+  const at = (id) => {
+    const i = body.search(new RegExp(`<\\w+[^>]*\\bid="${id}"`));
+    if (i < 0) throw new Error(`no element #${id} in the drawing`);
+    return i;
+  };
+  const GUIDES = ['line2-94', 'line2-94-8', 'line1', 'line1-2', 'line2', 'line2-9',
+                  'line2-1', 'line2-1-2', 'line2-1-9', 'line2-1-1'];
+  const SOLIDS = ['polygon2', 'rect4', 'path6'];
+
+  it('paints every guide before the solid letterform covers it', () => {
+    const firstSolid = Math.min(...SOLIDS.map(at));
+    for (const guide of GUIDES) expect(at(guide)).toBeLessThan(firstSolid);
+  });
+
+  // The gradient blocks are the letter fading out, so guides belong over them —
+  // that is the one place a guide is meant to be seen crossing the mark.
+  it('leaves the guides on top of the gradient blocks', () => {
+    expect(at('path11')).toBeLessThan(Math.min(...GUIDES.map(at)));
+    expect(at('path9')).toBeLessThan(at('line2'));
+  });
+
+  it('keeps the pivots and the halo above everything', () => {
+    const lastSolid = Math.max(...SOLIDS.map(at));
+    for (const pivot of ['circle2', 'circle2-7', 'circle2-7-5', 'circle9', 'circle9-5', 'path1']) {
+      expect(at(pivot)).toBeGreaterThan(lastSolid);
+    }
+  });
+});
