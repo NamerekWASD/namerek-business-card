@@ -365,86 +365,6 @@ export const lampGlow = () => bake('glow', 128, 128, (ctx, w, h) => {
 });
 
 /**
- * The lamp behind the cabinet's marquee. The reference photo is not a single
- * hotspot: a thin hot line traces the whole perimeter of the glass, a soft hot
- * blob sits in the centre, and the ring of glass between them — the moat — is
- * dimmer than both. An edge-lit panel with its own lamp behind the middle, not
- * a sign with one bulb behind it.
- *
- * That shape is painted per-pixel rather than with `Canvas2DGradient`s because
- * this canvas is not screen-shaped. `marqueeUV` in `ArcadeCabinet` unwraps the
- * panel across its own local X (screen-vertical, short) and Z (screen-
- * horizontal, long) axes, and neither runs the way a canvas's columns and rows
- * do: confirmed against a live render, a canvas column (u) lands as the
- * panel's screen-*vertical* position and a canvas row (v, flipped) as its
- * screen-*horizontal* one — a transpose, not the identity a gradient authored
- * in canvas space would assume. Working in screen fractions per pixel sidesteps
- * having to fight that transpose with rotated gradient coordinates.
- *
- * Ribbed the same way as `screenGlow`, and for the same reason: an untextured
- * gradient reads as a painted rectangle, where fine flutes catching the glow at
- * their crests are what says "glass with a lamp behind it" rather than "orange
- * sign". Painted as canvas columns so they land as the screen-horizontal ribs
- * the reference shows, for the transpose reason above.
- */
-export const marqueeGlow = () => bake('marquee', 256, 128, (ctx, w, h) => {
-  // The panel's own width:height on screen, off its bounding box (local X and
-  // Z ranges) rather than guessed — a blob shaped as a true circle in canvas
-  // space would read as a tall oval on this wide-and-short panel.
-  const aspect = 5.4;
-  const rimThickness = 0.05;
-  const centerRadius = 0.6;
-  const moat = [56, 35, 17];
-  const hot = [235, 172, 92];
-  const hottest = [255, 240, 205];
-
-  const img = ctx.createImageData(w, h);
-  for (let py = 0; py < h; py += 1) {
-    // canvas row -> screen-horizontal fraction, 0 left .. 1 right (flipped)
-    const screenH = 1 - py / (h - 1);
-    const dx = (screenH - 0.5) * aspect;
-    for (let px = 0; px < w; px += 1) {
-      // canvas column -> screen-vertical fraction, 0 bottom .. 1 top
-      const screenV = px / (w - 1);
-      const dy = screenV - 0.5;
-
-      const centerDist = Math.sqrt(dx * dx + dy * dy);
-      const center = Math.exp(-((centerDist / centerRadius) ** 2));
-
-      const edgeDist = Math.min(screenH * aspect, (1 - screenH) * aspect, screenV, 1 - screenV);
-      const rimLinear = Math.max(0, Math.min(1, 1 - edgeDist / rimThickness));
-      const rim = rimLinear * rimLinear * (3 - 2 * rimLinear); // smoothstep, or the rim aliases
-
-      const glow = Math.min(1, Math.max(rim, center * 0.95));
-      const peak = Math.max(0, glow - 0.55) / 0.45;
-
-      const idx = (py * w + px) * 4;
-      img.data[idx] = moat[0] + (hot[0] - moat[0]) * glow + (hottest[0] - hot[0]) * peak;
-      img.data[idx + 1] = moat[1] + (hot[1] - moat[1]) * glow + (hottest[1] - hot[1]) * peak;
-      img.data[idx + 2] = moat[2] + (hot[2] - moat[2]) * glow + (hottest[2] - hot[2]) * peak;
-      img.data[idx + 3] = 255;
-    }
-  }
-  ctx.putImageData(img, 0, 0);
-
-  ctx.globalCompositeOperation = 'multiply';
-  const flutes = 13;
-  const pitch = w / flutes;
-  for (let i = 0; i < flutes; i += 1) {
-    const x = i * pitch;
-    const band = ctx.createLinearGradient(x, 0, x + pitch, 0);
-    band.addColorStop(0, '#6a6a6a');
-    band.addColorStop(0.4, '#ffffff');
-    band.addColorStop(0.58, '#dcdcdc');
-    band.addColorStop(1, '#6a6a6a');
-    ctx.fillStyle = band;
-    // half a pixel of overlap, or the seam between bands shows as a dark line
-    ctx.fillRect(x, 0, pitch + 0.5, h);
-  }
-  ctx.globalCompositeOperation = 'source-over';
-});
-
-/**
  * The darkening an object lays on the floor it stands on. Painted, not cast:
  * what makes a thing sit on a floor rather than hover above it is a soft patch
  * of contact darkening, and a shadow map costs the whole frame budget to
@@ -480,8 +400,8 @@ export const contactShadow = () => bake('contact', 128, 128, (ctx, w, h) => {
  *
  * So this is authored the way the CSS backend authored every surface — the light
  * is in the paint — and the face plate wears it as its `emissiveMap` as well as
- * its `map`. The lamp glass, the marquee and the deck screens in this scene are
- * already lit that way; the door is only the largest thing that has to be.
+ * its `map`. The lamp glass and the deck screens in this scene are already lit
+ * that way; the door is only the largest thing that has to be.
  *
  * Baked large for the same reason the decal before it was: a leaf is one of the
  * biggest single surfaces in frame, and the 64–256px tiles everything else here

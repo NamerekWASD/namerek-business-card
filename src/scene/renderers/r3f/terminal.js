@@ -331,9 +331,9 @@ export function sizeTerminal(surface, aspect) {
 
 /**
  * Wipe the screen back to nothing without touching the texture, the material or
- * its compiled program — the contract `clearMark` held before it, and for the
- * same reason: unmounting the mesh drops the last reference to a linked program
- * on the exact frame the leaves finish parting. See `LandingScreen`.
+ * its compiled program. Unmounting the mesh instead drops the last reference to
+ * a linked program on the exact frame the leaves finish parting, and the next
+ * arrival pays for a fresh compile there. See `LandingScreen`.
  *
  * @param {HTMLCanvasElement} canvas
  */

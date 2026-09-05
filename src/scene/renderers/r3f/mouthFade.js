@@ -86,7 +86,6 @@ function fadeShader(shader, uniform) {
  * `softLight.js` hangs the wrap lighting, the room's tone grade and the room's
  * light mask off a single hook on `MeshStandardMaterial.prototype`, and all
  * three files are explicit that a second assignment silently wins and takes the
- * others with it. `ArcadeCabinet.jsx` states the same idiom for its edge wear.
  *
  * Idempotent, because it runs from a layout effect that runs on every commit —
  * the box's faces are rebuilt whenever the console pages to another project,

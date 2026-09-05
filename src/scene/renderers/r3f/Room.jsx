@@ -40,7 +40,7 @@ export function claimMap(material) {
  *
  * - the room it stands in — the wall, and almost everything;
  * - `both`, for a thing standing in an open doorway and genuinely lit from
- *   either side of it (`AlsoLit` — the cage, the architrave, the cabinet);
+ *   either side of it (`AlsoLit` — the cage and the architrave);
  * - one room that is not the one it stands in (`LitBy`). Exactly one surface
  *   asks for this and it is the cage's floor deck. See the note at that call
  *   site; the short version is that a bulkhead lamp in a reflector, modelled
@@ -216,10 +216,10 @@ function Room({ room, visible = true, children }) {
       object.userData.room = room;
       object.layers.set(layer);
       // A prop standing in a doorway is lit by both sides of it, and a layer
-      // mask holds as many rooms as it is given. The cabinet asks for this: it
-      // faces straight down the open opening, so the shaft's own lamps rake
-      // across it, and being lit only by the corridor made it read as a picture
-      // of a cabinet hung at the back of the room.
+      // mask holds as many rooms as it is given. The architrave asks for this:
+      // it stands in the open opening, so the shaft's own lamps rake across it,
+      // and being lit only by the corridor made it read as a picture of a frame
+      // hung at the back of the room.
       //
       // Nothing gates it on the doors, because nothing needs to. A shut door
       // hides the whole landing behind it — the leaf is in the near scene, the
@@ -244,8 +244,7 @@ function Room({ room, visible = true, children }) {
         // `onBeforeCompile` runs once per material, so both tags have to be
         // right before the material's first draw. This traverse is a layout
         // effect and the canvas draws on the frame after the commit, so they
-        // are — including for the cabinet, whose meshes are tagged in
-        // `paintedModel` as its materials are built. A material that changed
+        // are. A material that changed
         // rooms after compiling would need `needsUpdate` *and* a cache key of
         // its own, which would cost the scene a second program per room; no
         // surface in this scene moves house.
@@ -341,8 +340,8 @@ function Room({ room, visible = true, children }) {
 
   // No context provider. Nothing below needs to *ask* which room it is in —
   // the traverse above tells every mesh and every material, which is the one
-  // mechanism that also reaches the meshes React did not build (the cabinet's
-  // GLB, the instanced rivets). A second, parallel way of answering the same
+  // mechanism that also reaches the meshes React did not build (the instanced
+  // rivets). A second, parallel way of answering the same
   // question is a second thing to keep in step.
   return <group ref={group} visible={visible}>{children}</group>;
 }

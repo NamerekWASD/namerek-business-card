@@ -14,8 +14,7 @@ import { settledMark } from '../renderers/r3f/screenMark.js';
 // frame — see `settledMark`.
 //
 // This used to be the *whole* barrier, and it used to also wait on a 6.6 MB
-// arcade cabinet that `LandingProps` had already switched off. Now it is two
-// jobs out of five, reported separately so the gears move twice rather than
+// model that nothing was drawing any more. Now it is two jobs out of five, reported separately so the gears move twice rather than
 // once — see `boot/plan.js` for the rest of the register, and `boot/CanvasBoot`
 // for the part nobody was waiting for at all.
 
