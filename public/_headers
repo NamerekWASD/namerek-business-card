@@ -19,6 +19,15 @@
 /projects/*
   Cache-Control: public, max-age=86400
 
+# The icons carry no hash either, and the picture behind a stable name can
+# change. A day, so a replaced icon reaches a returning visitor within one.
+/favicon.ico
+  Cache-Control: public, max-age=86400
+/favicon.svg
+  Cache-Control: public, max-age=86400
+/apple-touch-icon.png
+  Cache-Control: public, max-age=86400
+
 # The one file that must never be held: it is what names every hashed asset
 # above, so a stale copy pins a visitor to a whole stale build.
 /index.html
