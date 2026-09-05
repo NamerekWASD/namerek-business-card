@@ -1,8 +1,8 @@
 // What the boot screen is actually waiting for, and how that becomes a number
 // between nought and one.
 //
-// The thing this replaces was a single promise that resolved when the arcade
-// cabinet's model and the shared surface bakes were in, and it did not work —
+// The thing this replaces was a single promise that resolved when a large
+// model and the shared surface bakes were in, and it did not work —
 // not because the timing was wrong but because it was waiting for the wrong
 // half. The visible cost of a first visit is not the download; it is the
 // browser decoding images, three baking canvases, and above all the renderer

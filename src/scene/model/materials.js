@@ -158,17 +158,15 @@ export const SURFACES = {
   // the small fittings — clips, shoes, rivetted plates, architrave members
   iron: { from: '#553920', to: '#2a1c10', tile: 'rust', scale: 70, tex: 0.3, rough: 0.84, metal: 0.5 },
   steel: { from: '#404952', to: '#1f2428', tile: 'steel', scale: 46, tex: 0.34, rough: 0.62, metal: 0.45 },
-  // The arcade cabinet's own case and control-panel metal. Same tiles as
-  // `iron`/`steel` for family continuity, but those two are tuned for a
-  // barely-there wash on small fittings glimpsed in passing — baked at their
-  // dark `from`/`to` and low `tex`, the multiply-then-wash in `bakeSurface`
-  // crushes the grain down to a near-flat smear. The cabinet is a hero prop
-  // looked at close and square-on, so it gets lighter tones (more survives
-  // the multiply) and a much higher `tex` (less of the wash flattens it back
-  // out) instead.
-  cabinetCase: { from: '#8f6a39', to: '#49361d', tile: 'rust', scale: 140, tex: 0.78, rough: 0.6, metal: 0.28 },
-  cabinetFlank: { from: '#45392b', to: '#1f1a13', tile: 'steel', scale: 80, tex: 0.88, rough: 0.72, metal: 0.42 },
-  cabinetRust: { from: '#88572e', to: '#342112', tile: 'rust', scale: 100, tex: 0.92, rough: 0.62, metal: 0.25 },
+  // The hero tones. Same tiles as `iron`/`steel` for family continuity, but
+  // those two are tuned for a barely-there wash on small fittings glimpsed in
+  // passing — baked at their dark `from`/`to` and low `tex`, the
+  // multiply-then-wash in `bakeSurface` crushes the grain down to a near-flat
+  // smear. A prop looked at close and square-on, like the screen frame, needs
+  // lighter tones (more survives the multiply) and a much higher `tex` (less
+  // of the wash flattens it back out) instead. `surfaceMaterial.js` routes
+  // them by this `cabinet` prefix, which is why the names have outlived the
+  // machine they were mixed for.
   cabinetPanel: { from: '#524535', to: '#252018', tile: 'steel', scale: 70, tex: 0.88, rough: 0.42, metal: 0.65 },
   cabinetFrame: { from: '#382c1f', to: '#19140e', tile: 'steel', scale: 50, tex: 0.82, rough: 0.48, metal: 0.55 },
   cabinetBronze: { from: '#a1803d', to: '#493a1c', tile: 'bronze', scale: 60, tex: 0.85, rough: 0.38, metal: 0.78 },

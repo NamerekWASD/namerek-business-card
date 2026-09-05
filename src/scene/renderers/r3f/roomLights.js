@@ -55,7 +55,7 @@ import { ShaderChunk } from 'three';
  * compiled into a shader costs every program in the scene to change.
  *
  * `both` is the doorway case. A prop standing in an open opening is genuinely
- * lit from both sides of it — the cabinet faces straight down the corridor and
+ * lit from both sides of it — the architrave stands in the opening itself and
  * the shaft's own fittings rake across it — and a mask holds as many rooms as
  * it is given. See `alsoLit` in `Room`.
  *

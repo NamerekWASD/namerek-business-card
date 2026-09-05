@@ -655,7 +655,7 @@ function useBandMaterial(texture, len, roughness = 0.5, metalness = 0.4) {
  * two owners for one number. So the landing holds it and hands down `gallery` —
  * which picture is loaded, how many there are, what it is called and where it
  * goes — and gets `onPage` back. The frame stays what it looks like: the
- * cabinet, not the archive.
+ * housing, not the archive.
  *
  * @param {{ w: number, h: number, variant?: 'plain' | 'console', live?: boolean,
  *   spill?: { current: unknown[] },

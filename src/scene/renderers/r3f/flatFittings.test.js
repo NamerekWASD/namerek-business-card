@@ -16,11 +16,9 @@ import { describe, expect, it } from 'vitest';
 // **a fitting in these files takes its material from a hook**, either
 // `useFittingMaterial` for a single tone or `useFittingShades` for several.
 //
-// Two exemptions, both deliberate and both stated at their call site:
-//   - a plane whose picture is its own bake (the cage's lattice sits on a flat
-//     albedo under an alpha map — see `Cage` in `NearScene`);
-//   - the arcade cabinet, which builds its materials imperatively and is
-//     outside the scene-wide grain slider on purpose (`materials.js`).
+// One exemption, deliberate and stated at its call site: a plane whose picture
+// is its own bake — the cage's lattice sits on a flat albedo under an alpha
+// map, see `Cage` in `NearScene`.
 
 const FILES = [
   'src/scene/r3f/LandingProps.jsx',

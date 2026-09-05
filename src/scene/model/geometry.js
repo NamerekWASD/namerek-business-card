@@ -116,14 +116,11 @@ export const doorwaySlots = (floors) => Array.from({ length: floors }, (_, i) =>
 // so it gets its own depth, its own colour and its own light — sharing all three
 // with the shaft is what made the far end read as one flat backdrop.
 //
-// It also decides where the arcade cabinet's front face ends up, and that turns
-// out to matter for more than depth: the pendant hangs only 34px past the
-// doorway threshold (see `pendantAt`), so a landing this shallow put the
-// cabinet's face *nearer the camera than the light itself*. A surface can only
-// be lit head-on by a source on the camera's side of it — with the light
-// behind the face instead, the cabinet caught nothing but a graze from the
-// side, however bright the fixture. Setting the landing back further than the
-// light's own reach is what puts the light back in front of the machine.
+// The depth is also what keeps the room lightable. The pendant hangs only 34px
+// past the doorway threshold (see `pendantAt`), and a surface can only be lit
+// head-on by a source on the camera's side of it — so a landing shallower than
+// the fixture's own reach puts its back wall in front of the lamp, where
+// nothing standing on it catches more than a graze however bright the lamp is.
 export const LANDING_SETBACK = 678;
 
 // What the perspective divide does to anything standing on a landing's back
@@ -162,18 +159,6 @@ export const landingReveal = (floorPitch, away) => ({
 // proportions, and it is what decides how long a deck can be seen at all.
 /** @param {number} vh @param {number} floorPitch @returns {number} */
 export const revealSpan = (vh, floorPitch) => (vh * DOORWAY_H_FRAC) / floorPitch;
-
-// How tall the arcade cabinet hangs, in scene pixels.
-//
-// Derived rather than dialled: the CSS cabinet is 324px tall drawn on the
-// content layer, which is already scaled by the perspective divide at the
-// doorway. Bolted to the landing wall — a further `LANDING_SETBACK` back — it
-// has to be that much larger to cover the same height of screen. If the two
-// backends are put side by side and the cabinet is the wrong size, this is the
-// line that is wrong, and it can be checked with arithmetic rather than by eye.
-export const CABINET_H = Math.round(
-  (324 * (CAM_PERSPECTIVE + SHAFT_DEPTH + LANDING_SETBACK)) / CAM_PERSPECTIVE,
-);
 
 // ── the landing's pendant ──────────────────────────────────────────────────────
 // A hanging lamp has one fixed end and one loose one, and the fixed one is the

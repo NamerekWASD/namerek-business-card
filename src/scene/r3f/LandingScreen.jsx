@@ -22,8 +22,7 @@ import { useFullscreenGallery } from './fullscreenImage.js';
 import useReducedMotion from '../../motion/reduced.js';
 
 // The wall screen every landing shares: a fluted glass panel recessed into a
-// frame on the back wall, the same ribbing the arcade cabinet's own screen
-// uses. Plain exported numbers rather than a live panel — this is layout, not
+// frame on the back wall. Plain exported numbers rather than a live panel — this is layout, not
 // a taste call judged frame-to-frame like the lighting rig — so Mykolai can
 // nudge them by hand here whenever the landing's proportions change.
 //

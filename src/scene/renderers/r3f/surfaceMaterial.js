@@ -68,10 +68,10 @@ const BAKE_SIZE = 256;
 // ── which knob a surface's grain answers to ─────────────────────────────────
 // Three families, because three different things are being judged. The big
 // planes are a room's plaster and brick read across a whole wall; the metal is
-// fittings and cage members read at arm's length; the cabinet is a hero prop
-// with its own hand-tuned tones and is deliberately outside the scene-wide
-// slider, so dialling the corridor cannot quietly restyle the machine standing
-// in it.
+// fittings and cage members read at arm's length; the `cabinet` tones are hero
+// props looked at close and square-on, hand-tuned and deliberately outside the
+// scene-wide slider, so dialling the corridor cannot quietly restyle what is
+// standing in it.
 const WALLS = new Set(['shaftWall', 'backWall', 'landing', 'landingFloor', 'paper']);
 const familyOf = (key) => {
   if (key && key.startsWith('cabinet')) return 'cabinet';
