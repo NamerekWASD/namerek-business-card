@@ -1,0 +1,25 @@
+# Cloudflare Pages reads this file and does not serve it. Rules merge, so what
+# `/*` sets applies everywhere and the paths below add to it.
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+  Permissions-Policy: geolocation=(), microphone=(), camera=(), interest-cohort=()
+
+# Vite writes a content hash into every filename here, so a changed file is a
+# changed URL and the old one can be held forever. This is the whole of why the
+# site is cheap to serve twice: a returning visitor fetches the HTML and nothing
+# else.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Hand-placed screenshots under their own stable names. A day, because the name
+# stays the same when the picture behind it is replaced.
+/projects/*
+  Cache-Control: public, max-age=86400
+
+# The one file that must never be held: it is what names every hashed asset
+# above, so a stale copy pins a visitor to a whole stale build.
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate
