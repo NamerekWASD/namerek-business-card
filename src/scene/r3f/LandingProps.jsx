@@ -892,9 +892,9 @@ function Workbench({ M, x, floorY, z, ambient, yaw }) {
       ))}
 
       {/* the corner brackets, one at every junction of member and post */}
-      {[-1, 1].map((sx) => [[apronY, apronH], [railY, railH]].map(([by, bh]) => (
+      {[-1, 1].map((sx) => [['apron', apronY, apronH], ['rail', railY, railH]].map(([at, by, bh]) => (
         <mesh
-          key={`${sx}:${by}`}
+          key={`${sx}:${at}`}
           position={[sx * (endX - legT * 0.1), by, frontZ + 0.026 * M]}
         >
           <boxGeometry args={[legT * 1.7, bh * 1.34, 0.018 * M]} />
@@ -1473,7 +1473,7 @@ function BeltMouth({ M, x, y, z, hinges }) {
           number below says which of those faces the inside is. */}
       {[[0, h / 2, w, frame, 3], [0, -h / 2, w, frame, 2],
         [-w / 2, 0, frame, h, 0], [w / 2, 0, frame, h, 1]].map(([rx, ry, rw, rh, inner]) => (
-          <mesh key={`${rx},${ry}`} position={[rx, ry, reveal / 2]} castShadow receiveShadow>
+          <mesh key={inner} position={[rx, ry, reveal / 2]} castShadow receiveShadow>
             <boxGeometry args={[rw, rh, reveal]} />
             {[0, 1, 2, 3, 4, 5].map((f) => (
               <meshStandardMaterial
@@ -1654,8 +1654,8 @@ function RollerRun({
           <meshStandardMaterial {...flange} />
         </mesh>
       ))}
-      {farRuns.map(([a, b]) => (
-        <mesh key={a} position={[(a + b) / 2, chY, -sideZ]} castShadow receiveShadow>
+      {farRuns.map(([a, b], i) => (
+        <mesh key={i} position={[(a + b) / 2, chY, -sideZ]} castShadow receiveShadow>
           <boxGeometry args={[Math.abs(a - b), chH, 0.05 * M]} />
           <meshStandardMaterial {...frame} />
         </mesh>
@@ -2295,8 +2295,8 @@ function Schematic({ M, x, y, z, ambient }) {
         <boxGeometry args={[w, h, deep]} />
         <meshStandardMaterial {...ironAt(0.9)} />
       </mesh>
-      {runs.map(([rx, ry, rw, rh]) => (
-        <group key={`${rx},${ry}`}>
+      {runs.map(([rx, ry, rw, rh], i) => (
+        <group key={i}>
           <mesh position={[rx, ry, deep * 0.4]} castShadow receiveShadow>
             <boxGeometry args={[rw, rh, deep * 0.8]} />
             <meshStandardMaterial {...wood} />

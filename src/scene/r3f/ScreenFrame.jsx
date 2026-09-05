@@ -832,8 +832,8 @@ function ScreenFrame({
         ? (
           <Counter y={topY} m={m} iron={iron} z={Z} page={page} pages={pages} />
         )
-        : [topY, botY].map((vy) => (
-          <Vent key={vy} y={vy} w={m.vent} band={m.band} material={iron} rib={rib} z={Z} />
+        : [topY, botY].map((vy, i) => (
+          <Vent key={i} y={vy} w={m.vent} band={m.band} material={iron} rib={rib} z={Z} />
         ))}
 
       {console_ && (
