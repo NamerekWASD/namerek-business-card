@@ -32,7 +32,10 @@ body {
   color: var(--ink);
 }
 
+/* The `vh` twin is a fallback for Safari below 15.4, not a duplicate — see the
+   note in flat/flat.css. */
 #root {
+  min-height: 100vh;
   min-height: 100svh;
 }
 
