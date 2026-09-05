@@ -1,4 +1,4 @@
-// ── the 2. UG conveyor, as arithmetic ────────────────────────────────────────
+// ── the 2. OG conveyor, as arithmetic ────────────────────────────────────────
 // The treaty between the machine's geometry and the archive riding on it, kept
 // out of `LandingProps.jsx` for the same reason `RACK` and `SHEET` are: that
 // file owns metres and JSX, and everything here is a number that can be wrong

@@ -4,25 +4,55 @@
 // Named the way the building names them, not the way an array indexes them: the
 // ground floor plate already reads EG, so 01..04 alongside it was the site
 // inventing a second numbering for the same four floors. `tick` is the short
-// form for the dial, where a full "1. UG" would not fit between the marks.
+// form for the dial, where a full "1. OG" would not fit between the marks.
 //
-// NAM-59: this is a lift that only goes down — the visitor descends from EG
-// into the shaft, they do not climb — so the floors below it are `UG`
-// (Untergeschoss, basement) rather than `OG` (Obergeschoss, a floor above
-// ground). Nothing here is baked into a texture; every plate and reading in
-// both the scene and the flat card draws its number from this file.
+// ── NBC-71: the two views do not agree about which way this lift goes ────────
+// NAM-59 gave every floor a `UG` (Untergeschoss, basement) on the reading that
+// the visitor *descends* from EG into the shaft. That is the flat card's model
+// and it still holds there: the card is a page and its rail runs down it.
+//
+// The scene's cage does the opposite, and it is not a matter of taste — it is
+// in the geometry. A landing's opening sits at `openingTop(vh, pitch, floor) =
+// … − floor · pitch`, and `worldY` negates, so the world Y of a floor *rises*
+// with its index: Kontakt is the top of the building, not the bottom of a hole.
+// A cage that climbs past plates reading `3. UG` is a lift with the numbers
+// painted upside down, so in the scene the floors off the ground are `OG`
+// (Obergeschoss).
+//
+// So the number is no longer one field. `level` is the floor, which both views
+// agree on; the suffix is the view's own reading of the shaft, and each asks
+// for its own below. Nothing is baked into a texture — every plate and reading
+// in either view is drawn from this file.
 
 /**
- * @typedef {{ id: string, label: string, no: string, tick: string }} Deck
+ * @typedef {{ id: string, label: string, level: number, tick: string }} Deck
  */
 
 /** @type {Deck[]} */
 export const DECKS = [
-  { id: 'start', label: 'Start', no: 'EG', tick: 'EG' },
-  { id: 'leistungen', label: 'Leistungen', no: '1. UG', tick: '1' },
-  { id: 'projekte', label: 'Projekte', no: '2. UG', tick: '2' },
-  { id: 'kontakt', label: 'Kontakt', no: '3. UG', tick: '3' },
+  { id: 'start', label: 'Start', level: 0, tick: 'EG' },
+  { id: 'leistungen', label: 'Leistungen', level: 1, tick: '1' },
+  { id: 'projekte', label: 'Projekte', level: 2, tick: '2' },
+  { id: 'kontakt', label: 'Kontakt', level: 3, tick: '3' },
 ];
+
+// The ground floor is `EG` either way: it is the floor the street is on, and
+// neither suffix applies to it.
+const numbered = (level, suffix) => (level === 0 ? 'EG' : `${level}. ${suffix}`);
+
+/**
+ * What a plate in the scene reads — the cabin's indicator, and anything else
+ * the shaft paints a number on. The cage climbs, so these are `OG`.
+ * @param {Deck} deck @returns {string}
+ */
+export const sceneNo = (deck) => numbered(deck.level, 'OG');
+
+/**
+ * What the flat card's rail reads. No cage, no shaft: the reader goes down the
+ * page, which is the descent NAM-59 named, so these stay `UG`.
+ * @param {Deck} deck @returns {string}
+ */
+export const flatNo = (deck) => numbered(deck.level, 'UG');
 
 /**
  * Which half of the landing's back wall the wall screen stands on, floor by

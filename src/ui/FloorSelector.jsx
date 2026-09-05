@@ -1,4 +1,4 @@
-import { DECKS } from '../lift/decks.js';
+import { DECKS, sceneNo } from '../lift/decks.js';
 import RivettedPanel from './RivettedPanel.jsx';
 import { WEAR_SEED } from './panelWear.js';
 
@@ -7,7 +7,7 @@ import { WEAR_SEED } from './panelWear.js';
 // counts up or down on its own instead of just swapping at the end.
 function FloorSelector({ pos, deck, moving, go }) {
   const dir = moving ? Math.sign(pos - deck) : 0;
-  const reading = DECKS[Math.max(0, Math.min(DECKS.length - 1, Math.round(pos)))].no;
+  const reading = sceneNo(DECKS[Math.max(0, Math.min(DECKS.length - 1, Math.round(pos)))]);
   return (
     <nav
       style={{

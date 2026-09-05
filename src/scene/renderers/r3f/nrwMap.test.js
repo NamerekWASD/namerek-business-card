@@ -8,7 +8,7 @@ import {
 // `nrwMap.js` is written in its own canvas's pixels and has never heard of a
 // metre; `LandingScreen.jsx` hands it the glass's shape and never opens the
 // canvas. What that leaves is a class of fault nobody sees until they are
-// standing on the 3. UG: a stop half off the sheet, two names printed over each
+// standing on the 3. OG: a stop half off the sheet, two names printed over each
 // other, the river running through a city, a leg labelled with the wrong city's
 // distance.
 //

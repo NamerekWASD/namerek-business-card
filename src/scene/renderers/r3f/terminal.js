@@ -43,7 +43,7 @@
 // The grid above is a *page*, and it used to be the whole canvas: a fixed 0.707
 // rectangle fitted inside the opening, which on a wide viewport left a hand's
 // width of bare fluted glass down either side. Mykolai read that for what it
-// was — a window open on a screen rather than a screen — first on the 1. UG
+// was — a window open on a screen rather than a screen — first on the 1. OG
 // sheet and then here.
 //
 // So the canvas is built at the *glass's own shape* and the page is centred on

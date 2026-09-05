@@ -1,4 +1,4 @@
-// ── 2. UG, the left half — deliberately empty ────────────────────────────────
+// ── 2. OG, the left half — deliberately empty ────────────────────────────────
 // This deck has been three things. It began as a PROJEKTE heading, four
 // statistics badges and a plate reading "Referenzen" that said projects were in
 // preparation while the console beside it was already showing them. NBC-22

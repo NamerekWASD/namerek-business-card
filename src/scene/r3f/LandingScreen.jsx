@@ -48,7 +48,7 @@ export const SCREEN_TUNING = [
       marginX: 46, // gap from the doorway's own edges — outer wall side and centre gutter alike
       marginTop: 104, // gap under the cornice
       marginBottom: 124, // gap above the skirting
-      screenFill: 0.94, // only the 2. UG picture tube reads this — see below
+      screenFill: 0.94, // only the 2. OG picture tube reads this — see below
     }
   },
   {
@@ -59,7 +59,7 @@ export const SCREEN_TUNING = [
       marginX: 46, // gap from the doorway's own edges — outer wall side and centre gutter alike
       marginTop: 104, // gap under the cornice
       marginBottom: 124, // gap above the skirting
-      screenFill: 0.94, // only the 2. UG picture tube reads this — see below
+      screenFill: 0.94, // only the 2. OG picture tube reads this — see below
     }
   },
   {
@@ -70,7 +70,7 @@ export const SCREEN_TUNING = [
       marginX: 46, // gap from the doorway's own edges — outer wall side and centre gutter alike
       marginTop: 44, // gap under the cornice
       marginBottom: 124, // gap above the skirting
-      screenFill: 0.94, // only the 2. UG picture tube reads this — see below
+      screenFill: 0.94, // only the 2. OG picture tube reads this — see below
     }
   },
   {
@@ -81,7 +81,7 @@ export const SCREEN_TUNING = [
       marginX: 46, // gap from the doorway's own edges — outer wall side and centre gutter alike
       marginTop: 104, // gap under the cornice
       marginBottom: 124, // gap above the skirting
-      screenFill: 0.94, // only the 2. UG picture tube reads this — see below
+      screenFill: 0.94, // only the 2. OG picture tube reads this — see below
     }
   }
 ];
@@ -222,7 +222,7 @@ const FLOW_TICK_MS = 55;
 const FLOW_EDGE = 0.04;
 
 /**
- * The 1. UG screen: the request the deck's Architektur plate is describing,
+ * The 1. OG screen: the request the deck's Architektur plate is describing,
  * running down the layers it names.
  *
  * ── the mounting is the terminal's, whole ───────────────────────────────────
@@ -383,7 +383,7 @@ function RequestFlow({ y, z, w, h, live }) {
 }
 
 /**
- * The 3. UG screen: the route card of the district this workshop stands in.
+ * The 3. OG screen: the route card of the district this workshop stands in.
  *
  * ── the mounting is the terminal's, whole ───────────────────────────────────
  * Built once and never unbuilt, the canvas carrying the state, every write
@@ -681,7 +681,7 @@ function LandingScreen({
         />
       </mesh>
       {floor === 0 && (
-        // The whole glass, edge to edge — the same call as the 1. UG sheet below
+        // The whole glass, edge to edge — the same call as the 1. OG sheet below
         // and for the same reason: a picture fitted inside the opening leaves
         // bare fluted glass down both sides and reads as a window open on a
         // screen. Nothing is stretched to manage it; the *page* of monospace
@@ -728,7 +728,7 @@ function LandingScreen({
         />
       )}
       {floor === 3 && (
-        // The whole glass, edge to edge — the 1. UG's rule and not the picture
+        // The whole glass, edge to edge — the 1. OG's rule and not the picture
         // tube's `screenFill`. A map is the one drawing on this wall that must
         // not be scaled to fit something: the distances printed on it are the
         // point of it. See the head of `nrwMap.js`.

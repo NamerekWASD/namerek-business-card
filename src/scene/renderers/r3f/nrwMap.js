@@ -1,4 +1,4 @@
-// ── the 3. UG screen: where the workshop actually stands ─────────────────────
+// ── the 3. OG screen: where the workshop actually stands ─────────────────────
 // The Kontakt deck answers *how to reach me* four times over — mail, LinkedIn,
 // GitHub — and once, in the smallest type on the floor, *where from*. That last
 // line is the one an employer in NRW reads first and the one the deck renders
@@ -14,7 +14,7 @@
 // stop from their own city.
 //
 // It is also the fourth screen in a building that must not have four of the
-// same screen. The EG prints a log, the 1. UG runs a circuit, the 2. UG carries
+// same screen. The EG prints a log, the 1. OG runs a circuit, the 2. OG carries
 // a photograph — and this is the other thing a machine room's glass would
 // honestly show: a route diagram of the district it serves.
 //

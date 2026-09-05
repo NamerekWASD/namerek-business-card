@@ -26,7 +26,7 @@ const at = (page) => render(
   </FullscreenImageProvider>,
 );
 
-describe('the 2. UG column, after the notice moved into the scene', () => {
+describe('the 2. OG column, after the notice moved into the scene', () => {
   it('puts nothing on the wall at all', () => {
     const { container } = at(0);
     expect(container.textContent.trim()).toBe('');

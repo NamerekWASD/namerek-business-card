@@ -15,7 +15,7 @@
 import { describe, expect, it, beforeAll, afterEach } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import FlatCard from './FlatCard.jsx';
-import { DECKS } from '../lift/decks.js';
+import { DECKS, flatNo } from '../lift/decks.js';
 import { PERSON, SKILL_GROUPS } from '../decks/content.js';
 
 beforeAll(() => {
@@ -33,7 +33,7 @@ describe('FlatCard', () => {
   it('builds one floor per deck, named the way the building names them', () => {
     render(<FlatCard />);
     for (const deck of DECKS) {
-      expect(screen.getByRole('region', { name: new RegExp(deck.no) })).toBeDefined();
+      expect(screen.getByRole('region', { name: new RegExp(flatNo(deck)) })).toBeDefined();
     }
   });
 

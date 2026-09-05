@@ -1237,7 +1237,7 @@ function Workbench({ M, x, floorY, z, ambient, yaw }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 2. UG — the conveyor, and what rides on it
+// 2. OG — the conveyor, and what rides on it
 // ─────────────────────────────────────────────────────────────────────────────
 // Three crates stood here in a pile, for looks. Mykolai's objection was that
 // the most *programmer* object a building can have was sitting in this room

@@ -1,4 +1,4 @@
-// The works notice on 2. UG, and the tube it is printed on.
+// The works notice on 2. OG, and the tube it is printed on.
 //
 // ── why this stopped being DOM ───────────────────────────────────────────────
 // It was a plate of selectable HTML text, and the reason it was is written out

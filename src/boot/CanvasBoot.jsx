@@ -68,7 +68,7 @@ export default function CanvasBoot({ name, onSettle, again = false }) {
   // every prop's own effect has had its first commit. Anything that arrives
   // after it is a program linked on the frame it is first *seen*, which on this
   // scene means the frame a floor's doors part. Measured on 2026-09-03: two
-  // programs, 79 ms and 186 ms, on the first EG → 2. UG trip and never again.
+  // programs, 79 ms and 186 ms, on the first EG → 2. OG trip and never again.
   //
   // `again` is the boot's spin — every job in, the gears freewheeling, the black
   // rectangle still up and `warm` still holding every landing visible. It is the

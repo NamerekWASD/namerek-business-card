@@ -398,7 +398,7 @@ export const cratePanel = (boards = 5, stencilled = false) => bake(
 );
 
 // ── the artifact box ─────────────────────────────────────────────────────────
-// The 2. UG conveyor carries these, and the difference between one of them and
+// The 2. OG conveyor carries these, and the difference between one of them and
 // a crate is the whole of NBC-28. A crate is sawn boards and a sprayed number:
 // it says "something is packed in here". An artifact box is a flat plywood
 // case with a **package manifest** on it, and a manifest is what turns freight

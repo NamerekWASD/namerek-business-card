@@ -83,7 +83,7 @@ export const openingTop = (vh, floorPitch, floor) =>
 // the wrong one for this building, which has four floors and a lift that cannot
 // leave them. Sliding the window *mounts* a `Panel`, and a mounted panel is a
 // material made and a program linked on a frame somebody is riding through —
-// measured on the first EG → 2. UG trip as one 229 ms frame, and as nothing at
+// measured on the first EG → 2. OG trip as one 229 ms frame, and as nothing at
 // all on the second trip, which is the signature of the whole class of bug.
 //
 // So the window is opened wide enough to hold every slot the old one could ever

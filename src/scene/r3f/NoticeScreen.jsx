@@ -12,7 +12,7 @@ import ScreenFrame, { frameMetrics } from './ScreenFrame.jsx';
 import { useFullscreenGallery } from './fullscreenImage.js';
 import useReducedMotion from '../../motion/reduced.js';
 
-// ── the works notice, 2. UG ──────────────────────────────────────────────────
+// ── the works notice, 2. OG ──────────────────────────────────────────────────
 // The description of whatever job is on the glass, on a screen of its own on
 // the back wall. It replaces an enamel plate of selectable HTML, and the whole
 // argument for the swap is in the header of `notice.js`: nobody has any reason

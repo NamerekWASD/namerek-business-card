@@ -18,8 +18,8 @@
 // 2026-09-03: 519 geometries registered through the whole boot, 741 after
 // riding all four floors — 222 that the warm frame never touched, arriving 72
 // and 101 at a time on the frame each floor's doors first parted, alongside the
-// depth programs that `compile()` does not cover either. 169 ms on 1. UG and
-// 320 ms on 2. UG, once per floor per load, exactly as reported.
+// depth programs that `compile()` does not cover either. 169 ms on 1. OG and
+// 320 ms on 2. OG, once per floor per load, exactly as reported.
 //
 // So the warm-up asks for the one thing the frustum test cannot refuse: it is
 // turned off for the length of a single draw. Off-screen geometry rasterises to

@@ -1,5 +1,5 @@
 // ── coming out of the dark ───────────────────────────────────────────────────
-// NBC-77. A box on the 2. UG conveyor used to appear at the plane of the
+// NBC-77. A box on the 2. OG conveyor used to appear at the plane of the
 // plaster: the black behind the opening is opaque, so a box in the tunnel is
 // not dark, it is *not drawn*, and the first frame any of it exists it exists
 // at full brightness. Mykolai's word for it was "спаунятся из темноты", and the

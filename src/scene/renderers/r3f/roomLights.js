@@ -19,7 +19,7 @@
 // `object.layers.test( camera.layers )` against the main camera too, so
 // `light.shadow.camera.layers` selects nothing either.
 //
-// Measured on 2. UG at 1527×726: zeroing the three shaft fittings alone changed
+// Measured on 2. OG at 1527×726: zeroing the three shaft fittings alone changed
 // the landing's own wall and floor by up to 25 levels of 255 across a third of
 // the room — the hard diagonal wedges thrown through the doorway from a fitting
 // bolted to the shaft wall, which is what NBC-74 is a picture of.

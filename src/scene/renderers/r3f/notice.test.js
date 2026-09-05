@@ -4,7 +4,7 @@ import {
 } from './notice.js';
 import { SLIDES } from '../../../decks/projects.js';
 
-// The screen that replaced the enamel plate on 2. UG. Every clause here is
+// The screen that replaced the enamel plate on 2. OG. Every clause here is
 // about the one thing it was built to do — be *seen* changing — and every one
 // of them fails silently on the landing rather than throwing.
 

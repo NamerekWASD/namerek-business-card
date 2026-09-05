@@ -73,7 +73,7 @@ describe('the stretch of masonry that gets built', () => {
   // the cage moved — and sliding it *mounts* a panel, which means a material
   // made and a program linked on a frame somebody is riding through. Measured
   // 2026-09-03: three fresh materials and two program links on the first EG →
-  // 2. UG trip, 229 ms of one frame, and nothing at all on the second trip.
+  // 2. OG trip, 229 ms of one frame, and nothing at all on the second trip.
   // A lift with four floors can only ever look at eight slots, so all eight are
   // built once and the window stops moving.
   it('covers every slot the old window could ever have reached', () => {

@@ -1,4 +1,4 @@
-// ── the 1. UG screen: where a request actually goes ──────────────────────────
+// ── the 1. OG screen: where a request actually goes ──────────────────────────
 // The deck on this floor says «Architektur — N-Tier · DDD · REST» on an enamel
 // plate, and a plate is a claim: the visitor has to take it on trust. This is
 // the same sentence drawn as a circuit, on the largest surface the floor owns,
@@ -12,7 +12,7 @@
 // this floor gets the other thing a machine room's glass would honestly carry —
 // a works schematic, live.
 //
-// It stands one floor above the framed paper amplifier on the 2. UG, which is
+// It stands one floor above the framed paper amplifier on the 2. OG, which is
 // the repetition worth naming. They survive being neighbours because nothing
 // about them is shared: that one is olive paper under a pendant, dark ink,
 // still, and a valve circuit; this one is a dark tube, amber phosphor, moving,
