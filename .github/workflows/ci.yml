@@ -33,13 +33,15 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: '24'
+          cache: npm
 
-      # Not `npm ci`, and not cached: this repository does not track
-      # `package-lock.json` (see `.gitignore`), and both of those need one. The
-      # cost is that CI resolves the semver ranges in `package.json` afresh on
-      # every run, so an upstream patch release can turn a green branch red
-      # without a commit. Track the lockfile and this becomes `npm ci`.
-      - run: npm install --no-audit --no-fund
+      # `npm ci` rather than `npm install`, which is the whole reason the
+      # lockfile is tracked: it installs the resolved tree exactly, so a run is
+      # reproducible and an upstream patch release cannot redden a branch that
+      # nobody touched. It also refuses outright if the lockfile and
+      # `package.json` disagree — `pipeline.test.js` checks that locally, before
+      # the push that would otherwise find out.
+      - run: npm ci
 
       - run: npm run lint
 

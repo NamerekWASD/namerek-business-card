@@ -14,7 +14,7 @@ through a WebGL shaft, cage and corridor set.
 ## Getting started
 
 ```bash
-npm install
+npm ci            # install exactly what the lockfile pins
 npm run dev       # start the dev server
 npm run build      # production build
 npm run preview    # serve the production build locally
