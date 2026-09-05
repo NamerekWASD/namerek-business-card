@@ -1,11 +1,14 @@
 import { DECKS, sceneNo } from '../lift/decks.js';
 import RivettedPanel from './RivettedPanel.jsx';
+import LanguageSelector from './LanguageSelector.jsx';
+import { useLocale } from '../i18n/LocaleContext.jsx';
 import { WEAR_SEED } from './panelWear.js';
 
 // The cabin's floor selector. Lamps light by proximity to the current position,
 // so during a ride they flare one by one as each deck is passed — the readout
 // counts up or down on its own instead of just swapping at the end.
 function FloorSelector({ pos, deck, moving, go }) {
+  const { locale, setLocale } = useLocale();
   const dir = moving ? Math.sign(pos - deck) : 0;
   const reading = sceneNo(DECKS[Math.max(0, Math.min(DECKS.length - 1, Math.round(pos)))]);
   return (
@@ -82,6 +85,17 @@ function FloorSelector({ pos, deck, moving, go }) {
           );
         })}
       </div>
+
+      {/* The language rotary goes on the cabin's panel for the same reason the
+          floor buttons do: it is a control, and a control belongs where the
+          hand is. On the shaft wall it would ride away with the floor being
+          left. */}
+      <LanguageSelector
+        value={locale}
+        onChange={setLocale}
+        compact
+        style={{ width: 128, flex: '0 0 auto', alignSelf: 'center' }}
+      />
     </nav>
   );
 }

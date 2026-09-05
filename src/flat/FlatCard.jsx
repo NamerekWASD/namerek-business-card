@@ -8,6 +8,9 @@ import FloorLeistungen from './FloorLeistungen.jsx';
 import FloorProjekte from './FloorProjekte.jsx';
 import FloorKontakt from './FloorKontakt.jsx';
 import { prefersReducedMotion } from '../motion/reduced.js';
+import LanguageSelector from '../ui/LanguageSelector.jsx';
+import { useLocale } from '../i18n/LocaleContext.jsx';
+import useViewport from '../hooks/useViewport.js';
 
 // The second rendering of the card: the same building, told without a lift.
 //
@@ -34,6 +37,10 @@ const RIVETS = {
 };
 
 export default function FlatCard() {
+  const { locale, setLocale } = useLocale();
+  // Only for the switch, and only to answer one question: is there room for
+  // its stencil. The same breakpoint the rail drops its floor names at.
+  const { vw } = useViewport();
   const scrollerRef = useRef(null);
   const [active, setActive] = useState(0);
   const [progress, setProgress] = useState(0);
@@ -145,6 +152,14 @@ export default function FlatCard() {
   // both have to sit inside the element that carries the custom properties.
   return (
     <div className="flat" style={RIVETS}>
+      {/* Bolted in the corner the rail is not in. It has to be fixed rather
+          than laid on a floor — the card is four snapping floors and a switch
+          that scrolls away is a switch you can only reach from the ground
+          floor — and it has to be out of the rail, which is 58px drawn and 37
+          live on a handset with no room to spare. */}
+      <div className="flat-lang">
+        <LanguageSelector value={locale} onChange={setLocale} compact={vw <= 900} />
+      </div>
       <Rail
         active={active}
         progress={progress}

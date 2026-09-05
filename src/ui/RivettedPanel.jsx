@@ -93,6 +93,7 @@ function usePanelWear(seed, variant) {
  *   style?: import('react').CSSProperties,
  *   seed?: number,
  *   wear?: keyof import('./panelWear.js').VARIANTS,
+ *   rivets?: boolean | { inset?: number, size?: number },
  * }} props
  *
  * `seed` is which plate this is and `wear` is what kind of use it has had —
@@ -101,7 +102,7 @@ function usePanelWear(seed, variant) {
  * `.map()` it already has, which is what keeps a row of plates a row of
  * different objects rather than one object repeated four times.
  */
-function RivettedPanel({ children, style, seed = 0, wear = 'plate' }) {
+function RivettedPanel({ children, style, seed = 0, wear = 'plate', rivets = true }) {
   const ref = usePanelWear(seed, wear);
   return (
     <div
@@ -122,7 +123,7 @@ function RivettedPanel({ children, style, seed = 0, wear = 'plate' }) {
         ...style,
       }}
     >
-      <CornerRivets />
+      {rivets && <CornerRivets {...(rivets === true ? {} : rivets)} />}
       {children}
     </div>
   );

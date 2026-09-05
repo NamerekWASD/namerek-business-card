@@ -4,6 +4,7 @@ import FlatCard from './flat/FlatCard.jsx';
 import SceneErrorBoundary from './scene/SceneErrorBoundary.jsx';
 import { webglAvailable } from './scene/renderers/flag.js';
 import { chooseView } from './view/choice.js';
+import { LocaleProvider } from './i18n/LocaleContext.jsx';
 
 // Two renderings of one card, and the decision of who gets which.
 //
@@ -37,11 +38,18 @@ function App() {
     [search],
   );
 
-  if (view === 'flat') return <FlatCard />;
+  // The language sits above the choice of rendering, not inside one: a visitor
+  // who picks Ukrainian and then drops from the scene to the flat card — by
+  // the corner link, or by the error boundary below catching a lost context —
+  // must not be spoken to in a different language on the way down.
   return (
-    <SceneErrorBoundary fallback={<FlatCard />}>
-      <Dieselpunk />
-    </SceneErrorBoundary>
+    <LocaleProvider>
+      {view === 'flat' ? <FlatCard /> : (
+        <SceneErrorBoundary fallback={<FlatCard />}>
+          <Dieselpunk />
+        </SceneErrorBoundary>
+      )}
+    </LocaleProvider>
   );
 }
 

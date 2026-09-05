@@ -955,3 +955,31 @@
   .crt-roll { display: none; }
   .crt img { animation: none !important; }
 }
+
+/* The language rotary, bolted in the corner the rail is not in. Fixed, because
+   the card is four snapping floors and a switch that scrolls off the top is a
+   switch reachable only from the ground floor; above the rail's own z-index so
+   nothing about the two overlapping is left to source order. The instrument
+   itself is styled in `index.css` — both renderings share it. */
+.flat-lang {
+  position: fixed;
+  top: 14px;
+  right: calc(14px + env(safe-area-inset-right, 0px));
+  width: 154px;
+  z-index: 31;
+}
+
+@media (max-width: 900px) {
+  /* The stencil over the row goes — at this width it would be six pixels tall,
+     which is not a smaller label but a smudge. The switch drops it itself
+     (`compact`), so the plate loses that band of height rather than keeping an
+     empty one; all this rule owns is the box. It gets *wider* here, not
+     narrower: the four positions are the only touch targets on the page that
+     are not a whole floor, and a thumb needs them to be more than the 27px a
+     118px plate would give. */
+  .flat-lang {
+    top: calc(8px + env(safe-area-inset-top, 0px));
+    right: calc(8px + env(safe-area-inset-right, 0px));
+    width: 150px;
+  }
+}
