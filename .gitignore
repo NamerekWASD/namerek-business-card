@@ -32,3 +32,4 @@ dist-ssr
 .kilo/*
 # Playwright MCP session output
 .playwright-mcp/
+CLAUDE.md
