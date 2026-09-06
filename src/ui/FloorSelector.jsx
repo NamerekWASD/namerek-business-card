@@ -20,15 +20,13 @@ function FloorSelector({ pos, deck, moving, go }) {
   return (
     <nav
       style={{
-        // NBC-86 built this as `flex` + `space-between`, which spaces three
-        // items by the free width left over *between* them — equal gaps either
-        // side of the deck buttons, but only a centred *button row* when the
-        // works plate and the language switch happen to be the same width.
-        // They are not (313px vs 128px), so the buttons always sat right of
-        // true centre by half that difference, which is what read as the nav
-        // having "slipped". A three-column grid centres the middle column
-        // against the track's own width instead of against its neighbours'.
-        display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'flex-end',
+        // The deck buttons are not centred on the track: they sit beside the
+        // language rotary, because the two are the same kind of thing — the
+        // controls a hand reaches for — and the works plate is signage. All the
+        // free width therefore goes into the first column, which is why only
+        // that one is flexible; the two control columns size to their content
+        // and are held apart by the row's own gap and nothing else.
+        display: 'grid', gridTemplateColumns: '1fr auto auto', alignItems: 'flex-end',
         padding: '1.1rem 0 0.9rem', borderBottom: '1px solid var(--line)',
         gap: '1rem',
       }}
@@ -70,7 +68,7 @@ function FloorSelector({ pos, deck, moving, go }) {
         </span>
       </div>
 
-      <div style={{ display: 'flex', gap: '0.9rem', alignSelf: 'center', justifySelf: 'center' }}>
+      <div style={{ display: 'flex', gap: '0.9rem', alignSelf: 'center', justifySelf: 'end' }}>
         {DECKS.map((d, i) => {
           const lamp = Math.max(0, 1 - Math.abs(pos - i));
           const selected = i === deck && !moving;
