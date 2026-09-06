@@ -20,12 +20,20 @@ function FloorSelector({ pos, deck, moving, go }) {
   return (
     <nav
       style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end',
+        // NBC-86 built this as `flex` + `space-between`, which spaces three
+        // items by the free width left over *between* them — equal gaps either
+        // side of the deck buttons, but only a centred *button row* when the
+        // works plate and the language switch happen to be the same width.
+        // They are not (313px vs 128px), so the buttons always sat right of
+        // true centre by half that difference, which is what read as the nav
+        // having "slipped". A three-column grid centres the middle column
+        // against the track's own width instead of against its neighbours'.
+        display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'flex-end',
         padding: '1.1rem 0 0.9rem', borderBottom: '1px solid var(--line)',
         gap: '1rem',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifySelf: 'start' }}>
         {/* The machine says who built it. Every lift of this period carries the
             works' plate by the controls, and it is the one place on the site
             where the name is stamped on the hardware rather than printed in the
@@ -62,7 +70,7 @@ function FloorSelector({ pos, deck, moving, go }) {
         </span>
       </div>
 
-      <div style={{ display: 'flex', gap: '0.9rem', alignSelf: 'center' }}>
+      <div style={{ display: 'flex', gap: '0.9rem', alignSelf: 'center', justifySelf: 'center' }}>
         {DECKS.map((d, i) => {
           const lamp = Math.max(0, 1 - Math.abs(pos - i));
           const selected = i === deck && !moving;
@@ -100,7 +108,7 @@ function FloorSelector({ pos, deck, moving, go }) {
         value={locale}
         onChange={setLocale}
         compact
-        style={{ width: 128, flex: '0 0 auto', alignSelf: 'center' }}
+        style={{ width: 128, alignSelf: 'center', justifySelf: 'end' }}
       />
     </nav>
   );
