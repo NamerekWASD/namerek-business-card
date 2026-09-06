@@ -11,7 +11,7 @@ import { SLIDES, localized } from '../../decks/projects.js';
 import ScreenFrame, { frameMetrics } from './ScreenFrame.jsx';
 import { useFullscreenGallery } from './fullscreenImage.js';
 import useReducedMotion from '../../motion/reduced.js';
-import { useSceneLocale } from '../../i18n/SceneLocale.jsx';
+import { useSceneLocale } from '../../i18n/LocaleContext.jsx';
 
 // ── the works notice, 2. OG ──────────────────────────────────────────────────
 // The description of whatever job is on the glass, on a screen of its own on

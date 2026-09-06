@@ -20,7 +20,7 @@ import { SLIDES } from '../../decks/projects.js';
 import ScreenFrame, { frameMetrics } from './ScreenFrame.jsx';
 import { useFullscreenGallery } from './fullscreenImage.js';
 import useReducedMotion from '../../motion/reduced.js';
-import { useSceneLocale } from '../../i18n/SceneLocale.jsx';
+import { useSceneLocale } from '../../i18n/LocaleContext.jsx';
 import { t } from '../../i18n/strings.js';
 
 // The wall screen every landing shares: a fluted glass panel recessed into a

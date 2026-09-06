@@ -1,5 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { useLocale } from './LocaleContext.jsx';
+import { useEffect, useRef, useState } from 'react';
 
 // ── the language the scene is *painted* in ───────────────────────────────────
 // NBC-90. Half the German in this building is not text — it is pixels. The
@@ -16,26 +15,19 @@ import { useLocale } from './LocaleContext.jsx';
 // happens in the middle of that, during the stretch where the leaves are fully
 // shut and nothing in the frame is moving.
 //
-// Which makes two languages in play at once, and this file is the seam between
-// them: `useLocale()` is what the visitor has *chosen* — the DOM follows it
-// immediately, because a DOM string costs nothing to change — and
-// `useSceneLocale()` is what the canvases are currently *painted* in. They
-// differ for about a third of a second, once, per change.
-
-const SceneLocaleContext = createContext(null);
-
-/**
- * The locale the scene's textures are painted in. Outside the provider — the
- * flat card, and every test that renders a screen on its own — it is simply
- * the chosen one: there is nothing to hide a repaint behind, and nothing that
- * needs hiding.
- * @returns {import('./locale.js').LocaleId}
- */
-export function useSceneLocale() {
-  const painted = useContext(SceneLocaleContext);
-  const { locale } = useLocale();
-  return painted ?? locale;
-}
+// Which makes two languages in play at once: `useLocale()` is what the visitor
+// has *chosen*, and `useSceneLocale()` is what the scene is currently showing.
+// They differ for about a third of a second, once, per change.
+//
+// **The whole scene waits, not only the textures.** The first build let the DOM
+// half — the deck headings, the plates, the body copy, the floor buttons —
+// change the instant the switch was turned, on the theory that a DOM string
+// costs nothing to redraw. Mykolai saw exactly what that is: the text on the
+// landing wall changing language in front of you while the screen bolted to the
+// same wall waits for the doors. One wall, two clocks. So `useT` and `usePick`
+// read this value too, and the only thing left reading the choice directly is
+// the switch's own carriage — which *should* move the moment it is turned,
+// because that is the click being acknowledged.
 
 /**
  * The machine: chosen language in, painted language out, a door cycle in
@@ -101,5 +93,3 @@ export function useLocaleCycle(locale, { closure, moving, cycle }) {
 
   return painted;
 }
-
-export const SceneLocaleProvider = SceneLocaleContext.Provider;

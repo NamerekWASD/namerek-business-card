@@ -18,12 +18,27 @@ import { t as translate } from './strings.js';
 // component asks "what language is it" without also becoming the one place
 // that decides what every string says.
 //
+// NBC-90 splits that question in two, and the split is the whole of why both
+// wrappers read `useSceneLocale()` rather than `useLocale()`: *what has been
+// chosen* and *what is on screen* are not the same thing for a third of a
+// second after the switch is turned. Only the switch itself reads the choice.
+//
 // `<html lang>` is written here too, in a layout effect rather than a plain
 // one: a screen reader can query the attribute before the next paint, and a
 // tag that lags a frame behind the copy it describes is wrong for exactly as
 // long as it lags.
 
 const LocaleContext = createContext(null);
+
+// ── and the language the *scene* is showing ──────────────────────────────────
+// NBC-90. One provider deeper, and only in the 3D rendering: what the visitor
+// has chosen, held back until the landing doors are shut. Half of what a deck
+// says is painted into a texture and repainting those in front of anyone is a
+// hitch, so the swap hides behind a cycle of the doors — and once it does, the
+// deck's *selectable* text has to wait with it, or the wall says one thing and
+// the screen beside it says another for a third of a second. `SceneLocale.jsx`
+// owns the timing; this is only the wire it arrives on.
+const SceneLocaleContext = createContext(null);
 
 // A component rendered outside the provider — in a test, or in a rendering
 // that has not been wrapped yet — gets the default rather than a crash. The
@@ -64,10 +79,30 @@ export function LocaleProvider({ children }) {
   return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;
 }
 
-/** @returns {{ locale: import('./locale.js').LocaleId, setLocale: (id: string) => void }} */
+/**
+ * What the visitor has chosen. This is the switch's own reading — it moves the
+ * moment the switch is turned — and it is deliberately *not* what the copy is
+ * resolved against inside the scene. See `useSceneLocale`.
+ * @returns {{ locale: import('./locale.js').LocaleId, setLocale: (id: string) => void }}
+ */
 export function useLocale() {
   return useContext(LocaleContext) ?? LOOSE;
 }
+
+/**
+ * What is on screen. Inside the 3D rendering that lags the choice by one cycle
+ * of the landing doors; everywhere else — the flat card, a test rendering one
+ * component on its own — the two are the same value, because there is nothing
+ * to hide a change behind and nothing that needs hiding.
+ * @returns {import('./locale.js').LocaleId}
+ */
+export function useSceneLocale() {
+  const shown = useContext(SceneLocaleContext);
+  const { locale } = useLocale();
+  return shown ?? locale;
+}
+
+export const SceneLocaleProvider = SceneLocaleContext.Provider;
 
 /**
  * A `pick()` bound to the current locale, for a component reading one of
@@ -75,7 +110,7 @@ export function useLocale() {
  * @returns {<T>(value: T | Partial<Record<import('./locale.js').LocaleId, T>>) => T}
  */
 export function usePick() {
-  const { locale } = useLocale();
+  const locale = useSceneLocale();
   return useCallback((value) => pick(value, locale), [locale]);
 }
 
@@ -85,7 +120,7 @@ export function usePick() {
  * @returns {(key: string, vars?: Record<string, string | number>) => string}
  */
 export function useT() {
-  const { locale } = useLocale();
+  const locale = useSceneLocale();
   return useCallback((key, vars) => translate(key, locale, vars), [locale]);
 }
 

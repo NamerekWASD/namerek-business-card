@@ -33,8 +33,8 @@ import FloorSelector from '../ui/FloorSelector.jsx';
 import DeckReveal from '../decks/DeckReveal.jsx';
 import { DECK_BODIES } from '../decks/index.js';
 import { SLIDES } from '../decks/projects.js';
-import { useLocale, useT } from '../i18n/LocaleContext.jsx';
-import { SceneLocaleProvider, useLocaleCycle } from '../i18n/SceneLocale.jsx';
+import { SceneLocaleProvider, useLocale, useT } from '../i18n/LocaleContext.jsx';
+import { useLocaleCycle } from '../i18n/SceneLocale.jsx';
 
 export default function Dieselpunk() {
   const {
