@@ -33,12 +33,16 @@ import FloorSelector from '../ui/FloorSelector.jsx';
 import DeckReveal from '../decks/DeckReveal.jsx';
 import { DECK_BODIES } from '../decks/index.js';
 import { SLIDES } from '../decks/projects.js';
+import { useT } from '../i18n/LocaleContext.jsx';
 
 export default function Dieselpunk() {
   const {
     floorPos, deckIndex, moving, rideTo, scrub, setScrub, ride, ridePhase, ticker,
   } = useLift();
   const { vw, vh } = useViewport();
+  // Named `tr`, not `t`: `useIntroClock` below already owns `t` for the
+  // intro's own progress, and the two would otherwise shadow each other.
+  const tr = useT();
   // Nothing is shown until the scene is genuinely ready to be shown — every
   // tile decoded, every shader compiled, every canvas drawn at least once. The
   // boot screen holds a black rectangle with a pair of gears on it in the
@@ -340,7 +344,7 @@ export default function Dieselpunk() {
           textTransform: 'uppercase',
         }}
       >
-        Flache Ansicht ↗
+        {tr('dieselpunk.flatViewLink')}
       </a>
 
       {/* Over everything, including the debug panel: while this is up there is

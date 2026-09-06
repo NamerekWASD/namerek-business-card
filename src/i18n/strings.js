@@ -12,6 +12,9 @@ import { pick } from './locale.js';
 // with a plain `String.replace`, not a templating engine, because there is
 // nothing here more complex than "insert this number".
 export const STRINGS = {
+  'dieselpunk.flatViewLink': {
+    de: 'Flache Ansicht ↗', en: 'Flat view ↗', uk: 'Плоский вигляд ↗', ru: 'Плоский вид ↗',
+  },
   'rail.title': { de: 'Aufzug', en: 'Elevator', uk: 'Ліфт', ru: 'Лифт' },
   'rail.aria': { de: 'Etagen', en: 'Floors', uk: 'Поверхи', ru: 'Этажи' },
 
