@@ -7,7 +7,7 @@
 // (storage that throws) that would otherwise take the root down with it.
 
 import { describe, expect, it, vi } from 'vitest';
-import { DEFAULT_LOCALE, LOCALES, chooseLocale, rememberLocale, storedLocale } from './locale.js';
+import { DEFAULT_LOCALE, LOCALES, chooseLocale, pick, rememberLocale, storedLocale } from './locale.js';
 
 const store = (value) => ({
   getItem: vi.fn(() => value),
@@ -59,5 +59,34 @@ describe('choosing a locale', () => {
     const bad = store(null);
     rememberLocale('klingon', bad);
     expect(bad.setItem).not.toHaveBeenCalled();
+  });
+});
+
+describe('picking a value for a locale', () => {
+  // The one thing `content.js` and `projects.js` needed to grow translated
+  // fields without splitting into two shapes: a proper noun stays a plain
+  // string, a translated fact becomes `{ de, en, uk, ru }`, and both pass
+  // through the same function.
+  const map = { de: 'Hallo', en: 'Hello', uk: 'Привіт', ru: 'Привет' };
+
+  it('reads the entry for the active locale', () => {
+    expect(pick(map, 'ru')).toBe('Привет');
+    expect(pick(map, 'de')).toBe('Hallo');
+  });
+
+  it('passes a plain value through untouched, for facts that are not translated', () => {
+    expect(pick('Duisburg', 'ru')).toBe('Duisburg');
+    expect(pick(42, 'en')).toBe(42);
+    expect(pick(null, 'en')).toBe(null);
+  });
+
+  it('falls back to English and then German rather than returning undefined', () => {
+    expect(pick({ de: 'Hallo', en: 'Hello' }, 'ru')).toBe('Hello');
+    expect(pick({ de: 'Hallo' }, 'ru')).toBe('Hallo');
+  });
+
+  it('picks inside an array-valued fact by locale, not the array itself', () => {
+    const intro = { de: ['Satz eins.'], en: ['Sentence one.'] };
+    expect(pick(intro, 'en')).toEqual(['Sentence one.']);
   });
 });

@@ -101,3 +101,21 @@ export function fromBrowser(languages) {
 export function chooseLocale({ storage, languages }) {
   return storedLocale(storage) ?? fromBrowser(languages) ?? DEFAULT_LOCALE;
 }
+
+/**
+ * Resolve a fact that may or may not vary by locale. A proper noun (a name, a
+ * URL, a tech stencil) is a plain value and passes through unchanged; a
+ * translated one is `{ de, en, uk, ru }` and this reads the active language
+ * out of it — falling back to English and then German rather than `undefined`,
+ * so a locale still missing an entry degrades to a real sentence instead of a
+ * blank. `content.js` and `projects.js` lean on this to hold both shapes of
+ * field without a second accessor per field.
+ * @template T
+ * @param {T | Partial<Record<LocaleId, T>>} value
+ * @param {LocaleId} locale
+ * @returns {T}
+ */
+export function pick(value, locale) {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return value;
+  return value[locale] ?? value.en ?? value.de;
+}

@@ -25,15 +25,17 @@
 // in either view is drawn from this file.
 
 /**
- * @typedef {{ id: string, label: string, level: number, tick: string }} Deck
+ * @typedef {{ id: string, label: Partial<Record<import('../i18n/locale.js').LocaleId, string>>, level: number, tick: string }} Deck
  */
 
+// `label` is content (NBC-85) and translates; `tick` and the numbering below
+// are the building's own signage (EG/OG/UG) and do not — see the note above.
 /** @type {Deck[]} */
 export const DECKS = [
-  { id: 'start', label: 'Start', level: 0, tick: 'EG' },
-  { id: 'leistungen', label: 'Leistungen', level: 1, tick: '1' },
-  { id: 'projekte', label: 'Projekte', level: 2, tick: '2' },
-  { id: 'kontakt', label: 'Kontakt', level: 3, tick: '3' },
+  { id: 'start', label: { de: 'Start', en: 'Home', uk: 'Головна', ru: 'Главная' }, level: 0, tick: 'EG' },
+  { id: 'leistungen', label: { de: 'Leistungen', en: 'Services', uk: 'Послуги', ru: 'Услуги' }, level: 1, tick: '1' },
+  { id: 'projekte', label: { de: 'Projekte', en: 'Projects', uk: 'Проєкти', ru: 'Проекты' }, level: 2, tick: '2' },
+  { id: 'kontakt', label: { de: 'Kontakt', en: 'Contact', uk: 'Контакти', ru: 'Контакты' }, level: 3, tick: '3' },
 ];
 
 // The ground floor is `EG` either way: it is the floor the street is on, and

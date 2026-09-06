@@ -41,8 +41,11 @@ describe('Dieselpunk', () => {
   });
 
   it('renders the whole floor selector, so the lift can be driven at all', () => {
+    // No `LocaleProvider` wraps this render, so `FloorSelector`'s `usePick()`
+    // falls back to `DEFAULT_LOCALE` (`en`) — the same fallback a real visitor
+    // gets whose browser asks for a language the card does not speak.
     render(<Dieselpunk />);
-    for (const label of ['Start', 'Leistungen', 'Projekte', 'Kontakt']) {
+    for (const label of ['Home', 'Services', 'Projects', 'Contact']) {
       expect(screen.getByRole('button', { name: new RegExp(label) })).toBeDefined();
     }
   });

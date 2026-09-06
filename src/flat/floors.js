@@ -12,6 +12,11 @@ export const FLOORS = DECKS.map((deck, index) => ({
   // The short form, for where a full "1. UG" does not fit — the narrow rail,
   // the same job it does on the scene's dial. `lift/decks.js` owns both.
   tick: deck.tick,
-  label: deck.label.toUpperCase(),
+  // Still the locale-keyed fact from `decks.js`, not a resolved string: this
+  // file has no locale of its own to resolve it against, so that is left to
+  // whichever component reads `.label` with its own `usePick()`. The upper
+  // case it used to be forced into here comes from `.rail-mark-name`'s own
+  // `text-transform` in `flat.css` instead.
+  label: deck.label,
   index,
 }));

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { PROJECTS, projectSlides } from './projects.js';
+import { LOCALES } from '../i18n/locale.js';
+import { PROJECTS, localized, projectSlides } from './projects.js';
 
 // The archive is hand-edited data, which is the whole point of it — and the
 // thing hand-edited data does is arrive slightly wrong. Everything below fails
@@ -112,12 +113,54 @@ describe('the archive itself', () => {
     }
   });
 
-  it('keeps the wall notice out of the business of naming the project', () => {
+  it('keeps the wall notice out of the business of naming the project, in every language', () => {
     // The name is already on the console's plate under the glass, and the
     // stencil on the crate says it a second time. A blurb that opens with it
-    // says it a third — see NBC-22's collision with NBC-28.
+    // says it a third — see NBC-22's collision with NBC-28. Checked across all
+    // four locales: NBC-85 gave `blurb` a translation for each, and a name
+    // repeated only in the English one would be exactly as silent a bug.
     for (const project of PROJECTS) {
-      expect(project.blurb.toLowerCase()).not.toContain(project.title.toLowerCase());
+      for (const { id } of LOCALES) {
+        expect(localized(project.blurb, project.blurbI18n, id).toLowerCase())
+          .not.toContain(project.title.toLowerCase());
+      }
     }
+  });
+});
+
+describe('translated fields (NBC-85)', () => {
+  it('leaves German the canonical value untouched, so the canvas texture reads that use it directly do not regress', () => {
+    // `NoticeScreen.jsx` and `gallery.js` read `slide.blurb` / `slide.caption`
+    // straight, with no `localized()` call — that is NBC-90, not this ticket
+    // — so `blurb`/`caption` themselves must keep meaning "German" exactly as
+    // they did before this file grew a sidecar.
+    expect(localized('German text', undefined, 'de')).toBe('German text');
+    expect(localized('German text', { en: 'English text' }, 'de')).toBe('German text');
+  });
+
+  it('reads the sidecar for the other three locales, falling back to German for a hole', () => {
+    expect(localized('German text', { en: 'English text' }, 'en')).toBe('English text');
+    expect(localized('German text', { en: 'English text' }, 'ru')).toBe('German text');
+    expect(localized('German text', undefined, 'ru')).toBe('German text');
+  });
+
+  it('gives every project a full blurb translation, and every captioned shot a full caption translation', () => {
+    const locales = LOCALES.map((l) => l.id).filter((id) => id !== 'de');
+    for (const project of PROJECTS) {
+      for (const id of locales) {
+        expect(project.blurbI18n?.[id], `${project.id}.blurbI18n.${id}`).toBeTruthy();
+      }
+      for (const shot of project.shots) {
+        if (typeof shot === 'string' || !shot.caption) continue;
+        for (const id of locales) {
+          expect(shot.captionI18n?.[id], `${project.id} shot "${shot.caption}".captionI18n.${id}`).toBeTruthy();
+        }
+      }
+    }
+  });
+
+  it('carries the sidecar down onto the slide, the same way blurb and caption already ride it', () => {
+    const [slide] = projectSlides(PROJECTS);
+    expect(slide.blurbI18n).toBe(PROJECTS[0].blurbI18n);
   });
 });

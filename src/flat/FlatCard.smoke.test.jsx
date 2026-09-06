@@ -17,6 +17,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import FlatCard from './FlatCard.jsx';
 import { DECKS, flatNo } from '../lift/decks.js';
 import { PERSON, SKILL_GROUPS } from '../decks/content.js';
+import { DEFAULT_LOCALE, pick } from '../i18n/locale.js';
 
 beforeAll(() => {
   Object.defineProperty(window, 'innerWidth', { value: 1600, writable: true });
@@ -45,15 +46,18 @@ describe('FlatCard', () => {
   });
 
   it('reads its skill groups from the same file the scene reads', () => {
+    // No `LocaleProvider` wraps this render, so every `usePick()` in the tree
+    // falls back to `DEFAULT_LOCALE` (`en`) — the same fallback a real visitor
+    // gets whose browser asks for a language the card does not speak.
     render(<FlatCard />);
     for (const group of SKILL_GROUPS) {
-      expect(screen.getByText(group.label.toUpperCase())).toBeDefined();
+      expect(screen.getByText(pick(group.label, DEFAULT_LOCALE).toUpperCase())).toBeDefined();
     }
   });
 
   it('gives the archive a console that can be driven', () => {
     render(<FlatCard />);
-    expect(screen.getByRole('button', { name: /vorherige/i })).toBeDefined();
-    expect(screen.getByRole('button', { name: /nächste/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /previous/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /next/i })).toBeDefined();
   });
 });

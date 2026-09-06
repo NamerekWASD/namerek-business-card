@@ -9,12 +9,13 @@
 
 import { describe, expect, it, afterEach, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { LocaleProvider, useLocale } from './LocaleContext.jsx';
+import { LocaleProvider, useLocale, usePick, useT } from './LocaleContext.jsx';
 import { KEY } from './locale.js';
 
 afterEach(() => {
   cleanup();
   localStorage.clear();
+  document.documentElement.lang = '';
   vi.unstubAllGlobals();
 });
 
@@ -61,5 +62,55 @@ describe('the locale a visitor arrives on', () => {
     // And the inert setter is inert: a switch with nothing behind it turns and
     // changes nothing rather than taking the page down.
     expect(() => fireEvent.click(screen.getByRole('button'))).not.toThrow();
+  });
+});
+
+describe('<html lang>', () => {
+  // A screen reader reads the document's own `lang` to choose how to
+  // pronounce what is on it. Left on the static `de` index.html ships with,
+  // it would tell one running on VoiceOver to read Ukrainian copy with German
+  // phonetics — wrong in the one case translating the copy exists to fix.
+  it('is set from the chosen locale on mount', () => {
+    speaks('uk');
+    render(<LocaleProvider><Probe /></LocaleProvider>);
+    expect(document.documentElement.lang).toBe('uk');
+  });
+
+  it('follows a locale change made after mount', () => {
+    speaks('de');
+    render(<LocaleProvider><Probe /></LocaleProvider>);
+    fireEvent.click(screen.getByRole('button'));
+    expect(document.documentElement.lang).toBe('ru');
+  });
+});
+
+describe('usePick', () => {
+  function PickProbe({ value }) {
+    const pick = usePick();
+    return <span>{pick(value)}</span>;
+  }
+
+  it('resolves a locale-keyed fact against the provider\'s own locale', () => {
+    localStorage.setItem(KEY, 'uk');
+    render(<LocaleProvider><PickProbe value={{ de: 'Hallo', en: 'Hello', uk: 'Привіт' }} /></LocaleProvider>);
+    expect(screen.getByText('Привіт')).toBeDefined();
+  });
+
+  it('passes a plain fact through untouched', () => {
+    render(<LocaleProvider><PickProbe value="Duisburg" /></LocaleProvider>);
+    expect(screen.getByText('Duisburg')).toBeDefined();
+  });
+});
+
+describe('useT', () => {
+  function TProbe() {
+    const t = useT();
+    return <span>{t('rail.title')}</span>;
+  }
+
+  it('resolves a chrome string against the provider\'s own locale', () => {
+    localStorage.setItem(KEY, 'ru');
+    render(<LocaleProvider><TProbe /></LocaleProvider>);
+    expect(screen.getByText('Лифт')).toBeDefined();
   });
 });

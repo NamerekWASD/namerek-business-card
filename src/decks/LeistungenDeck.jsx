@@ -3,6 +3,8 @@ import EnamelPlate from '../ui/EnamelPlate.jsx';
 import DeckHeading from '../ui/DeckHeading.jsx';
 import { WEAR_SEED } from '../ui/panelWear.js';
 import { SKILL_GROUPS } from './content.js';
+import { DECKS } from '../lift/decks.js';
+import { usePick } from '../i18n/LocaleContext.jsx';
 
 // Four plates in two ranks, which is the reference's own arrangement and not an
 // arbitrary one: a single column of four reads as a list, and a list of skills
@@ -16,16 +18,17 @@ import { SKILL_GROUPS } from './content.js';
 // plate. Tracks that may collapse to nothing let the line wrap instead, which is
 // the failure worth having.
 function LeistungenDeck() {
+  const pick = usePick();
   return (
     <>
-      <DeckHeading>Leistungen</DeckHeading>
+      <DeckHeading>{pick(DECKS[1].label)}</DeckHeading>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '0.9rem' }}>
         {SKILL_GROUPS.map((g, i) => (
-          <RivettedPanel key={g.label} seed={WEAR_SEED.leistungen + i} style={{ padding: '0.9rem 0.85rem' }}>
+          <RivettedPanel key={g.tech} seed={WEAR_SEED.leistungen + i} style={{ padding: '0.9rem 0.85rem' }}>
             {/* the category is a fixed marking on a fixed panel, so it is a
                 plate — the same rule the corridor props follow */}
             <EnamelPlate colour="green" size={10} style={{ letterSpacing: 1.5, textTransform: 'uppercase', padding: '4px 9px' }}>
-              {g.label}
+              {pick(g.label)}
             </EnamelPlate>
             <div style={{
               fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--glow)', marginTop: 9,

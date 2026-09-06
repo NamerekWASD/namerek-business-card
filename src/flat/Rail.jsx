@@ -1,5 +1,6 @@
 import { useCallback, useRef } from 'react';
 import { FLOORS } from './floors.js';
+import { usePick, useT } from '../i18n/LocaleContext.jsx';
 
 // The lift, flattened. A fixed hoist guide down the edge with the building's
 // four floor plates on it and a car that rides continuously with the scroll —
@@ -26,6 +27,8 @@ function Rail({ active, progress, onSelect, onScrubStart, onScrub, onScrubEnd, o
   const railRef = useRef(null);
   const trackRef = useRef(null);
   const dragging = useRef(false);
+  const pick = usePick();
+  const t = useT();
 
   // Where on the shaft a pointer is, 0 at the top floor and 1 at the bottom.
   // Measured against the car's own travel rather than against the track's box:
@@ -69,8 +72,8 @@ function Rail({ active, progress, onSelect, onScrubStart, onScrub, onScrubEnd, o
   }, [onScrubEnd]);
 
   return (
-    <nav className="rail" aria-label="Etagen" ref={railRef} onWheel={onWheel}>
-      <p className="rail-title">Aufzug</p>
+    <nav className="rail" aria-label={t('rail.aria')} ref={railRef} onWheel={onWheel}>
+      <p className="rail-title">{t('rail.title')}</p>
       <div
         className="rail-track"
         ref={trackRef}
@@ -87,36 +90,39 @@ function Rail({ active, progress, onSelect, onScrubStart, onScrub, onScrubEnd, o
         >
           <div className="rail-car" />
         </div>
-        {FLOORS.map((floor) => (
-          // A real link to the section's own id, not a bare button: this is
-          // the page's skip navigation as much as it is the lift's dial, and
-          // it has to keep working with the click handler stripped out —
-          // right-click-to-open-in-a-tab, a screen reader's link list, JS
-          // disabled entirely. `goTo` is still what runs on a plain click, so
-          // the ride keeps its own smooth-scroll and settle rather than
-          // falling back to the browser's bare jump.
-          <a
-            key={floor.id}
-            href={`#${floor.id}`}
-            className="rail-mark"
-            // Named on the link rather than left to whatever is visible
-            // inside it: below 900px the floor's name is not drawn and the
-            // plate shows the short form, and a link reading "1" is not a
-            // floor anyone can navigate by.
-            aria-label={`${floor.code} — ${floor.label}`}
-            aria-current={active === floor.index ? 'true' : 'false'}
-            onClick={(event) => {
-              event.preventDefault();
-              onSelect(floor.index);
-            }}
-          >
-            <span className="enamel" aria-hidden="true">
-              <span className="rail-code">{floor.code}</span>
-              <span className="rail-tick">{floor.tick}</span>
-            </span>
-            <span className="rail-mark-name" aria-hidden="true">{floor.label}</span>
-          </a>
-        ))}
+        {FLOORS.map((floor) => {
+          const label = pick(floor.label);
+          return (
+            // A real link to the section's own id, not a bare button: this is
+            // the page's skip navigation as much as it is the lift's dial, and
+            // it has to keep working with the click handler stripped out —
+            // right-click-to-open-in-a-tab, a screen reader's link list, JS
+            // disabled entirely. `goTo` is still what runs on a plain click, so
+            // the ride keeps its own smooth-scroll and settle rather than
+            // falling back to the browser's bare jump.
+            <a
+              key={floor.id}
+              href={`#${floor.id}`}
+              className="rail-mark"
+              // Named on the link rather than left to whatever is visible
+              // inside it: below 900px the floor's name is not drawn and the
+              // plate shows the short form, and a link reading "1" is not a
+              // floor anyone can navigate by.
+              aria-label={`${floor.code} — ${label}`}
+              aria-current={active === floor.index ? 'true' : 'false'}
+              onClick={(event) => {
+                event.preventDefault();
+                onSelect(floor.index);
+              }}
+            >
+              <span className="enamel" aria-hidden="true">
+                <span className="rail-code">{floor.code}</span>
+                <span className="rail-tick">{floor.tick}</span>
+              </span>
+              <span className="rail-mark-name" aria-hidden="true">{label}</span>
+            </a>
+          );
+        })}
       </div>
     </nav>
   );

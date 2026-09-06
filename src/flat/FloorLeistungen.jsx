@@ -1,7 +1,9 @@
 import { SKILL_GROUPS } from '../decks/content.js';
+import { DECKS } from '../lift/decks.js';
 import { FLOORS } from './floors.js';
 import Floor from './Floor.jsx';
 import Dial, { DialDefs } from './Dial.jsx';
+import { usePick, useT } from '../i18n/LocaleContext.jsx';
 
 // The instrument board — where the workbench stands in the scene.
 //
@@ -39,6 +41,8 @@ const FALLBACK = { needle: 0.5, unit: '—' };
 const TILT = [-2.4, 1.6, -0.9, 2.2, -1.7, 0.8, 2.6, -2, 1.1, -1.4, 1.9, -2.6];
 
 function FloorLeistungen() {
+  const pick = usePick();
+  const t = useT();
   // One running index across the whole board, so the tilts do not restart at
   // every group and line up in columns.
   let tag = 0;
@@ -46,16 +50,16 @@ function FloorLeistungen() {
   return (
     <Floor meta={FLOORS[1]}>
       <p className="label">1. Untergeschoss</p>
-      <h2 style={{ fontSize: 'clamp(26px, 4.6vw, 54px)', marginTop: 8 }}>Leistungen</h2>
+      <h2 style={{ fontSize: 'clamp(26px, 4.6vw, 54px)', marginTop: 8 }}>{pick(DECKS[1].label)}</h2>
       <div className="panel" style={{ marginTop: 'clamp(14px, 2.4vh, 28px)' }}>
         <div className="panel-body instrument-board">
           {SKILL_GROUPS.map((group, i) => {
             const face = INSTRUMENTS[i] ?? FALLBACK;
             return (
-              <div className="instrument" key={group.label}>
+              <div className="instrument" key={group.tech}>
                 <Dial needle={face.needle} unit={face.unit} />
                 <h3 style={{ margin: 0 }}>
-                  <span className="enamel">{group.label.toUpperCase()}</span>
+                  <span className="enamel">{pick(group.label).toUpperCase()}</span>
                 </h3>
                 <ul className="tech-list">
                   {group.tech.split('·').map((tech) => {
@@ -73,7 +77,7 @@ function FloorLeistungen() {
         </div>
       </div>
       <p className="stencil stencil--sm" style={{ marginTop: 12 }}>
-        Anzeigen dienen der Beschriftung — keine Bewertung, keine Prozentwerte.
+        {t('floorLeistungen.disclaimer')}
       </p>
       {/* Last, and not first: the arrival lights this floor's parts in the
           order they are stacked (NBC-63), and an invisible one at the head of

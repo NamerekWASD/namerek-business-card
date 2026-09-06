@@ -2,6 +2,7 @@ import { PERSON } from '../decks/content.js';
 import { FLOORS } from './floors.js';
 import Floor from './Floor.jsx';
 import Chevrons from './Chevrons.jsx';
+import { usePick, useT } from '../i18n/LocaleContext.jsx';
 
 // The entrance plaque. This is the whole card for anyone who reads no further,
 // so the name is the largest thing on the page and the availability is signed
@@ -11,11 +12,13 @@ import Chevrons from './Chevrons.jsx';
 // today and an absent portrait is a layout this handles, not a broken image it
 // shows.
 function FloorStart() {
+  const pick = usePick();
+  const t = useT();
   return (
     <Floor meta={FLOORS[0]}>
       <div className="panel">
         <div className="panel-body">
-          <p className="label">Erdgeschoss — Eingang</p>
+          <p className="label">{t('floorStart.label')}</p>
           <div className="eg-grid" style={{ marginTop: 18 }}>
             <div>
               <h1 className="eg-name">
@@ -23,9 +26,9 @@ function FloorStart() {
                 <br />
                 {PERSON.family}
               </h1>
-              <p className="eg-role">{PERSON.role}</p>
+              <p className="eg-role">{pick(PERSON.role)}</p>
               <div className="eg-intro">
-                {PERSON.intro.map((line) => <p key={line}>{line}</p>)}
+                {pick(PERSON.intro).map((line) => <p key={line}>{line}</p>)}
               </div>
             </div>
             {PERSON.portrait && (
@@ -38,7 +41,7 @@ function FloorStart() {
             )}
           </div>
           <div className="hairline" style={{ margin: '22px 0 18px' }} />
-          <span className="enamel enamel--lg">{PERSON.availability.toUpperCase()}</span>
+          <span className="enamel enamel--lg">{pick(PERSON.availability).toUpperCase()}</span>
         </div>
       </div>
       <Chevrons />

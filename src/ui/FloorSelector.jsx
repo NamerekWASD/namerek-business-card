@@ -1,14 +1,20 @@
 import { DECKS, sceneNo } from '../lift/decks.js';
 import RivettedPanel from './RivettedPanel.jsx';
 import LanguageSelector from './LanguageSelector.jsx';
-import { useLocale } from '../i18n/LocaleContext.jsx';
+import { useLocale, usePick } from '../i18n/LocaleContext.jsx';
 import { WEAR_SEED } from './panelWear.js';
 
 // The cabin's floor selector. Lamps light by proximity to the current position,
 // so during a ride they flare one by one as each deck is passed — the readout
 // counts up or down on its own instead of just swapping at the end.
+//
+// NBC-85: the deck names (`d.label`) are content and translate; the works
+// plate — "NAMEREK RECHENWERKE" / "AUFZUGBAU · MASCH. No. 001" — is signage
+// bolted to the cabin, the same building-prop exception as the EG/OG
+// numbering, and stays German in every locale.
 function FloorSelector({ pos, deck, moving, go }) {
   const { locale, setLocale } = useLocale();
+  const pick = usePick();
   const dir = moving ? Math.sign(pos - deck) : 0;
   const reading = sceneNo(DECKS[Math.max(0, Math.min(DECKS.length - 1, Math.round(pos)))]);
   return (
@@ -80,7 +86,7 @@ function FloorSelector({ pos, deck, moving, go }) {
                   boxShadow: lamp > 0.05 ? `0 0 ${(9 * lamp).toFixed(1)}px rgba(255,180,84,${(0.9 * lamp).toFixed(2)})` : 'inset 0 1px 2px rgba(0,0,0,0.8)',
                 }}
               />
-              {d.label}
+              {pick(d.label)}
             </button>
           );
         })}

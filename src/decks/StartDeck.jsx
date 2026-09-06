@@ -1,6 +1,8 @@
 import { PERSON } from './content.js';
+import { usePick } from '../i18n/LocaleContext.jsx';
 
 function StartDeck() {
+  const pick = usePick();
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '2.5rem', flexWrap: 'wrap' }}>
       <div style={{ minWidth: 300 }}>
@@ -22,10 +24,10 @@ function StartDeck() {
           color: 'var(--glow)', margin: '1rem 0 0', textShadow: '0 0 10px rgba(255,180,84,0.5)',
         }}
       >
-        {PERSON.role}
+        {pick(PERSON.role)}
       </p>
       <p style={{ fontSize: 15, lineHeight: 1.7, color: 'var(--muted)', maxWidth: 340, margin: '1rem 0 0' }}>
-        {PERSON.intro.join(' ')}
+        {pick(PERSON.intro).join(' ')}
       </p>
       </div>
     </div>

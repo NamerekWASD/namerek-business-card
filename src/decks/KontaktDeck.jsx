@@ -1,9 +1,11 @@
 import { PERSON } from './content.js';
+import { usePick } from '../i18n/LocaleContext.jsx';
 
 function KontaktDeck() {
+  const pick = usePick();
   return (
     <div style={{ textAlign: 'center' }}>
-      <h2 style={{ fontFamily: 'var(--display)', fontWeight: 400, fontSize: 24, letterSpacing: 1.5, textTransform: 'uppercase', color: 'var(--ink)', margin: 0 }}>{PERSON.greeting}</h2>
+      <h2 style={{ fontFamily: 'var(--display)', fontWeight: 400, fontSize: 24, letterSpacing: 1.5, textTransform: 'uppercase', color: 'var(--ink)', margin: 0 }}>{pick(PERSON.greeting)}</h2>
       <div style={{ display: 'flex', justifyContent: 'center', gap: '0.8rem', marginTop: '1.6rem', flexWrap: 'wrap' }}>
         <a
           href={`mailto:${PERSON.email}`}
@@ -20,7 +22,7 @@ function KontaktDeck() {
         </a>
       </div>
       <p style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--muted)', marginTop: '2rem', letterSpacing: 1 }}>
-        {`${PERSON.city} — ${PERSON.availability}`.toUpperCase()}
+        {`${pick(PERSON.city)} — ${pick(PERSON.availability)}`.toUpperCase()}
       </p>
     </div>
   );

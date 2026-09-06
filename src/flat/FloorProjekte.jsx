@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { PROJECT_STATS } from '../decks/content.js';
-import { SLIDES } from '../decks/projects.js';
+import { SLIDES, localized } from '../decks/projects.js';
+import { DECKS } from '../lift/decks.js';
 import { FLOORS } from './floors.js';
 import Floor from './Floor.jsx';
 import FullscreenImageModal from '../scene/r3f/FullscreenImageModal.jsx';
+import { useLocale, usePick, useT } from '../i18n/LocaleContext.jsx';
 
 // The archive, on a picture tube. It pages the same flat run of shots the
 // console in the scene pages — `SLIDES`, not `PROJECTS` — for the same reason:
@@ -25,15 +27,20 @@ import FullscreenImageModal from '../scene/r3f/FullscreenImageModal.jsx';
 // floor's own `.floor-tag`. A portal escapes that context entirely, the same
 // way it already does mounted above the scene's `<Canvas>` in `Dieselpunk`.
 function FloorProjekte() {
+  const { locale } = useLocale();
+  const pick = usePick();
+  const t = useT();
   const [index, setIndex] = useState(0);
   const [open, setOpen] = useState(false);
   const slide = SLIDES[index];
   const step = (delta) => setIndex((i) => Math.min(SLIDES.length - 1, Math.max(0, i + delta)));
+  const blurb = slide ? localized(slide.blurb, slide.blurbI18n, locale) : '';
+  const caption = slide ? localized(slide.caption, slide.captionI18n, locale) : '';
 
   return (
     <Floor meta={FLOORS[2]}>
       <p className="label">2. Untergeschoss</p>
-      <h2 style={{ fontSize: 'clamp(26px, 4.6vw, 54px)', marginTop: 8 }}>Projekte</h2>
+      <h2 style={{ fontSize: 'clamp(26px, 4.6vw, 54px)', marginTop: 8 }}>{pick(DECKS[2].label)}</h2>
 
       <div className="panel" style={{ marginTop: 'clamp(12px, 2vh, 24px)' }}>
         <div className="panel-body crt-grid">
@@ -43,10 +50,10 @@ function FloorProjekte() {
               className="crt"
               onClick={() => setOpen(true)}
               disabled={!slide}
-              aria-label={slide ? `${slide.title} in Vollbild ansehen` : 'Archiv leer'}
+              aria-label={slide ? t('floorProjekte.viewFullscreenAria', { title: slide.title }) : t('floorProjekte.archiveEmptyAria')}
             >
               {slide && (
-                <img src={slide.src} alt={`Bildschirmfoto: ${slide.title}`} loading="lazy" />
+                <img src={slide.src} alt={t('floorProjekte.screenshotAlt', { title: slide.title })} loading="lazy" />
               )}
               <span className="crt-scan" />
               <span className="crt-roll" />
@@ -58,9 +65,9 @@ function FloorProjekte() {
                 className="lamp-btn"
                 onClick={() => step(-1)}
                 disabled={index === 0}
-                aria-label="Vorherige Aufnahme"
+                aria-label={t('floorProjekte.prevAria')}
               >
-                ‹ Prev
+                {t('floorProjekte.prevLabel')}
               </button>
               <span className="counter" aria-live="polite">
                 {String(Math.min(index + 1, SLIDES.length)).padStart(2, '0')}
@@ -72,42 +79,42 @@ function FloorProjekte() {
                 className="lamp-btn"
                 onClick={() => step(1)}
                 disabled={index >= SLIDES.length - 1}
-                aria-label="Nächste Aufnahme"
+                aria-label={t('floorProjekte.nextAria')}
               >
-                Next ›
+                {t('floorProjekte.nextLabel')}
               </button>
             </div>
           </div>
 
           <div>
-            <span className="enamel">{slide ? slide.title : 'Kein Bestand'}</span>
-            {slide?.caption && (
-              <h3 style={{ fontSize: 'clamp(18px, 2.4vw, 30px)', marginTop: 12 }}>{slide.caption}</h3>
+            <span className="enamel">{slide ? slide.title : t('floorProjekte.empty')}</span>
+            {caption && (
+              <h3 style={{ fontSize: 'clamp(18px, 2.4vw, 30px)', marginTop: 12 }}>{caption}</h3>
             )}
             {/* The same works notice the scene hangs on the landing wall, so
                 the two renderings of this card say the same thing about the
                 same picture. Here it can stand under the name plate rather
                 than a metre away from it. */}
-            {slide?.blurb && (
-              <p key={slide.project} style={{ marginTop: 10, lineHeight: 1.7 }}>{slide.blurb}</p>
+            {blurb && (
+              <p key={slide.project} style={{ marginTop: 10, lineHeight: 1.7 }}>{blurb}</p>
             )}
             {slide && (
               <p className="stencil" style={{ marginTop: 8 }}>
-                {`Aufnahme ${slide.shot} von ${slide.shots}`}
+                {t('floorProjekte.shotOf', { shot: slide.shot, shots: slide.shots })}
               </p>
             )}
             {slide?.url && (
               <p style={{ marginTop: 14 }}>
                 <a className="field-value" href={slide.url} target="_blank" rel="noreferrer noopener">
-                  Quelltext ansehen
+                  {t('floorProjekte.viewSource')}
                 </a>
               </p>
             )}
             <div className="stat-row">
               {PROJECT_STATS.map((stat) => (
-                <div key={stat.label}>
+                <div key={stat.value}>
                   <p className="stat-val">{stat.value}</p>
-                  <p className="stencil stencil--sm">{stat.label.toUpperCase()}</p>
+                  <p className="stencil stencil--sm">{pick(stat.label).toUpperCase()}</p>
                 </div>
               ))}
             </div>

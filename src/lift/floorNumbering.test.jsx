@@ -14,6 +14,7 @@
 
 import { describe, expect, it, afterEach } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
+import { LOCALES } from '../i18n/locale.js';
 import { DECKS, flatNo, sceneNo } from './decks.js';
 import { FLOORS } from '../flat/floors.js';
 import Rail from '../flat/Rail.jsx';
@@ -34,6 +35,12 @@ describe('floor numbering', () => {
 
   it('calls the ground floor EG either way, because the street is on it', () => {
     expect(sceneNo(DECKS[0])).toBe(flatNo(DECKS[0]));
+  });
+
+  it('names every deck in all four languages — NBC-85 content, unlike the numbering above', () => {
+    for (const deck of DECKS) {
+      for (const { id } of LOCALES) expect(deck.label[id], `${deck.id}.${id}`).toBeTruthy();
+    }
   });
 });
 

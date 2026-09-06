@@ -56,12 +56,31 @@
 // for anyone who reads captions rather than plates.
 
 /**
- * @typedef {{ src: string, caption?: string }} Shot
+ * @typedef {Partial<Record<'en' | 'uk' | 'ru', string>>} I18nSidecar
+ * @typedef {{ src: string, caption?: string, captionI18n?: I18nSidecar }} Shot
  * @typedef {{
  *   id: string, title: string, url?: string | null,
- *   blurb?: string, stack?: string, shots: Array<string | Shot>,
+ *   blurb?: string, blurbI18n?: I18nSidecar, stack?: string, shots: Array<string | Shot>,
  * }} Project
  */
+
+// ── NBC-85: `blurb`/`caption` stay German, translations ride beside them ────
+// `blurb` and `caption` are also read by canvas texture code — the wall
+// notice (`NoticeScreen.jsx`) and the picture-tube glass (`gallery.js`) —
+// that NBC-90 has not yet taught to redraw itself per locale. So neither
+// field changed shape: `blurb`/`caption` still mean "the German text",
+// exactly as they did before this ticket, and a translation for the other
+// three languages sits in a sibling field, `blurbI18n`/`captionI18n`, that
+// only the DOM side (`FloorProjekte.jsx`, `FullscreenImageModal.jsx`) reads.
+// When NBC-90 lands, the canvas side switches to the same `localized()` below
+// rather than getting a second copy of these strings.
+//
+// @param {string} base @param {I18nSidecar | undefined} i18n
+// @param {import('../i18n/locale.js').LocaleId} locale @returns {string}
+export function localized(base, i18n, locale) {
+  if (locale === 'de') return base;
+  return i18n?.[locale] ?? base;
+}
 
 /**
  * The archive itself. Empty is a legitimate state and a painted one: the glass
@@ -77,14 +96,40 @@ export const PROJECTS = [
     url: 'https://github.com/NamerekWASD/GameStore',
     blurb: 'Ein Laden für Spiele: Katalog, Warenkorb, echte Bezahlung — und ein '
       + 'Pult im Rücken, an dem der Betreiber seine Titel selbst pflegt.',
+    blurbI18n: {
+      en: 'A store for games: catalogue, cart, real payment — and a back office '
+        + 'where the owner maintains their own titles.',
+      uk: 'Магазин ігор: каталог, кошик, справжня оплата — і панель адміністратора, '
+        + 'де власник сам веде свої тайтли.',
+      ru: 'Магазин игр: каталог, корзина, настоящая оплата — и панель администратора, '
+        + 'где владелец сам ведёт свои тайтлы.',
+    },
     stack: 'ASP.NET CORE · REACT',
     shots: [
-      { src: '/projects/game-store/1.png', caption: 'Homepage' },
-      { src: '/projects/game-store/2.png', caption: 'Game details' },
-      { src: '/projects/game-store/3.png', caption: 'Authorization' },
-      { src: '/projects/game-store/4.png', caption: 'Payment' },
-      { src: '/projects/game-store/5.png', caption: 'Order confirmation' },
-      { src: '/projects/game-store/6.png', caption: 'Game managment page' },
+      {
+        src: '/projects/game-store/1.png', caption: 'Homepage',
+        captionI18n: { en: 'Homepage', uk: 'Головна сторінка', ru: 'Главная страница' },
+      },
+      {
+        src: '/projects/game-store/2.png', caption: 'Game details',
+        captionI18n: { en: 'Game details', uk: 'Деталі гри', ru: 'Детали игры' },
+      },
+      {
+        src: '/projects/game-store/3.png', caption: 'Authorization',
+        captionI18n: { en: 'Authorization', uk: 'Авторизація', ru: 'Авторизация' },
+      },
+      {
+        src: '/projects/game-store/4.png', caption: 'Payment',
+        captionI18n: { en: 'Payment', uk: 'Оплата', ru: 'Оплата' },
+      },
+      {
+        src: '/projects/game-store/5.png', caption: 'Order confirmation',
+        captionI18n: { en: 'Order confirmation', uk: 'Підтвердження замовлення', ru: 'Подтверждение заказа' },
+      },
+      {
+        src: '/projects/game-store/6.png', caption: 'Game managment page',
+        captionI18n: { en: 'Game management page', uk: 'Сторінка керування іграми', ru: 'Страница управления играми' },
+      },
     ],
   },
   {
@@ -93,10 +138,24 @@ export const PROJECTS = [
     url: 'https://github.com/NamerekWASD/PaperSorter',
     blurb: 'Ein Fließband für Papier: jeder Scan läuft durch eine Texterkennung '
       + 'in Stufen, wird eingeordnet, auf Fristen gelesen und beschriftet abgelegt.',
+    blurbI18n: {
+      en: 'A conveyor belt for paper: every scan runs through OCR in stages, gets '
+        + 'classified, checked against deadlines and filed under a label.',
+      uk: 'Конвеєр для паперу: кожен скан поетапно проходить розпізнавання тексту, '
+        + 'класифікується, перевіряється на дедлайни та підписаний архівується.',
+      ru: 'Конвейер для бумаги: каждый скан поэтапно проходит распознавание текста, '
+        + 'классифицируется, проверяется на сроки и архивируется с подписью.',
+    },
     stack: 'PYTHON · FASTAPI · DOCKER',
     shots: [
-      { src: '/projects/paperless-ocr-cascade/1.png', caption: 'Paperless webhook config' },
-      { src: '/projects/paperless-ocr-cascade/2.png', caption: 'Logs' },
+      {
+        src: '/projects/paperless-ocr-cascade/1.png', caption: 'Paperless webhook config',
+        captionI18n: { en: 'Paperless webhook config', uk: 'Налаштування webhook Paperless', ru: 'Настройка webhook Paperless' },
+      },
+      {
+        src: '/projects/paperless-ocr-cascade/2.png', caption: 'Logs',
+        captionI18n: { en: 'Logs', uk: 'Логи', ru: 'Логи' },
+      },
     ],
   }
 ];
@@ -104,8 +163,8 @@ export const PROJECTS = [
 /**
  * @typedef {{
  *   key: string, project: string, title: string, url: string | null,
- *   blurb: string, stack: string,
- *   src: string, caption: string, shot: number, shots: number,
+ *   blurb: string, blurbI18n?: I18nSidecar, stack: string,
+ *   src: string, caption: string, captionI18n?: I18nSidecar, shot: number, shots: number,
  * }} Slide
  */
 
@@ -131,9 +190,11 @@ export function projectSlides(projects = PROJECTS) {
       title: project.title,
       url: project.url ?? null,
       blurb: project.blurb ?? '',
+      blurbI18n: project.blurbI18n,
       stack: project.stack ?? '',
       src: shot.src,
       caption: shot.caption ?? '',
+      captionI18n: shot.captionI18n,
       shot: i + 1,
       shots: shots.length,
     }));

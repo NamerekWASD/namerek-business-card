@@ -1,4 +1,5 @@
 import useArrival from './useArrival.js';
+import { usePick } from '../i18n/LocaleContext.jsx';
 
 // One floor of the building: a full-viewport snap section with the floor's own
 // enamel number bolted to the corner. `is-lit` is what the arrival hangs on —
@@ -15,12 +16,13 @@ import useArrival from './useArrival.js';
 // parts in the order they are stacked.
 function Floor({ meta, children }) {
   const { ref, arrived } = useArrival();
+  const pick = usePick();
 
   return (
     <section
       id={meta.id}
       ref={ref}
-      aria-label={`${meta.code} — ${meta.label}`}
+      aria-label={`${meta.code} — ${pick(meta.label)}`}
       className={`floor${arrived ? ' is-lit' : ''}`}
     >
       <div className="floor-tag">

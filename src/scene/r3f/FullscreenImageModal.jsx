@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { LAYERS } from '../layers.js';
-import { SLIDES } from '../../decks/projects.js';
+import { SLIDES, localized } from '../../decks/projects.js';
+import { useLocale, useT } from '../../i18n/LocaleContext.jsx';
 
 const FOCUSABLE_SELECTOR = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
@@ -21,6 +22,8 @@ const FOCUSABLE_SELECTOR = 'button, [href], input, select, textarea, [tabindex]:
 export default function FullscreenImageModal({
   open, page, onClose, onPrev, onNext,
 }) {
+  const { locale } = useLocale();
+  const t = useT();
   const slide = open ? SLIDES[page] ?? null : null;
   const dialogRef = useRef(null);
   const closeButtonRef = useRef(null);
@@ -81,6 +84,7 @@ export default function FullscreenImageModal({
   const nextSlide = page < SLIDES.length - 1 ? SLIDES[page + 1] : null;
   const prevIsProject = !!prevSlide && prevSlide.project !== slide.project;
   const nextIsProject = !!nextSlide && nextSlide.project !== slide.project;
+  const caption = localized(slide.caption, slide.captionI18n, locale);
 
   return (
     <div
@@ -89,14 +93,14 @@ export default function FullscreenImageModal({
       style={{ zIndex: LAYERS.fullscreenImage }}
       role="dialog"
       aria-modal="true"
-      aria-label="Fullscreen image preview"
+      aria-label={t('fullscreenModal.ariaLabel')}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <button
         ref={closeButtonRef}
         className="fullscreen-modal-close"
         onClick={onClose}
-        aria-label="Close preview"
+        aria-label={t('fullscreenModal.close')}
       >
         ×
       </button>
@@ -106,7 +110,7 @@ export default function FullscreenImageModal({
           type="button"
           className={`fullscreen-modal-nav fullscreen-modal-nav--prev${prevIsProject ? ' fullscreen-modal-nav--project' : ''}`}
           onClick={onPrev}
-          aria-label={prevIsProject ? `Previous project: ${prevSlide.title}` : 'Previous photo'}
+          aria-label={prevIsProject ? t('fullscreenModal.prevProject', { title: prevSlide.title }) : t('fullscreenModal.prevPhoto')}
         >
           <span className="fullscreen-modal-nav-glyph">‹</span>
           {prevIsProject && <span className="fullscreen-modal-nav-label">{prevSlide.title}</span>}
@@ -114,10 +118,10 @@ export default function FullscreenImageModal({
       )}
 
       <figure className="fullscreen-modal-figure">
-        <img src={slide.src} alt={slide.caption || slide.title} className="fullscreen-modal-image" />
+        <img src={slide.src} alt={caption || slide.title} className="fullscreen-modal-image" />
         <figcaption className="fullscreen-modal-caption">
           <span className="fullscreen-modal-title">{slide.title}</span>
-          {slide.caption && <span className="fullscreen-modal-caption-text">{slide.caption}</span>}
+          {caption && <span className="fullscreen-modal-caption-text">{caption}</span>}
           <span className="fullscreen-modal-counter">{slide.shot} / {slide.shots}</span>
         </figcaption>
       </figure>
@@ -127,7 +131,7 @@ export default function FullscreenImageModal({
           type="button"
           className={`fullscreen-modal-nav fullscreen-modal-nav--next${nextIsProject ? ' fullscreen-modal-nav--project' : ''}`}
           onClick={onNext}
-          aria-label={nextIsProject ? `Next project: ${nextSlide.title}` : 'Next photo'}
+          aria-label={nextIsProject ? t('fullscreenModal.nextProject', { title: nextSlide.title }) : t('fullscreenModal.nextPhoto')}
         >
           {nextIsProject && <span className="fullscreen-modal-nav-label">{nextSlide.title}</span>}
           <span className="fullscreen-modal-nav-glyph">›</span>
