@@ -7,10 +7,11 @@ import { invalidateScene } from '../renderers/r3f/frames.js';
 import {
   CHANGE_MS, NOTICE_ASPECT, noticeSurface, paintNotice, swapped, warmUp,
 } from '../renderers/r3f/notice.js';
-import { SLIDES } from '../../decks/projects.js';
+import { SLIDES, localized } from '../../decks/projects.js';
 import ScreenFrame, { frameMetrics } from './ScreenFrame.jsx';
 import { useFullscreenGallery } from './fullscreenImage.js';
 import useReducedMotion from '../../motion/reduced.js';
+import { useSceneLocale } from '../../i18n/SceneLocale.jsx';
 
 // ── the works notice, 2. OG ──────────────────────────────────────────────────
 // The description of whatever job is on the glass, on a screen of its own on
@@ -57,7 +58,12 @@ function NoticeScreen({ x, y, z, w, live = true }) {
   // description that restrikes on every press of NEXT is a description that
   // looks like it changed when it did not. Same rule the box on the belt and
   // the console's own plate follow.
-  const blurb = slide?.blurb ?? '';
+  // NBC-90. The one sentence on this tube is content, so it is translated —
+  // and the tube is a texture, so it is repainted behind shut doors like every
+  // other painted surface. `useSceneLocale` is what makes that the same change
+  // as paging the console: a new string, and the screen's own strike carries it.
+  const locale = useSceneLocale();
+  const blurb = localized(slide?.blurb ?? '', slide?.blurbI18n, locale);
 
   const [surface] = useState(() => (typeof document === 'undefined' ? null : noticeSurface()));
   // What is actually on the canvas — `null` until the first paint, which is

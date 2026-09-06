@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { LOCALES } from '../../../i18n/locale.js';
 import {
-  CYCLE_MS, FLOW, STATIONS, TRAVEL_MS,
+  CYCLE_MS, FLOW, STATIONS, TRAVEL_MS, stationLabels,
   flowAspect, flowAt, flowCanvas, flowLayout, pathAt, travel,
 } from './flow.js';
 
@@ -67,12 +68,19 @@ describe.each(SHAPES)('the request-flow sheet at %s', (aspect) => {
     expect(L.boxes[0].w / L.boxes[0].h).toBeLessThanOrEqual(FLOW.BOX.MAX + 1e-9);
   });
 
-  it('gives every station a box its own legend fits inside', () => {
+  // NBC-90. Four languages on one drawing, and the boxes were drawn at the
+  // German width. `fitFont` will take a point off a legend that overruns, but
+  // that is a safety net for a translation nobody measured — a legend that
+  // needs it on every screen is a legend that wants rewording, so this holds
+  // all four to the size the sheet was designed at.
+  it('gives every station a box its own legend fits inside, in all four languages', () => {
     const room = L.boxes[0].w - FLOW.PAD * 2;
-    STATIONS.forEach((s) => {
-      expect(s.tag.length * FLOW.TAG * ADVANCE).toBeLessThan(room);
-      expect(s.sub.length * FLOW.SUB * ADVANCE).toBeLessThan(room);
-    });
+    for (const { id } of LOCALES) {
+      stationLabels(id).forEach((s) => {
+        expect(s.tag.length * FLOW.TAG * ADVANCE, `${s.id}.tag.${id}`).toBeLessThan(room);
+        expect(s.sub.length * FLOW.SUB * ADVANCE, `${s.id}.sub.${id}`).toBeLessThan(room);
+      });
+    }
   });
 
   it('keeps both legends inside the height of the box', () => {

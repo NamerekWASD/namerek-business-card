@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   ACCEL_PHASE, CRUISE_PHASE, DECEL_PHASE, SETTLE_OVERSHOOT,
-  doorClosure, doorClosureAt, liftDuration, liftEase,
+  doorClosure, doorClosureAt, liftDuration, liftEase, openFloor,
 } from './ride.js';
 
 describe('liftEase', () => {
@@ -116,5 +116,39 @@ describe('doorClosure', () => {
 
   it('spends the three phases it says it does', () => {
     expect(ACCEL_PHASE + CRUISE_PHASE + DECEL_PHASE).toBeCloseTo(1);
+  });
+});
+
+// ── a trip that goes nowhere ────────────────────────────────────────────────
+// NBC-90. Half the German in this building is painted into canvas textures, and
+// a language change has to repaint them. Repainting a screen somebody is
+// looking at is the swap nobody should see, so the cabin performs the one
+// gesture it already knows for "you are about to be shown something else": it
+// shuts its doors and opens them again, standing still. Same clock, same
+// leaves, no change of floor.
+describe('the door cycle', () => {
+  const cycle = (p) => ({ from: 2, to: 2, p });
+
+  it('shuts and opens the floor it is standing at, and no other', () => {
+    expect(doorClosureAt(2, cycle(0), 2)).toBe(0);
+    expect(doorClosureAt(2, cycle(1), 2)).toBeCloseTo(0);
+    expect(doorClosureAt(1, cycle(0.5), 2)).toBe(1);
+    expect(doorClosureAt(3, cycle(0.5), 2)).toBe(1);
+  });
+
+  it("follows the ride's own door curve, which is what makes it read as the lift", () => {
+    for (let p = 0; p <= 1; p += 1 / 32) {
+      expect(doorClosureAt(2, cycle(p), 2)).toBeCloseTo(doorClosure(p));
+    }
+  });
+
+  it('holds them fully shut across the cruise — the window a repaint hides in', () => {
+    expect(doorClosureAt(2, cycle(ACCEL_PHASE + CRUISE_PHASE / 2), 2)).toBe(1);
+  });
+
+  it('keeps the floor it is cycling on the open one throughout', () => {
+    for (let p = 0; p <= 1; p += 1 / 16) {
+      expect(openFloor(cycle(p), 2).floor).toBe(2);
+    }
   });
 });

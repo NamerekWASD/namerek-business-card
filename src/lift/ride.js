@@ -107,6 +107,12 @@ export function doorClosure(phase) {
  */
 export function doorClosureAt(floor, ride, deckIndex) {
   if (!ride) return floor === deckIndex ? 0 : 1;
+  // A trip whose destination is where it started: the doors shut and open again
+  // with the cabin standing still. It is what a language change rides on — see
+  // `startCycle` in `rideTicker.js` — and it has to be tested for before the
+  // two branches below, both of which would match `from` and leave the leaves
+  // shut for the rest of the trip.
+  if (ride.from === ride.to) return floor === ride.from ? doorClosure(ride.p) : 1;
   if (floor === ride.from) return ride.p < ACCEL_PHASE ? ride.p / ACCEL_PHASE : 1;
   if (floor === ride.to) {
     const openFrom = ACCEL_PHASE + CRUISE_PHASE;

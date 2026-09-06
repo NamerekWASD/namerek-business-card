@@ -33,11 +33,12 @@ import FloorSelector from '../ui/FloorSelector.jsx';
 import DeckReveal from '../decks/DeckReveal.jsx';
 import { DECK_BODIES } from '../decks/index.js';
 import { SLIDES } from '../decks/projects.js';
-import { useT } from '../i18n/LocaleContext.jsx';
+import { useLocale, useT } from '../i18n/LocaleContext.jsx';
+import { SceneLocaleProvider, useLocaleCycle } from '../i18n/SceneLocale.jsx';
 
 export default function Dieselpunk() {
   const {
-    floorPos, deckIndex, moving, rideTo, scrub, setScrub, ride, ridePhase, ticker,
+    floorPos, deckIndex, moving, rideTo, cycleDoors, scrub, setScrub, ride, ridePhase, ticker,
   } = useLift();
   const { vw, vh } = useViewport();
   // Named `tr`, not `t`: `useIntroClock` below already owns `t` for the
@@ -106,6 +107,13 @@ export default function Dieselpunk() {
   // shut wins — that also makes the very first frame a shut door rather than a
   // scene that has to be covered up by something else
   const closure = Math.max(doorClosure(ridePhase), introClosure(t));
+
+  // NBC-90. The language the painted surfaces are in, which lags the chosen one
+  // by exactly one cycle of the doors — long enough for half a dozen canvases
+  // to be redrawn with nobody able to see them. Everything DOM follows
+  // `useLocale` and changes at once; only what is baked into a texture waits.
+  const { locale } = useLocale();
+  const sceneLocale = useLocaleCycle(locale, { closure, moving, cycle: cycleDoors });
 
   // Where the doorway lands on screen. A plane square to the camera is only a
   // uniform scale, so this is exact — which is what lets the content stay a flat,
@@ -177,6 +185,7 @@ export default function Dieselpunk() {
 
   return (
     <RideTickerProvider value={ticker}>
+    <SceneLocaleProvider value={sceneLocale}>
     <FullscreenImageProvider value={gallery}>
     <div
       style={{
@@ -360,6 +369,7 @@ export default function Dieselpunk() {
       />
     </div>
     </FullscreenImageProvider>
+    </SceneLocaleProvider>
     </RideTickerProvider>
   );
 }

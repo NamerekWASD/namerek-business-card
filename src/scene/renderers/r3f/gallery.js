@@ -30,6 +30,10 @@
 // could plausibly display. Turn it to 0 and the archive is in colour.
 
 import { CanvasTexture, SRGBColorSpace } from 'three';
+import { t } from '../../../i18n/strings.js';
+import { DEFAULT_LOCALE } from '../../../i18n/locale.js';
+import { localized } from '../../../decks/projects.js';
+import { fitFont } from './canvasText.js';
 
 /** How far toward a single-hue amber tube a picture is taken. 0..1. */
 const PHOSPHOR = 0.72;
@@ -165,7 +169,7 @@ function surround(ctx, r) {
  * The index is printed only when there is more than one — "1 / 1" under a
  * project with a single photograph is a machine reporting on itself.
  */
-function caption(ctx, slide) {
+function caption(ctx, slide, locale) {
   const y = H - PAD - FOOT;
   ctx.save();
   ctx.globalAlpha = 0.7;
@@ -180,8 +184,15 @@ function caption(ctx, slide) {
   ctx.font = FONT(34);
   ctx.textAlign = 'left';
   ctx.fillStyle = INK.quiet;
-  if (slide.caption) ctx.fillText(slide.caption, PAD, base);
+  const text = localized(slide.caption, slide.captionI18n, locale);
+  if (text) {
+    // The index sits on the other end of the same strip, so a long caption is
+    // fitted to what is left rather than to the whole width.
+    fitFont(ctx, text, W - PAD * 2 - (slide.shots > 1 ? 120 : 0), 34, FONT);
+    ctx.fillText(text, PAD, base);
+  }
   if (slide.shots > 1) {
+    ctx.font = FONT(34);
     ctx.textAlign = 'right';
     ctx.fillStyle = INK.field;
     ctx.fillText(`${slide.shot} / ${slide.shots}`, W - PAD, base);
@@ -202,8 +213,9 @@ function caption(ctx, slide) {
  * @param {import('../../../decks/projects.js').Slide} slide
  * @param {number} aspect the glass's width over its height
  * @param {string} [note] what to print in the box when there is no picture
+ * @param {import('../../../i18n/locale.js').LocaleId} [locale]
  */
-export function paintSlide(canvas, image, slide, aspect, note) {
+export function paintSlide(canvas, image, slide, aspect, note, locale = DEFAULT_LOCALE) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
   tube(ctx);
@@ -234,7 +246,7 @@ export function paintSlide(canvas, image, slide, aspect, note) {
     }
   }
 
-  caption(ctx, slide);
+  caption(ctx, slide, locale);
   scan(ctx);
 }
 
@@ -249,7 +261,7 @@ export function paintSlide(canvas, image, slide, aspect, note) {
  *
  * @param {HTMLCanvasElement} canvas @param {number} aspect
  */
-export function paintStandby(canvas, aspect) {
+export function paintStandby(canvas, aspect, locale = DEFAULT_LOCALE) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
   tube(ctx);
@@ -304,10 +316,10 @@ export function paintStandby(canvas, aspect) {
   ctx.shadowBlur = 14;
   ctx.font = FONT(38, 700);
   ctx.fillStyle = INK.field;
-  ctx.fillText('NAMEREK · ARCHIV', cx, H * 0.115);
+  ctx.fillText(t('screen.archive.head', locale), cx, H * 0.115);
   ctx.font = FONT(34);
   ctx.fillStyle = INK.quiet;
-  ctx.fillText('KEIN EINTRAG', cx, H * 0.855);
+  ctx.fillText(t('screen.archive.empty', locale), cx, H * 0.855);
   ctx.restore();
 
   scan(ctx);

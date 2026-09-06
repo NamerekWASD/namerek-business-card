@@ -64,6 +64,9 @@
 
 import { CanvasTexture, SRGBColorSpace } from 'three';
 import { bake } from './patterns.js';
+import { t } from '../../../i18n/strings.js';
+import { DEFAULT_LOCALE } from '../../../i18n/locale.js';
+import { fitFont } from './canvasText.js';
 
 /**
  * The sheet's layout.
@@ -384,9 +387,14 @@ function compass(ctx, x, y) {
  * Everything on it is at rest. The only thing that moves is the ring out of the
  * cross, which is geometry the caller drives.
  *
+ * The towns, the Rhine and the distances are not translated: they are the names
+ * of places, printed on a works map of the Ruhr. What changes with the language
+ * is the head and the one line the whole screen exists to enlarge.
+ *
  * @param {HTMLCanvasElement} canvas @param {number} aspect
+ * @param {import('../../../i18n/locale.js').LocaleId} [locale]
  */
-export function paintMap(canvas, aspect) {
+export function paintMap(canvas, aspect, locale = DEFAULT_LOCALE) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
   const L = mapLayout(aspect);
@@ -400,14 +408,16 @@ export function paintMap(canvas, aspect) {
   ctx.shadowColor = 'rgba(255,166,74,0.6)';
   ctx.shadowBlur = 12;
   ctx.textAlign = 'center';
-  ctx.font = FONT(MAP.HEAD, 700);
+  const head = t('screen.map.head', locale);
+  fitFont(ctx, head, f.w, MAP.HEAD, (px) => FONT(px, 700));
   ctx.fillStyle = INK.stop;
-  ctx.fillText('NAMEREK WERK · STANDORT', f.x + f.w / 2, f.y + f.h * 0.032);
+  ctx.fillText(head, f.x + f.w / 2, f.y + f.h * 0.032);
   // the fact the ticket is about, at three and a half times the enamel plate's
   // type and on the brightest ink the sheet has
-  ctx.font = FONT(MAP.FOOT, 700);
+  const foot = t('screen.map.available', locale);
+  fitFont(ctx, foot, f.w, MAP.FOOT, (px) => FONT(px, 700));
   ctx.fillStyle = INK.home;
-  ctx.fillText('VERFÜGBAR AB SOFORT', f.x + f.w / 2, f.y + f.h * 0.962);
+  ctx.fillText(foot, f.x + f.w / 2, f.y + f.h * 0.962);
   ctx.shadowBlur = 0;
 
   ctx.globalAlpha = 0.6;

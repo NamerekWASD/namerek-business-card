@@ -130,3 +130,43 @@ describe('the language rotary', () => {
     }
   });
 });
+
+// ── locked while the cabin is busy ──────────────────────────────────────────
+// NBC-90. A language change repaints half the scene's textures, and the way
+// that repaint is hidden is a cycle of the landing doors. Two things must not
+// be able to start one: a trip already under way, and a repaint already under
+// way. Both are the same fact from this control's side — the cabin is moving —
+// so the switch is dead for as long as it is.
+describe('while the cabin is moving', () => {
+  const locked = () => {
+    const onChange = vi.fn();
+    render(<LanguageSelector value="en" onChange={onChange} disabled />);
+    return onChange;
+  };
+
+  it('does not answer a click', () => {
+    const onChange = locked();
+    fireEvent.click(screen.getAllByRole('radio')[3]);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('does not answer the arrow keys either', () => {
+    const onChange = locked();
+    fireEvent.keyDown(screen.getByRole('radiogroup'), { key: 'ArrowRight' });
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('says so to a screen reader rather than only going quiet', () => {
+    locked();
+    for (const position of screen.getAllByRole('radio')) {
+      expect(position.disabled).toBe(true);
+    }
+  });
+
+  it('still shows which language is live — a locked switch is not a blank one', () => {
+    locked();
+    const live = screen.getAllByRole('radio').filter((b) => b.getAttribute('aria-checked') === 'true');
+    expect(live).toHaveLength(1);
+    expect(live[0].getAttribute('aria-label')).toBe('English');
+  });
+});

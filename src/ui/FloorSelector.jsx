@@ -106,6 +106,11 @@ function FloorSelector({ pos, deck, moving, go }) {
         value={locale}
         onChange={setLocale}
         compact
+        // NBC-90. Dead while the cabin is moving, and a language change *is* the
+        // cabin moving: the repaint it causes hides behind a cycle of the doors,
+        // which is a trip in everything but its destination. One condition
+        // covers both, because from this plate's side they are one fact.
+        disabled={moving}
         style={{ width: 128, alignSelf: 'center', justifySelf: 'end' }}
       />
     </nav>

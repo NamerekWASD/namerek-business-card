@@ -64,6 +64,9 @@
 // brightens is one `opacity` per station. See `RequestFlow` in `LandingScreen`.
 
 import { CanvasTexture, SRGBColorSpace } from 'three';
+import { t } from '../../../i18n/strings.js';
+import { DEFAULT_LOCALE } from '../../../i18n/locale.js';
+import { fitFont, stencil } from './canvasText.js';
 import { bake } from './patterns.js';
 
 /**
@@ -118,12 +121,29 @@ export const FLOW = {
  * under each is the building's own voice, and every one of them is a fact this
  * deck's plates already claim — see `SKILL_GROUPS`.
  */
+// A bare string is a stencil that reads the same in every language — three of
+// these four layer names are the words the code itself uses, and the two
+// product lines are product names. `{ key }` is the other kind: German for a
+// thing, and it has to go. See `stencil` in `canvasText.js`.
 export const STATIONS = [
-  { tag: 'CONTROLLER', sub: 'REST · ENDPUNKT' },
-  { tag: 'SERVICE', sub: 'DDD · REGELN' },
-  { tag: 'REPOSITORY', sub: 'EF CORE' },
-  { tag: 'DATENBANK', sub: 'MSSQL · MONGODB' },
+  { id: 'controller', tag: 'CONTROLLER', sub: { key: 'screen.flow.endpoint' } },
+  { id: 'service', tag: 'SERVICE', sub: { key: 'screen.flow.rules' } },
+  { id: 'repository', tag: 'REPOSITORY', sub: 'EF CORE' },
+  { id: 'database', tag: { key: 'screen.flow.database' }, sub: 'MSSQL · MONGODB' },
 ];
+
+/**
+ * The four layers' legends, resolved into one language.
+ * @param {import('../../../i18n/locale.js').LocaleId} locale
+ * @returns {{ id: string, tag: string, sub: string }[]}
+ */
+export function stationLabels(locale) {
+  return STATIONS.map((s) => ({
+    id: s.id,
+    tag: stencil(s.tag, locale),
+    sub: stencil(s.sub, locale),
+  }));
+}
 
 /**
  * The shape the canvas is actually built at: the measured glass, rounded to a
@@ -377,10 +397,11 @@ function arrow(ctx, x, y, dx, dy, size) {
  *
  * @param {HTMLCanvasElement} canvas @param {number} aspect
  */
-export function paintFlow(canvas, aspect) {
+export function paintFlow(canvas, aspect, locale = DEFAULT_LOCALE) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
   const L = flowLayout(aspect);
+  const labels = stationLabels(locale);
   const { frame: f, boxes, path: pts } = L;
   tube(ctx, L.w, L.h);
 
@@ -392,9 +413,11 @@ export function paintFlow(canvas, aspect) {
   ctx.shadowColor = 'rgba(255,166,74,0.6)';
   ctx.shadowBlur = 12;
   ctx.textAlign = 'center';
-  ctx.font = FONT(38, 700);
   ctx.fillStyle = INK.tag;
-  ctx.fillText('NAMEREK WERK · ANFRAGEWEG', f.x + f.w / 2, f.y + f.h * 0.032);
+  // The head is the one line on this sheet that runs the frame's full width, so
+  // it is also the one that a longer language can push off the end of it.
+  fitFont(ctx, t('screen.flow.head', locale), f.w, 38, (px) => FONT(px, 700));
+  ctx.fillText(t('screen.flow.head', locale), f.x + f.w / 2, f.y + f.h * 0.032);
   ctx.font = FONT(30);
   ctx.fillStyle = INK.sub;
   ctx.fillText('N-TIER · DDD · REST', f.x + f.w / 2, f.y + f.h * 0.966);
@@ -434,10 +457,10 @@ export function paintFlow(canvas, aspect) {
   ctx.font = FONT(28, 700);
   ctx.textAlign = 'left';
   ctx.fillStyle = INK.box;
-  ctx.fillText('ANFRAGE', f.x + 6, pts[0][1] - 26);
+  ctx.fillText(t('screen.flow.request', locale), f.x + 6, pts[0][1] - 26);
   ctx.textAlign = 'right';
   ctx.fillStyle = INK.sub;
-  ctx.fillText('ANTWORT', f.x + f.w - 6, pts[4][1] - 26);
+  ctx.fillText(t('screen.flow.response', locale), f.x + f.w - 6, pts[4][1] - 26);
 
   // the layers
   boxes.forEach((b, i) => {
@@ -458,13 +481,15 @@ export function paintFlow(canvas, aspect) {
     ctx.textAlign = 'center';
     ctx.shadowColor = 'rgba(255,166,74,0.55)';
     ctx.shadowBlur = 12;
-    ctx.font = FONT(FLOW.TAG, 700);
+    // Fitted rather than set: a box drawn at the German width has to hold the
+    // Russian word for the same thing, which is two characters longer.
+    fitFont(ctx, labels[i].tag, b.w - FLOW.PAD * 2, FLOW.TAG, (px) => FONT(px, 700));
     ctx.fillStyle = INK.tag;
-    ctx.fillText(STATIONS[i].tag, cx, cy - FLOW.SUB * 0.55);
+    ctx.fillText(labels[i].tag, cx, cy - FLOW.SUB * 0.55);
     ctx.shadowBlur = 7;
-    ctx.font = FONT(FLOW.SUB);
+    fitFont(ctx, labels[i].sub, b.w - FLOW.PAD * 2, FLOW.SUB, FONT);
     ctx.fillStyle = INK.sub;
-    ctx.fillText(STATIONS[i].sub, cx, cy + FLOW.TAG * 0.44);
+    ctx.fillText(labels[i].sub, cx, cy + FLOW.TAG * 0.44);
     ctx.shadowBlur = 0;
 
     // the stage's number, out in the gutter the stack leaves to its left

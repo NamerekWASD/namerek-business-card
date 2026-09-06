@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
-  COLS, LOG, ROWS, RUN, TERM, linesAt, pageLeft, termAspect, termCanvas,
+  COLS, LOG_ROWS, ROWS, RUN, TERM, linesAt, logLines, pageLeft, termAspect, termCanvas,
 } from './terminal.js';
+import { LOCALES } from '../../../i18n/locale.js';
+
+// NBC-90 made one line of the page translatable — the heading — so the column
+// budget below is now a budget in four languages rather than one. `LOG` is
+// `logLines(locale)`; the German page is what the tube was measured against and
+// stays the one every other clause reads.
+const LOG = logLines('de');
 
 // The two budgets in `terminal.js` are the whole reason the log is readable, and
 // both are the kind of thing an edit breaks silently: a warning message a few
@@ -11,14 +18,17 @@ import {
 // where this started.
 
 describe('the log fits the tube it is printed on', () => {
-  it('never runs past the column budget', () => {
-    for (const [kind, text] of LOG) {
-      expect(text.length, `${kind}: ${text}`).toBeLessThanOrEqual(COLS);
+  it('never runs past the column budget, in any of the four languages', () => {
+    for (const { id } of LOCALES) {
+      for (const [kind, text] of logLines(id)) {
+        expect(text.length, `${id} ${kind}: ${text}`).toBeLessThanOrEqual(COLS);
+      }
     }
   });
 
   it('never runs past the bottom of the screen', () => {
     // Equal is fine — the grid is sized to hold exactly this many.
+    expect(LOG_ROWS).toBe(LOG.length);
     expect(LOG.length).toBeLessThanOrEqual(ROWS);
   });
 
@@ -74,7 +84,7 @@ describe('the tube fills the glass without stretching the page', () => {
 describe('the print', () => {
   it('starts empty and ends with every line up', () => {
     expect(linesAt(0)).toBe(0);
-    expect(linesAt(1)).toBe(LOG.length);
+    expect(linesAt(1)).toBe(LOG_ROWS);
   });
 
   it('runs monotonically', () => {

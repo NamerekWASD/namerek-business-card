@@ -4,7 +4,7 @@ import { worldY } from '../renderers/r3f/camera.js';
 import { screenGlow, screenRaster } from '../renderers/r3f/patterns.js';
 import useScreenLife from '../renderers/r3f/screenLife.js';
 import {
-  LOG, RUN, clearTerminal, linesAt, paintTerminal, sizeTerminal, terminalSurface,
+  LOG_ROWS, RUN, clearTerminal, linesAt, paintTerminal, sizeTerminal, terminalSurface,
 } from '../renderers/r3f/terminal.js';
 import {
   STATIONS, flowAt, flowBead, flowHalo, flowLayout, flowSurface, paintFlow, pathAt, sizeFlow,
@@ -20,6 +20,8 @@ import { SLIDES } from '../../decks/projects.js';
 import ScreenFrame, { frameMetrics } from './ScreenFrame.jsx';
 import { useFullscreenGallery } from './fullscreenImage.js';
 import useReducedMotion from '../../motion/reduced.js';
+import { useSceneLocale } from '../../i18n/SceneLocale.jsx';
+import { t } from '../../i18n/strings.js';
 
 // The wall screen every landing shares: a fluted glass panel recessed into a
 // frame on the back wall. Plain exported numbers rather than a live panel — this is layout, not
@@ -114,6 +116,9 @@ export const SCREEN_TUNING = [
  */
 function TerminalLog({ y, z, w, h, open, shut }) {
   const still = useReducedMotion();
+  // NBC-90. The language the tube is *painted* in, which is not always the one
+  // the visitor has chosen: a repaint waits for the doors. See `SceneLocale`.
+  const locale = useSceneLocale();
   // The glass's own shape. The page inside stays a fixed grid; what follows the
   // opening is the tube around it — see the note at the head of `terminal.js`.
   const aspect = w / h;
@@ -129,10 +134,33 @@ function TerminalLog({ y, z, w, h, open, shut }) {
   // will not run again for a change of shape alone.
   useEffect(() => {
     if (!surface || !sizeTerminal(surface, aspect)) return;
-    if (playing.current) paintTerminal(surface.canvas, LOG.length, aspect);
+    if (playing.current) paintTerminal(surface.canvas, LOG_ROWS, aspect, locale);
     surface.texture.needsUpdate = true;
     invalidateScene();
-  }, [surface, aspect]);
+  }, [surface, aspect, locale]);
+
+  // ── the page is printed in one language ────────────────────────────────────
+  // NBC-90. Everything else on these walls repaints from its own effect, but
+  // the log is guarded by `playing`: it prints once per visit and refuses to
+  // print again until the doors have fully shut. On the ordinary path that is
+  // exactly what happens — the language swaps while they are shut, the guard
+  // clears with them, and the next opening replays the print in the new
+  // language. The swap can also arrive late, though (a throttled tab, a
+  // dropped frame — see `SceneLocale`), and then the guard is up, the doors
+  // are open and the page would sit in the old language until the next trip.
+  //
+  // So the page is reprinted whole rather than replayed. A log that types
+  // itself out again because somebody turned a switch reads as the machine
+  // restarting; a page that is simply *in the other language now* reads as
+  // what happened.
+  const printedIn = useRef(null);
+  useEffect(() => {
+    if (!surface || !playing.current || printedIn.current === locale) return;
+    printedIn.current = locale;
+    paintTerminal(surface.canvas, LOG_ROWS, aspect, locale);
+    surface.texture.needsUpdate = true;
+    invalidateScene();
+  }, [surface, aspect, locale]);
 
   useEffect(() => {
     if (!surface) return undefined;
@@ -146,12 +174,13 @@ function TerminalLog({ y, z, w, h, open, shut }) {
     }
     if (!open || playing.current) return undefined;
     playing.current = true;
+    printedIn.current = locale;
     if (still) {
       // NBC-25. The print is text arriving line by line, which is motion the
       // visitor did not ask for and cannot look away from — the page is the
       // point of it, so they get the page. The log is what a finished build
       // leaves on the tube anyway.
-      paintTerminal(surface.canvas, LOG.length, aspect);
+      paintTerminal(surface.canvas, LOG_ROWS, aspect, locale);
       surface.texture.needsUpdate = true;
       invalidateScene();
       return undefined;
@@ -165,7 +194,7 @@ function TerminalLog({ y, z, w, h, open, shut }) {
     const show = (count) => {
       if (count === lastCount) return;
       lastCount = count;
-      paintTerminal(surface.canvas, count, aspect);
+      paintTerminal(surface.canvas, count, aspect, locale);
       surface.texture.needsUpdate = true;
       // The whole scene, not this canvas. The print runs with the lift standing
       // still, so both canvases are on demand — and asking only this one left
@@ -177,14 +206,14 @@ function TerminalLog({ y, z, w, h, open, shut }) {
     const step = () => {
       if (!live) return;
       const p = Math.min(1, (performance.now() - t0) / (RUN * 1000));
-      show(linesAt(p));
+      show(linesAt(p, locale));
       if (p < 1) raf.current = requestAnimationFrame(step);
-      else show(LOG.length);
+      else show(LOG_ROWS);
     };
     show(0);
     raf.current = requestAnimationFrame(step);
     return () => { live = false; cancelAnimationFrame(raf.current); };
-  }, [surface, open, shut, aspect, still]);
+  }, [surface, open, shut, aspect, still, locale]);
 
   if (!surface) return null;
   // **Built once, and never unbuilt.** This mesh used to be gated on the reveal
@@ -248,6 +277,7 @@ const FLOW_EDGE = 0.04;
  */
 function RequestFlow({ y, z, w, h, live }) {
   const still = useReducedMotion();
+  const locale = useSceneLocale();
   // The glass's own shape, which is what the sheet is built to — the canvas is
   // rebuilt at it rather than the drawing being stretched onto it. Rounded by
   // `flowAspect`, so a viewport that moves by a pixel is not a repaint.
@@ -272,10 +302,10 @@ function RequestFlow({ y, z, w, h, live }) {
     // `sizeFlow` first, and only then paint: writing `canvas.width` wipes the
     // canvas, so the order is not a preference.
     sizeFlow(surface, aspect);
-    paintFlow(surface.canvas, aspect);
+    paintFlow(surface.canvas, aspect, locale);
     surface.texture.needsUpdate = true;
     invalidateScene();
-  }, [surface, aspect]);
+  }, [surface, aspect, locale]);
 
   useEffect(() => {
     // Every lamp back to nothing, which is the sheet at rest — the settle
@@ -343,7 +373,7 @@ function RequestFlow({ y, z, w, h, live }) {
       </mesh>
       {haloMap && L.boxes.map((b, i) => (
         <mesh
-          key={STATIONS[i].tag}
+          key={STATIONS[i].id}
           position={[
             ((b.x + b.w / 2) / L.w - 0.5) * w,
             (0.5 - (b.y + b.h / 2) / L.h) * h,
@@ -403,6 +433,7 @@ function RequestFlow({ y, z, w, h, live }) {
  */
 function NrwMap({ y, z, w, h, live }) {
   const still = useReducedMotion();
+  const locale = useSceneLocale();
   const aspect = w / h;
   const [surface] = useState(() => (
     typeof document === 'undefined' ? null : mapSurface(aspect)
@@ -421,10 +452,10 @@ function NrwMap({ y, z, w, h, live }) {
     // `sizeMap` first, and only then paint: writing `canvas.width` wipes the
     // canvas, so the order is not a preference.
     sizeMap(surface, aspect);
-    paintMap(surface.canvas, aspect);
+    paintMap(surface.canvas, aspect, locale);
     surface.texture.needsUpdate = true;
     invalidateScene();
-  }, [surface, aspect]);
+  }, [surface, aspect, locale]);
 
   useEffect(() => {
     // Back to nothing, which is the card at rest — the settle `useScreenLife`
@@ -523,6 +554,7 @@ function NrwMap({ y, z, w, h, live }) {
  */
 function ProjectSlide({ y, z, w, h, page, aspect, onImageClick }) {
   const [surface] = useState(() => (typeof document === 'undefined' ? null : gallerySurface()));
+  const locale = useSceneLocale();
 
   useEffect(() => {
     if (!surface) return undefined;
@@ -532,23 +564,24 @@ function ProjectSlide({ y, z, w, h, page, aspect, onImageClick }) {
     };
     const slide = SLIDES[page] ?? null;
     if (!slide) {
-      paintStandby(surface.canvas, aspect);
+      paintStandby(surface.canvas, aspect, locale);
       show();
       return undefined;
     }
     const held = readyShot(slide.src);
-    paintSlide(surface.canvas, held, slide, aspect);
+    paintSlide(surface.canvas, held, slide, aspect, undefined, locale);
     show();
     if (held) return undefined;
 
     let live = true;
+    const missing = () => t('screen.archive.missing', locale);
     loadShot(slide.src)
-      .then((img) => { if (live) { paintSlide(surface.canvas, img, slide, aspect); show(); } })
+      .then((img) => { if (live) { paintSlide(surface.canvas, img, slide, aspect, undefined, locale); show(); } })
       .catch(() => {
-        if (live) { paintSlide(surface.canvas, null, slide, aspect, 'BILD FEHLT'); show(); }
+        if (live) { paintSlide(surface.canvas, null, slide, aspect, missing(), locale); show(); }
       });
     return () => { live = false; };
-  }, [surface, page, aspect]);
+  }, [surface, page, aspect, locale]);
 
   // Paging off this floor mid-hover unmounts this mesh without ever firing
   // `onPointerOut` — three.js has nothing left to raycast against, so the

@@ -66,3 +66,46 @@ describe('a ride with the motion taken out', () => {
     ticker.dispose();
   });
 });
+
+// ── the cycle ────────────────────────────────────────────────────────────────
+// NBC-90. A language change repaints half a dozen canvases, and the way this
+// building hides a change is the gesture it already owns: the doors shut and
+// open again. It is a ride in every respect but one — it arrives where it left.
+describe('a trip that goes nowhere', () => {
+  it('publishes a trip, so the leaves have something to play', () => {
+    const ticker = createRideTicker();
+    expect(ticker.startCycle()).toBe(true);
+    const s = ticker.getSnapshot();
+    expect(s.ride).toMatchObject({ from: 0, to: 0 });
+    expect(s.moving).toBe(true);
+  });
+
+  it('moves the cabin nowhere while it does it', () => {
+    const ticker = createRideTicker();
+    ticker.startCycle();
+    const s = ticker.getSnapshot();
+    expect(s.floorPos).toBe(0);
+    expect(s.velocity).toBe(0);
+    expect(s.deckIndex).toBe(0);
+  });
+
+  it('refuses to start on top of a trip already running — including its own', () => {
+    const ticker = createRideTicker();
+    ticker.startRide(2);
+    expect(ticker.startCycle()).toBe(false);
+
+    const idle = createRideTicker();
+    idle.startCycle();
+    expect(idle.startCycle()).toBe(false);
+  });
+
+  it('is not played at all when the motion has been taken out', () => {
+    // Nothing to hide the repaint behind, and nothing that needs hiding: a
+    // visitor who asked for stillness is not shown a transition to cover one.
+    // `false` is how the caller learns to swap the language on the spot.
+    const ticker = createRideTicker();
+    ticker.setInstant(true);
+    expect(ticker.startCycle()).toBe(false);
+    expect(ticker.getSnapshot().ride).toBe(null);
+  });
+});

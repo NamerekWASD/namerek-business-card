@@ -43,6 +43,7 @@ const velocityOf = (ride) => {
  * @returns {{
  *   subscribe: (fn: (s: RideSnapshot) => void) => () => void,
  *   startRide: (to: number) => boolean,
+ *   startCycle: () => boolean,
  *   setInstant: (value: boolean) => void,
  *   setScrub: (scrub: Ride | null) => void,
  *   getSnapshot: () => RideSnapshot,
@@ -110,6 +111,25 @@ export function createRideTicker() {
         return true;
       }
       activeRide = { from: deckIndex, to, p: 0, dur: liftDuration(Math.abs(to - deckIndex)), t0: performance.now() };
+      notify();
+      rafId = requestAnimationFrame(tick);
+      return true;
+    },
+    // NBC-90. The doors shut and open again with the cabin standing still —
+    // the gesture a language change hides its repaint behind. It is an ordinary
+    // trip in every respect but its destination, which is where it started, so
+    // everything already keyed off `ride` plays it without being told: the
+    // leaves fold, the landing dims, the canvases stop being looked at. What it
+    // is *not* is a change of floor, and `from === to` is what says so — see
+    // `doorClosureAt`, which reads that pair rather than being handed a flag.
+    //
+    // `false` means the doors are not going to move: a trip is already running,
+    // or the visitor has asked for no motion at all. Either way the caller has
+    // to deal with the repaint itself rather than wait for a cycle that will
+    // never come.
+    startCycle() {
+      if (activeRide || instant) return false;
+      activeRide = { from: deckIndex, to: deckIndex, p: 0, dur: liftDuration(0), t0: performance.now() };
       notify();
       rafId = requestAnimationFrame(tick);
       return true;

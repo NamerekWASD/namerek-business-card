@@ -78,6 +78,7 @@ const pct = (v, origin, total) => `${((v - origin) / total) * 100}%`;
  *   value: import('../i18n/locale.js').LocaleId,
  *   onChange: (id: import('../i18n/locale.js').LocaleId) => void,
  *   compact?: boolean,
+ *   disabled?: boolean,
  *   style?: import('react').CSSProperties,
  * }} props
  *
@@ -86,7 +87,7 @@ const pct = (v, origin, total) => `${((v - origin) / total) * 100}%`;
  * hosts' facts. A host that has to *place* it wraps it — the panel's own
  * `position: relative` is an inline style and no class can outrank it.
  */
-function LanguageSelector({ value, onChange, compact = false, style }) {
+function LanguageSelector({ value, onChange, compact = false, disabled = false, style }) {
   const groupRef = useRef(null);
   const index = Math.max(0, LOCALES.findIndex((l) => l.id === value));
   const box = compact ? BOX.compact : BOX.full;
@@ -96,9 +97,9 @@ function LanguageSelector({ value, onChange, compact = false, style }) {
     // A move to where the switch already is is not a move. Reporting it would
     // make every click a state write, and every re-render of the card a thing
     // a click could cause for no reason.
-    if (!next || next.id === LOCALES[index].id) return;
+    if (disabled || !next || next.id === LOCALES[index].id) return;
     onChange(next.id);
-  }, [index, onChange]);
+  }, [disabled, index, onChange]);
 
   // The flat card steers its floors from a `keydown` on `document`, so an
   // ArrowLeft that left this control would change the language *and* ride a
@@ -131,7 +132,16 @@ function LanguageSelector({ value, onChange, compact = false, style }) {
       // heads are four brass balls the size of the flags, so this plate is
       // fastened with screws rather than rivets.
       rivets={{ inset: 5, size: 4 }}
-      style={{ padding: compact ? '4px 6px' : '6px 8px 5px', borderRadius: 3, ...style }}
+      style={{
+        padding: compact ? '4px 6px' : '6px 8px 5px',
+        borderRadius: 3,
+        // NBC-90. Dimmed rather than hidden or greyed out: this is a switch
+        // with the current off it for a second, not a control that has gone
+        // away, and the position it is standing on stays readable throughout.
+        opacity: disabled ? 0.58 : 1,
+        transition: 'opacity 180ms ease',
+        ...style,
+      }}
     >
       <div
         ref={groupRef}
@@ -261,6 +271,7 @@ function LanguageSelector({ value, onChange, compact = false, style }) {
             aria-label={locale.endonym}
             title={`${locale.endonym} · ${locale.code}`}
             tabIndex={i === index ? 0 : -1}
+            disabled={disabled}
             className="lang-pos"
             style={{
               left: pct(SEAT[i] - HIT.w / 2, box.x, box.w),

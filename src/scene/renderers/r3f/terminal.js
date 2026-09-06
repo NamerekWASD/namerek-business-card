@@ -71,6 +71,8 @@
 // warnings is a build someone has been meaning to get to.
 
 import { CanvasTexture, SRGBColorSpace } from 'three';
+import { t } from '../../../i18n/strings.js';
+import { DEFAULT_LOCALE } from '../../../i18n/locale.js';
 
 // ── the grid ─────────────────────────────────────────────────────────────────
 /** How many characters wide the log may be. The hard budget — see above. */
@@ -130,10 +132,15 @@ export function pageLeft(aspect) {
  * @typedef {[Kind, string]} Line
  */
 
+// ── one line of this is language, and eighteen are not ───────────────────────
+// NBC-90. Everything below the rule is a compiler talking: `dotnet` prints in
+// English on a machine in Duisburg exactly as it does anywhere else, and the
+// warning codes, the file names and the line numbers are what a build actually
+// leaves on a screen. Translating them would be inventing a tool that does not
+// exist. The heading is the other thing — it is the works saying what the
+// screen is — and that one is content.
 /** @type {Line[]} */
-export const LOG = [
-  ['head', 'NAMEREK WERK · BAUSTAND'],
-  ['rule', ''],
+const BODY = [
   ['cmd', 'dotnet build -c Release'],
   ['out', ' Namerek.Core  -> Core.dll'],
   ['out', ' Namerek.Shaft -> Shaft.dll'],
@@ -153,6 +160,20 @@ export const LOG = [
   ['cur', ''],
 ];
 
+/**
+ * The page, in one language. The heading and the rule under it are prepended
+ * here rather than held in `BODY` so there is exactly one place that knows the
+ * head is translated.
+ * @param {import('../../../i18n/locale.js').LocaleId} [locale]
+ * @returns {Line[]}
+ */
+export function logLines(locale = DEFAULT_LOCALE) {
+  return [['head', t('screen.terminal.head', locale)], ['rule', ''], ...BODY];
+}
+
+/** How many rows the finished page is — the count a caller prints *to*. */
+export const LOG_ROWS = BODY.length + 2;
+
 /** How long the whole log takes to print itself, in seconds. */
 export const RUN = 2.4;
 
@@ -166,15 +187,16 @@ export const RUN = 2.4;
  *
  * @param {number} p 0..1
  */
-export function linesAt(p) {
+export function linesAt(p, locale = DEFAULT_LOCALE) {
+  const lines = logLines(locale);
   const weight = (/** @type {Line} */ l) => Math.max(6, l[1].length);
-  const total = LOG.reduce((sum, l) => sum + weight(l), 0);
+  const total = lines.reduce((sum, l) => sum + weight(l), 0);
   let seen = 0;
-  for (let i = 0; i < LOG.length; i += 1) {
-    seen += weight(LOG[i]);
+  for (let i = 0; i < lines.length; i += 1) {
+    seen += weight(lines[i]);
     if (seen / total > p) return i;
   }
-  return LOG.length;
+  return lines.length;
 }
 
 // Phosphor, in one hue at six levels. Every light in this room is amber and the
@@ -229,7 +251,7 @@ function tube(ctx, w) {
  * @param {number} count
  * @param {number} aspect the glass's width over its height
  */
-export function paintTerminal(canvas, count, aspect) {
+export function paintTerminal(canvas, count, aspect, locale = DEFAULT_LOCALE) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
   const [w] = termCanvas(aspect);
@@ -239,10 +261,11 @@ export function paintTerminal(canvas, count, aspect) {
 
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
-  const shown = Math.max(0, Math.min(LOG.length, count));
+  const lines = logLines(locale);
+  const shown = Math.max(0, Math.min(lines.length, count));
 
   for (let i = 0; i < shown; i += 1) {
-    const [kind, text] = LOG[i];
+    const [kind, text] = lines[i];
     // the baseline of row `i`, sitting a little above the row's own bottom
     const y = PAD_TOP + i * LINE + FONT * 0.82;
     if (kind === 'gap') continue;

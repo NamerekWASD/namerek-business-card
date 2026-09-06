@@ -116,6 +116,78 @@ export const STRINGS = {
     de: 'Nächstes Projekt: {title}', en: 'Next project: {title}', uk: 'Наступний проєкт: {title}', ru: 'Следующий проект: {title}',
   },
   'fullscreenModal.nextPhoto': { de: 'Nächstes Foto', en: 'Next photo', uk: 'Наступне фото', ru: 'Следующее фото' },
+
+  // ── NBC-90: the text that is pixels ────────────────────────────────────────
+  // Everything below is painted into a canvas and baked into a texture rather
+  // than laid out by the browser, which changes two things and nothing else.
+  //
+  // It is stencilled, so it is upper case and it is short: these are labels cut
+  // into a machine, and the boxes they sit in were drawn at the German width.
+  // `fitFont` in `canvasText.js` takes a point off a line that overruns, but a
+  // translation that needs three is the wrong translation.
+  //
+  // And it cannot be changed while anyone is looking at it — a repaint of half
+  // a dozen textures is a hitch, so it happens behind shut doors. See
+  // `i18n/SceneLocale.jsx`.
+  //
+  // What is *not* here is as deliberate as what is. `NAMEREK WERK` is the works'
+  // own name and stays; so do the product names on the block diagram (`EF CORE`,
+  // `MSSQL · MONGODB`), the towns on the map, the Rhine, and every line of the
+  // ground floor's build log below its heading — that is a compiler talking,
+  // and a compiler talks in English wherever it is installed. The 1937 valve
+  // schematic on the 2. OG wall keeps its German whole (`STÜCKLISTE`, `EING.`,
+  // `AUSG.`), for the reason NBC-85 wrote the prop rule down: it is a drawing
+  // hanging on a wall, dated, titled and numbered in German, and translating
+  // three words on it would leave a half-German drawing rather than a
+  // translated one.
+
+  'screen.terminal.head': {
+    de: 'NAMEREK WERK · BAUSTAND',
+    en: 'NAMEREK WERK · BUILD STATUS',
+    uk: 'NAMEREK WERK · СТАН ЗБІРКИ',
+    ru: 'NAMEREK WERK · СТАТУС СБОРКИ',
+  },
+
+  'screen.flow.head': {
+    de: 'NAMEREK WERK · ANFRAGEWEG',
+    en: 'NAMEREK WERK · REQUEST PATH',
+    uk: 'NAMEREK WERK · ШЛЯХ ЗАПИТУ',
+    ru: 'NAMEREK WERK · ПУТЬ ЗАПРОСА',
+  },
+  'screen.flow.request': { de: 'ANFRAGE', en: 'REQUEST', uk: 'ЗАПИТ', ru: 'ЗАПРОС' },
+  'screen.flow.response': { de: 'ANTWORT', en: 'RESPONSE', uk: 'ВІДПОВІДЬ', ru: 'ОТВЕТ' },
+  'screen.flow.database': {
+    de: 'DATENBANK', en: 'DATABASE', uk: 'БАЗА ДАНИХ', ru: 'БАЗА ДАННЫХ',
+  },
+  'screen.flow.endpoint': {
+    de: 'REST · ENDPUNKT', en: 'REST · ENDPOINT', uk: 'REST · ВХІД', ru: 'REST · ВХОД',
+  },
+  'screen.flow.rules': {
+    de: 'DDD · REGELN', en: 'DDD · RULES', uk: 'DDD · ПРАВИЛА', ru: 'DDD · ПРАВИЛА',
+  },
+
+  'screen.map.head': {
+    de: 'NAMEREK WERK · STANDORT',
+    en: 'NAMEREK WERK · LOCATION',
+    uk: 'NAMEREK WERK · РОЗТАШУВАННЯ',
+    ru: 'NAMEREK WERK · РАСПОЛОЖЕНИЕ',
+  },
+  'screen.map.available': {
+    de: 'VERFÜGBAR AB SOFORT',
+    en: 'AVAILABLE IMMEDIATELY',
+    uk: 'ДОСТУПНИЙ ВІДРАЗУ',
+    ru: 'ДОСТУПЕН СРАЗУ',
+  },
+
+  'screen.archive.head': {
+    de: 'NAMEREK · ARCHIV', en: 'NAMEREK · ARCHIVE', uk: 'NAMEREK · АРХІВ', ru: 'NAMEREK · АРХИВ',
+  },
+  'screen.archive.empty': {
+    de: 'KEIN EINTRAG', en: 'NO ENTRY', uk: 'ЗАПИСІВ НЕМАЄ', ru: 'ЗАПИСЕЙ НЕТ',
+  },
+  'screen.archive.missing': {
+    de: 'BILD FEHLT', en: 'IMAGE MISSING', uk: 'НЕМАЄ ЗОБРАЖЕННЯ', ru: 'НЕТ ИЗОБРАЖЕНИЯ',
+  },
 };
 
 /**

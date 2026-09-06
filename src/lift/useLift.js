@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createRideTicker } from './rideTicker.js';
 import useReducedMotion from '../motion/reduced.js';
 
@@ -29,6 +29,7 @@ import useReducedMotion from '../motion/reduced.js';
  * @returns {{
  *   deckIndex: number, floorPos: number, velocity: number, moving: boolean,
  *   rideTo: (to: number) => void,
+ *   cycleDoors: () => boolean,
  *   scrub: Ride | null, setScrub: (r: Ride | null) => void,
  *   ride: Ride | null, ridePhase: number | null,
  *   ticker: ReturnType<typeof createRideTicker>,
@@ -58,6 +59,11 @@ export default function useLift() {
     };
   }, [ticker]);
 
+  // Memoised because it is read as an effect dependency — `useLocaleCycle` asks
+  // for the doors from inside one, and a fresh closure every render would put
+  // that effect through a run per frame for nothing.
+  const cycleDoors = useCallback(() => ticker.startCycle(), [ticker]);
+
   const setScrub = (value) => {
     setScrubState(value);
     ticker.setScrub(value);
@@ -69,6 +75,7 @@ export default function useLift() {
     velocity: snapshot.velocity,
     moving: snapshot.moving,
     rideTo: (to) => ticker.startRide(to),
+    cycleDoors,
     scrub,
     setScrub,
     ride: snapshot.ride,
