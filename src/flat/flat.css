@@ -948,6 +948,41 @@
   .eg-grid { grid-template-columns: 1fr auto; }
   .field { grid-template-columns: 1fr; gap: 0; }
   .crt { max-height: 32vh; max-height: 32dvh; }
+
+  /* NBC-93: stacking `.crt-grid` and `.field` to one column on a narrow
+     viewport makes a floor *taller*, not shorter — the two columns that used
+     to sit side by side now sit on top of each other. On a phone short
+     enough to show Safari's own toolbars, that stack was regularly taller
+     than the floor itself, so a floor scrolled inside its own section before
+     a swipe could ever reach `.bld`'s snap scroller. What follows claws back
+     just enough of that height, without touching anything with a real 44px
+     touch target. */
+  .panel-body { padding: clamp(14px, 3.6vw, 44px); }
+  .floor { padding-top: clamp(10px, 2.4vw, 32px); padding-bottom: clamp(10px, 2.4vw, 32px); }
+
+  /* The prev/counter/next row was wrapping to two lines below ~380px of
+     column width — a german "Zurück"/"Weiter" plus the counter do not fit
+     `.crt`'s own width in one row at the old padding. One row costs 44px
+     less than two. */
+  .console { gap: 6px; }
+  .lamp-btn { padding: 11px 9px; font-size: 10px; letter-spacing: 0.04em; }
+  .counter { padding: 9px 8px; letter-spacing: 0.08em; }
+
+  /* The project blurb is the tallest single block once it is the full column
+     width and no longer beside the image — six lines at the desktop size and
+     leading. Narrower letters and tighter leading buy back a line or two
+     without needing a shorter translation. */
+  .crt-grid p { font-size: 13px; line-height: 1.38; }
+  /* Same reasoning for the paragraphs' own inline `marginTop` (`FloorProjekte.jsx`):
+     spacing sized for a column that had room to spare, not one that is now
+     the full width of the floor. */
+  .crt-grid h3,
+  .crt-grid p { margin-top: 8px !important; }
+
+  /* The despatch form's two tapes are a divider, not content — 16px of
+     margin on each side of a 26px bar was sized for the desktop column,
+     not a floor fighting for every pixel. */
+  .tape { height: 16px; margin: 10px 0; }
 }
 
 @media (max-width: 560px) {
