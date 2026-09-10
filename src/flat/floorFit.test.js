@@ -95,3 +95,76 @@ describe('a floor on a short screen', () => {
     expect(declarationsFor('.floor-label')).toMatch(/display:\s*none/);
   });
 });
+
+// NBC-101. Yielding height was only half of the archive floor's problem. The
+// other half is that the height it yielded *changed with the slide*: a longer
+// caption, a longer project name, a longer notice, and the console — which
+// rides under the tube — moved under the thumb pressing it.
+//
+// So every block on that floor whose text varies is a window of a declared
+// size, and what is asserted here is that the sizes are declared rather than
+// left to the content. `Crawl.test.jsx` covers the walking; this covers the
+// boxes it walks inside.
+const REDUCED = block('@media (prefers-reduced-motion: reduce)');
+
+describe('the archive floor between two shots', () => {
+  it('reserves the caption screen’s height instead of taking it from the caption', () => {
+    expect(declarationsFor('.shot-screen', CSS)).toMatch(/height:\s*var\(--strip-h\)/);
+  });
+
+  it('reserves the notice window in lines, not in magic pixels', () => {
+    // A reservation written as a pixel count is a reservation that stops being
+    // right at the next font-size clamp. This one is `lines × leading`, so the
+    // handset block can change either and the box follows.
+    const slot = declarationsFor('.notice-slot', CSS);
+    expect(slot).toMatch(/line-height:\s*var\(--notice-lh\)/);
+    expect(slot).toMatch(/height:\s*calc\(var\(--notice-lines\)\s*\*\s*var\(--notice-lh\)\s*\*\s*1em\)/);
+    expect(declarationsFor('.notice-slot', HANDSET)).toMatch(/--notice-lines:\s*\d+/);
+  });
+
+  it('lets the visitor read the notice at their own pace, down a slider of its own', () => {
+    // It fed itself past its window for one build. A label may walk; a
+    // paragraph somebody is reading may not — so the notice scrolls by hand,
+    // and the affordance is drawn rather than left to the platform's own grey.
+    const slot = declarationsFor('.notice-slot', CSS);
+    expect(slot).toMatch(/overflow-y:\s*auto/);
+    expect(slot).toMatch(/scrollbar-color:/);
+    expect(declarationsFor('.notice-slot::-webkit-scrollbar-thumb', CSS)).toMatch(/background:/);
+    // And it is reachable from a keyboard, which is what the tabindex in
+    // `FloorProjekte.jsx` is for — a focus ring it can show.
+    expect(declarationsFor('.notice-slot:focus-visible', CSS)).toMatch(/outline:/);
+  });
+
+  it('gives a walking label a hard edge and one line', () => {
+    expect(declarationsFor('.crawl', CSS)).toMatch(/overflow:\s*hidden/);
+    expect(declarationsFor('.crawl .crawl-run', CSS)).toMatch(/white-space:\s*nowrap/);
+  });
+
+  it('spans the control rail across the panel rather than leaving it ragged', () => {
+    // Naturally-sized plates leave a gap on the right whose width depends on
+    // the language — the same class of fault as depending on the slide. A
+    // grid of three columns plus a full-width second row cannot reflow at all.
+    const rail = declarationsFor('.console', CSS);
+    expect(rail).toMatch(/display:\s*grid/);
+    expect(rail).toMatch(/grid-template-columns:\s*1fr auto 1fr/);
+    expect(declarationsFor('.crt-col .link-btn', CSS)).toMatch(/grid-column:\s*1 \/ -1/);
+  });
+
+  it('halves the pager but not the target a thumb aims at', () => {
+    // The call: every key on this floor about half its size. A 26px
+    // plate is below the 44px a touch target owes, so the plate shrinks and
+    // the target is put back with a pseudo-element that reaches past it.
+    const key = declarationsFor('.crt-col .lamp-btn', CSS);
+    expect(key).toMatch(/min-height:\s*26px/);
+    const reach = declarationsFor('.crt-col .lamp-btn::after', CSS);
+    expect(reach).toMatch(/inset:\s*-9px/);
+  });
+
+  it('holds still for a visitor who asked for stillness, without losing the box', () => {
+    // The window keeps its declared height — the floor is laid out around it —
+    // and the text inside becomes something to scroll rather than something
+    // that moves on its own.
+    expect(declarationsFor('.crawl-run', REDUCED)).toMatch(/animation:\s*none/);
+    expect(declarationsFor('.crawl', REDUCED)).toMatch(/overflow-x:\s*auto/);
+  });
+});

@@ -4,6 +4,7 @@ import { SLIDES, localized } from '../decks/projects.js';
 import { DECKS } from '../lift/decks.js';
 import { FLOORS } from './floors.js';
 import Floor from './Floor.jsx';
+import Crawl from './Crawl.jsx';
 import FullscreenImageModal from '../scene/r3f/FullscreenImageModal.jsx';
 import { useLocale, usePick, useT } from '../i18n/LocaleContext.jsx';
 import { AddressIcon } from '../ui/icons.jsx';
@@ -26,6 +27,32 @@ import { AddressIcon } from '../ui/icons.jsx';
 // which is how it ended up losing to `.rail` (`z-index: 30`) and to this
 // floor's own `.floor-tag`. A portal escapes that context entirely, the same
 // way it already does mounted above the scene's `<Canvas>` in `Dieselpunk`.
+//
+// ── NBC-101: nothing moves between two shots ────────────────────────────────
+// This is the one floor whose content changes without the page changing, and
+// every block on it used to be sized by whatever slide was loaded: a caption
+// that wrapped to two lines, a project name a word longer, a notice of another
+// length, a stack that broke. The tube is the part of the floor that yields
+// height (NBC-99), so all of that variation arrived at the console — the row
+// of buttons moved between one press and the next, measured across three shots
+// at 471px as 410 / 396 / 364px. A pager whose keys walk away from the thumb
+// paging with them is the worst possible place to spend a layout's slack.
+//
+// So the floor is laid out around four declared boxes, and each of them
+// answers exactly one question:
+//
+//   the glass          — what it looks like              the picture
+//   the legend         — which shot this is              caption + shot number
+//   the control rail   — everything you can press        pager, and the source
+//   the notice window  — what the project is and why     the blurb, scrolled
+//   the batten         — what was shipped                the stack, one line
+//
+// A label longer than its box walks it (`Crawl`) instead of growing it, the
+// notice scrolls inside its own, and
+// every control the floor has is in the rail rather than scattered down the
+// panel with re-sizing text between them. The sizes themselves are in
+// `flat.css`; `floorFit.test.js` holds them, `FloorProjekte.test.jsx` holds
+// this shape.
 function FloorProjekte() {
   const { locale } = useLocale();
   const pick = usePick();
@@ -59,6 +86,29 @@ function FloorProjekte() {
               <span className="crt-roll" />
               <span className="crt-glass" />
             </button>
+
+            {/* The legend under the glass, which is where the 3D room puts the
+                same fact: a small lit strip bolted to the tube's own bottom
+                edge. Both halves of "which shot is this" live on it — the
+                picture's name, and its place in the project — so neither can
+                cost the floor a line by growing. */}
+            <div className="shot-screen">
+              <Crawl className="shot-name" dep={slide ? `${slide.key}:${locale}` : locale}>
+                <h3>{slide ? caption : t('floorProjekte.empty')}</h3>
+              </Crawl>
+              {slide && (
+                <span className="stencil stencil--sm shot-of">
+                  {t('floorProjekte.shotOf', { shot: slide.shot, shots: slide.shots })}
+                </span>
+              )}
+              <span className="shot-screen-scan" aria-hidden="true" />
+            </div>
+
+            {/* One rail, every control on the floor. The source link used to
+                sit six blocks down the panel; it is a control and it belongs
+                where the other controls are. It keeps the despatch desk's dark
+                plate rather than the pager's brass — the shape says it leaves
+                the site instead of paging the archive. */}
             <div className="console">
               <button
                 type="button"
@@ -83,47 +133,47 @@ function FloorProjekte() {
               >
                 {t('floorProjekte.nextLabel')}
               </button>
+              {slide?.url && (
+                <a
+                  className="link-btn link-btn--sm"
+                  href={slide.url}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  aria-label={t('floorProjekte.viewSource')}
+                >
+                  <AddressIcon href={slide.url} />
+                  {t('floorProjekte.viewSourceShort')}
+                </a>
+              )}
             </div>
           </div>
 
-          <div>
+          <div className="archive-facts">
             <span className="enamel">{slide ? slide.title : t('floorProjekte.empty')}</span>
-            {/* The caption names the picture and the stencil beside it says
-                which of the project's pictures this is. Two answers to one
-                question, so they share one line — on a short screen the line
-                they used to take in turn is a line of the notice below. */}
-            <div className="shot-line">
-              {caption && <h3>{caption}</h3>}
-              {slide && (
-                <p className="stencil">
-                  {t('floorProjekte.shotOf', { shot: slide.shot, shots: slide.shots })}
-                </p>
-              )}
+
+            {/* The works notice, in a window with a height reserved in lines
+                rather than taken from the sentence — and read at the visitor's
+                own pace. It fed itself past the window for one build and that
+                was wrong for exactly the reason given: a paragraph
+                somebody is *reading* must not move while they read it. So it
+                scrolls, by hand, down a brass slider of its own.
+
+                The scene hangs the same text on the landing wall, so both
+                renderings say the same thing about the same picture — here it
+                can stand under the name plate rather than a metre away. */}
+            <div className="notice-slot" tabIndex={0}>
+              <p className="notice">{blurb}</p>
             </div>
-            {/* The same works notice the scene hangs on the landing wall, so
-                the two renderings of this card say the same thing about the
-                same picture. Here it can stand under the name plate rather
-                than a metre away from it. */}
-            {blurb && (
-              <p className="notice" key={slide.project}>{blurb}</p>
-            )}
-            {/* NBC-100. A plate, not a run of text: this was `.field-value`,
-                the treatment the page gives plain copy, and it read as a line
-                of the notice rather than as the one thing on this half of the
-                panel that can be pressed. `.link-btn` is the vocabulary the
-                despatch desk already uses for a secondary control — the
-                console's brass keys belong to the console, and borrowing them
-                here would say this pages the archive too. */}
-            {slide?.url && (
-              <p style={{ marginTop: 14 }}>
-                <a className="link-btn" href={slide.url} target="_blank" rel="noreferrer noopener">
-                  <AddressIcon href={slide.url} />
-                  {t('floorProjekte.viewSource')}
-                </a>
-              </p>
-            )}
+
+            {/* What was shipped, sprayed along a batten across the foot of the
+                panel — one line at the same size, never two. The crate in the
+                3D room carries this same stencil. */}
             {slide?.stack && (
-              <p className="stencil stencil--sm" style={{ marginTop: 14 }}>{slide.stack}</p>
+              <div className="stack-batten">
+                <Crawl dep={slide.project}>
+                  <span className="stencil stencil--sm">{slide.stack}</span>
+                </Crawl>
+              </div>
             )}
           </div>
         </div>

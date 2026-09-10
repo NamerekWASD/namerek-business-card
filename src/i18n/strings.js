@@ -68,6 +68,12 @@ export const STRINGS = {
   'floorProjekte.viewSource': {
     de: 'Quelltext ansehen', en: 'View source', uk: 'Переглянути код', ru: 'Смотреть код',
   },
+  // NBC-101: the same control, in the width a control rail has for it. The
+  // full phrase above stays — it is the link's accessible name, where there is
+  // no rail to fit into. Four keys on one line at 360px is what this buys.
+  'floorProjekte.viewSourceShort': {
+    de: 'Quelltext', en: 'Source', uk: 'Код', ru: 'Код',
+  },
 
   'floorKontakt.formTitle': {
     de: 'Werks-Depeschenformular',

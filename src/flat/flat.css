@@ -738,10 +738,24 @@
 /* ---------- 2. OG CRT ---------- */
 
 .crt-grid {
+  /* NBC-101. The archive floor's reserved boxes, as tokens: the legend strip
+     bolted under the glass, and the notice window over in `.archive-facts`.
+     Declared here because the column's own floor is read from them too, and a
+     floor written twice is a floor that drifts. */
+  --strip-h: 30px;
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
   gap: clamp(14px, 2.4vw, 32px);
   align-items: stretch;
+}
+
+/* The tube, its legend and the control rail are one instrument: this is the
+   flex context that keeps them stacked, and the tube is the only part of it
+   that yields height (see the handset block). */
+.crt-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .crt {
@@ -757,6 +771,12 @@
   max-height: 46vh;
   max-height: 46dvh;
   box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.9);
+}
+/* Square-ish at the foot, because the legend strip below carries the round
+   corners now, and two radii meeting at a seam read as two objects. */
+.crt-col > .crt {
+  border-bottom-left-radius: 3px;
+  border-bottom-right-radius: 3px;
 }
 .crt img {
   width: 100%;
@@ -802,42 +822,256 @@
     radial-gradient(130% 120% at 50% 50%, transparent 52%, rgba(0, 0, 0, 0.78));
 }
 
-/* The picture's caption and its place in the project, on one line: two answers
-   to the question "which shot is this" that used to take a line each. They wrap
-   to two lines only where the caption itself is long enough to need them. */
-.shot-line {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-  margin-top: 12px;
-}
-/* Declared here rather than inline on the element: the handset block below has
-   to be able to reach it, and no rule outranks an inline style. */
-.shot-line h3 { font-size: clamp(18px, 2.4vw, 30px); }
+/* ---------- NBC-101: the boxes the archive floor is laid out around --------
+   A window of a size the stylesheet decides, and content that walks it when it
+   is longer than the box rather than growing the box. `Crawl.jsx` measures the
+   overflow and hands it back as `--over`; everything below is the window, and
+   the windows never move.
 
-/* The works notice. Its leading is here rather than inline on the element for
-   the same reason as the caption's size: NBC-93 tightened `.crt-grid p` on a
-   handset and this paragraph — the tallest block on the floor, the one the
-   rule was written for — never heard it, because no rule outranks an inline
-   style. */
-.notice {
-  margin-top: 10px;
-  line-height: 1.7;
+   Only `transform` moves, and only on `.crawl-run`, so the walk stays on the
+   compositor — the same rule the deck ticker had to learn the hard way in
+   NBC-79, where a `url()` filter quietly took it off. The soft edges and the
+   scanlines belong to the window, which is static, so they cost one paint. */
+.crawl {
+  position: relative;
+  overflow: hidden;
+}
+.crawl { min-width: 0; }
+/* One line, whatever its length: the whole point of the window is that a long
+   name walks instead of taking a second line off the floor. */
+.crawl .crawl-run {
+  display: inline-block;
+  white-space: nowrap;
+  will-change: transform;
 }
 
-.console {
+/* Held at both ends — a legend that arrives and leaves without a pause is one
+   nobody finishes reading. The travel is exactly the overflow, so the first
+   character is on screen at rest; a marquee walks its own width instead and
+   empties a box the text already fitted inside. */
+.crawl[data-crawl="on"] .crawl-run {
+  animation: crawl-walk var(--crawl-ms, 4s) ease-in-out infinite;
+}
+/* A pointer on the window, or a keyboard inside it, stops the walk: whoever is
+   reading wants it to hold still, and reaching for it is how they said so. */
+.crawl:hover .crawl-run,
+.crawl:focus-within .crawl-run { animation-play-state: paused; }
+@keyframes crawl-walk {
+  0%, 14% { transform: translate3d(0, 0, 0); }
+  50%, 64% { transform: translate3d(calc(-1 * var(--over, 0px)), 0, 0); }
+  100% { transform: translate3d(0, 0, 0); }
+}
+
+/* The legend under the glass — the flat card's answer to the lit plate the 3D
+   room hangs under its own screen. Both halves of "which shot is this" stand
+   on it: the picture's name, walking if it must, and its place in the project
+   bolted to the right where nothing can push it. Hung on the tube's own bottom
+   edge with no gap, so the two read as one instrument. */
+.shot-screen {
+  position: relative;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: 14px;
-  margin-top: 12px;
-  flex-wrap: wrap;
+  gap: 10px;
+  height: var(--strip-h);
+  margin-top: -10px;
+  padding: 0 11px;
+  overflow: hidden;
+  background: var(--screen);
+  border: 1px solid #0f0a06;
+  border-top: 0;
+  border-radius: 0 0 12px 12px / 0 0 16px 16px;
+  box-shadow:
+    inset 0 2px 6px rgba(0, 0, 0, 0.85),
+    inset 0 0 14px rgba(255, 180, 84, 0.16);
+}
+.shot-screen .shot-name { flex: 1 1 auto; }
+/* While it is walking, the legend dissolves at the window's edges instead of
+   being cut by them — otherwise a name mid-travel reads as though it has run
+   into the shot number beside it. Static mask on the static box; the moving
+   run is untouched. */
+.shot-name[data-crawl="on"] {
+  mask-image: linear-gradient(90deg, transparent 0, #000 7px, #000 calc(100% - 11px), transparent 100%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 7px, #000 calc(100% - 11px), transparent 100%);
+}
+.shot-screen h3 {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: clamp(11px, 1.3vw, 14px);
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--glow);
+  text-shadow: 0 0 7px rgba(255, 180, 84, 0.5);
+}
+.shot-of {
+  flex: 0 0 auto;
+  color: var(--brass);
+  white-space: nowrap;
+}
+.shot-screen-scan {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.34) 0 1px,
+    transparent 1px 3px
+  );
+  mix-blend-mode: multiply;
+}
+
+/* The facts half of the panel: a name plate, a notice window, a batten. Not
+   one of their heights depends on the slide, which is what stops the console
+   beside them moving between two presses. */
+.archive-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+/* The plate hugs its own name and never takes a second line — it is the thing
+   that stands still while the pictures change under it, and a plate that
+   reflows is not standing still. */
+.archive-facts > .enamel {
+  align-self: flex-start;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+/* The works notice: a window with a height reserved in *lines* rather than
+   pixels — a pixel reservation stops being right at the next font-size clamp,
+   and this floor has three of them — and read at the visitor's own pace.
+
+   It fed itself past that window for one build, and the verdict on that was
+   the right one: a paragraph somebody is reading must not move while they
+   read it. A label can walk (`Crawl`, and the legend on the glass does); a
+   sentence cannot. So this scrolls by hand, and the affordance is drawn rather than
+   implied — a brass slider in a recessed track, which is the same pair of
+   materials the pager's keys are made of, so the one moving part on this half
+   of the panel reads as part of the machine. */
+.notice-slot {
+  --notice-lines: 6;
+  --notice-lh: 1.7;
+  position: relative;
+  font-size: clamp(13px, 1.5vw, 15px);
+  line-height: var(--notice-lh);
+  height: calc(var(--notice-lines) * var(--notice-lh) * 1em);
+  padding: 4px 12px 4px 14px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.12));
+  border-left: 1px solid var(--line);
+  border-right: 1px solid #150e08;
+  /* Firefox has no parts to paint, only two colours — the same two. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--brass-deep) #150e08;
+}
+.notice-slot .notice {
+  margin: 0;
+  font-size: inherit;
+  line-height: inherit;
+}
+.notice-slot:focus-visible {
+  outline: 2px solid var(--glow);
+  outline-offset: 2px;
+}
+.notice-slot::-webkit-scrollbar { width: 11px; }
+.notice-slot::-webkit-scrollbar-track {
+  background: linear-gradient(90deg, #0c0805, #241a11);
+  border-left: 1px solid #0f0a06;
+  box-shadow: inset 1px 0 2px rgba(0, 0, 0, 0.8);
+}
+/* The slider is a key laid on its side: the same brass gradient the pager
+   uses, the same dark edge, the same lit top. */
+.notice-slot::-webkit-scrollbar-thumb {
+  background: linear-gradient(90deg, var(--glow), var(--brass-deep));
+  border: 1px solid #0f0a06;
+  border-radius: 1px;
+  box-shadow: inset 0 1px 0 rgba(255, 245, 220, 0.55);
+}
+.notice-slot::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(90deg, #ffd08a, var(--brass));
+}
+
+/* What was shipped, sprayed along a batten across the foot of the panel — the
+   same stencil the crate in the 3D room carries. One line at the same size,
+   never two. `margin-top: auto` drops it to the bottom of the column, so on a
+   desktop floor with slack it reads as the plank the panel stands on. */
+.stack-batten {
+  margin-top: auto;
+  padding: 7px 12px;
+  background: linear-gradient(178deg, #33251a, #20180f);
+  border-top: 1px solid #5c4530;
+  border-bottom: 1px solid #0f0a06;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 220, 170, 0.14),
+    0 3px 5px rgba(0, 0, 0, 0.5);
+}
+.stack-batten .crawl-run { line-height: 1.2; }
+
+/* NBC-101, second pass. The call: the keys go the full width. A rail of
+   four naturally-sized plates leaves a ragged gap on the right that reads as
+   an unfinished row — and how ragged it is depends on the language, which is
+   the same class of fault as depending on the slide.
+
+   So it is a grid, not a wrapping flex row: the pager takes the width in three
+   columns with the counter its own natural size between them, and the source
+   plate spans the whole of a second row. Two rows always, in every language
+   and at every width, and nothing here can reflow when a shot changes. */
+.console {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: stretch;
+  gap: 8px;
 }
 
 /* The console keeps its full height while the tube above it yields — see
    NBC-99 and the handset block. Buttons that shrink are buttons a thumb
    misses. */
 .crt-col > .console { flex: 0 0 auto; }
+
+/* ── NBC-101: half-size keys, full-size targets ─────────────────────────
+   The call was that every key on this floor is about half what it was:
+   at 44px each, four controls in one rail is a band of brass nearly as tall as
+   the picture it pages. So the *plate* is 26px — and the target a thumb aims at
+   is put back to 44 with a pseudo-element reaching nine pixels past the plate
+   top and bottom, where there is nothing to collide with. Sideways it reaches
+   three, under half the rail's own gap, so two neighbouring keys never claim
+   the same pixel. */
+.crt-col .lamp-btn,
+.crt-col .link-btn {
+  position: relative;
+  min-height: 26px;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+.crt-col .lamp-btn {
+  padding: 5px 11px;
+  box-shadow: inset 0 1px 0 rgba(255, 245, 220, 0.55), 0 2px 0 #120c07;
+}
+/* A row of its own, all the way across: it is the one control here that leaves
+   the site, and a plate that wide is also the only shape that stays honest in
+   german, where "Quelltext" beside a pager would not fit at all. */
+.crt-col .link-btn {
+  grid-column: 1 / -1;
+  justify-content: center;
+  padding: 4px 10px;
+  gap: 7px;
+}
+.crt-col .link-btn svg { width: 14px; height: 14px; }
+.crt-col .counter {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  padding: 6px 9px;
+}
+.crt-col .lamp-btn::after,
+.crt-col .link-btn::after {
+  content: "";
+  position: absolute;
+  inset: -9px -3px;
+}
 
 .lamp-btn {
   font-family: var(--mono);
@@ -1060,11 +1294,15 @@
      text beside it, and the floor measures as though everything fits. */
   .crt-grid {
     --tube-min: 116px;
-    --console-h: 56px;
+    /* NBC-101: everything that rides under the tube, not just the console —
+       the legend strip (26, hung on the glass), and the rail, which is two
+       rows of 28 with 8 between them, plus the column's own gaps. The token
+       kept its name because `floorFit.test.js` holds the one relation it is
+       in. */
+    --console-h: 106px;
+    --strip-h: 26px;
   }
   .crt-col {
-    display: flex;
-    flex-direction: column;
     flex: 1 1 auto;
     min-height: calc(var(--tube-min) + var(--console-h));
   }
@@ -1081,12 +1319,15 @@
      not this — it carries a fact of its own and sits inside the card. */
   .floor-label { display: none; }
 
-  /* A caption at the desktop size takes two lines of a 264px column and pushes
-     the shot number onto a third. Smaller, it is still the largest type in the
-     panel — the notice under it is 13px — and the pair costs two lines
-     instead of three. */
-  .shot-line { margin-top: 10px; }
-  .shot-line h3 { font-size: 15px; }
+  /* NBC-101: the caption used to be the largest type in the panel and took
+     two lines of a 264px column, pushing the shot number onto a third. It is
+     a legend on a lit strip now, so it is sized like one — and if a
+     translation is too long for the strip it walks it instead of growing. */
+  .shot-screen {
+    gap: 8px;
+    padding: 0 9px;
+  }
+  .shot-screen h3 { font-size: 11px; }
 
   /* NBC-94: the corner bolts read oversized against a floor's own mobile
      text sizes — the desktop panel has the width to spare, a phone does not.
@@ -1106,22 +1347,34 @@
 
   /* The prev/counter/next row was wrapping to two lines below ~380px of
      column width — a german "Zurück"/"Weiter" plus the counter do not fit
-     `.crt`'s own width in one row at the old padding. One row costs 44px
-     less than two. */
+     `.crt`'s own width in one row at the old padding. It now carries a fourth
+     control (the source link, NBC-101), and what buys the room for it is the
+     half-height plates plus their own tighter setting here. Below ~330px it
+     wraps to a second row, which is a floor's worth of pixels and not a jump:
+     a wrap depends on the viewport, never on which shot is loaded. */
   .console { gap: 6px; }
-  .lamp-btn { padding: 11px 9px; font-size: 10px; letter-spacing: 0.04em; }
-  .counter { padding: 9px 8px; letter-spacing: 0.08em; }
+  .crt-col .lamp-btn { padding: 5px 7px; letter-spacing: 0.03em; }
+  .crt-col .link-btn { padding: 4px 7px; letter-spacing: 0.03em; }
+  .crt-col .counter { padding: 6px 7px; letter-spacing: 0.04em; }
 
   /* The project blurb is the tallest single block once it is the full column
-     width and no longer beside the image — six lines at the desktop size and
-     leading. Narrower letters and tighter leading buy back a line or two
-     without needing a shorter translation. */
-  .crt-grid p { font-size: 13px; line-height: 1.38; }
-  /* Same reasoning for the paragraphs' own inline `marginTop` (`FloorProjekte.jsx`):
-     spacing sized for a column that had room to spare, not one that is now
-     the full width of the floor. */
-  .crt-grid h3,
-  .crt-grid p { margin-top: 8px !important; }
+     width and no longer beside the image. NBC-101 gave it a window with a
+     declared height, and this is what that height is on a handset: five lines
+     at 13px with tighter leading, which is what the two blurbs in the archive
+     measure today and what the floor can spare. A sixth line's worth of text
+     is fed through rather than added to the floor.
+
+     Measured against what this replaced: the caption's second line, the shot
+     number's own line and the source link's own 44px row are all gone from
+     the stack below the tube, and the pager is half its height — about 90px,
+     which is where the five reserved lines come from. */
+  .notice-slot {
+    --notice-lines: 5;
+    --notice-lh: 1.4;
+    font-size: 13px;
+  }
+  .archive-facts { gap: 10px; }
+  .stack-batten { padding: 6px 10px; }
 
   /* The despatch form's two tapes are a divider, not content — 16px of
      margin on each side of a 26px bar was sized for the desktop column,
@@ -1161,6 +1414,12 @@
   .needle { animation: none !important; }
   .crt-roll { display: none; }
   .crt img { animation: none !important; }
+  /* NBC-101. A window keeps its reserved height — the floor is laid out around
+     it and a visitor who asked for stillness still needs the layout to hold —
+     and what goes is the travel. The text inside becomes something to scroll,
+     which is the one honest way to reach it with nothing moving by itself. */
+  .crawl-run { animation: none !important; }
+  .crawl { overflow-x: auto; }
 }
 
 /* The language switch, bolted in the corner the rail is not in. Fixed, because
