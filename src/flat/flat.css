@@ -448,18 +448,29 @@
    read as a progress bar with a token on it. The graduations between the
    floors are what give the travel a length you can see. */
 .rail-guide {
+  /* The pair's overall width, and the only number in here: the left rail is
+     drawn from the near edge, the right one back from the far edge, so the two
+     stay a pair of rails at whatever gauge the shaft is built to. NBC-97
+     narrows it on a handset. */
+  --guide-w: 26px;
   position: absolute;
   left: 13px;
   top: 0;
   bottom: 0;
-  width: 26px;
+  width: var(--guide-w);
   background:
     linear-gradient(90deg, #0d0906 0 1px, #453221 1px 5px, #0d0906 5px 6px, transparent 6px)
-      left top / 26px 100% no-repeat,
-    linear-gradient(90deg, transparent 0 20px, #0d0906 20px 21px, #453221 21px 25px, #0d0906 25px)
-      left top / 26px 100% no-repeat,
+      left top / var(--guide-w) 100% no-repeat,
+    linear-gradient(
+        90deg,
+        transparent 0 calc(var(--guide-w) - 6px),
+        #0d0906 calc(var(--guide-w) - 6px) calc(var(--guide-w) - 5px),
+        #453221 calc(var(--guide-w) - 5px) calc(var(--guide-w) - 1px),
+        #0d0906 calc(var(--guide-w) - 1px)
+      )
+      left top / var(--guide-w) 100% no-repeat,
     repeating-linear-gradient(180deg, transparent 0 47px, rgba(122, 95, 63, 0.16) 47px 48px)
-      left top / 26px 100% repeat-y;
+      left top / var(--guide-w) 100% repeat-y;
 }
 
 .rail-shuttle {
@@ -932,7 +943,18 @@
      name that is legible, and an illegible one is not a compromise. Wide
      enough for the car, which is the one thing that still has to be readable
      at a glance. */
-  .flat { --rail-w: 58px; }
+  /* NBC-97. The shaft loses twelve pixels and the car loses ten: what stands
+     at a stop should be the floor's enamel sign, with the car behind it, and
+     a car wider and taller than the sign it stops at is a token sticking out
+     from under a plate. `--car` is the car's box, `--plate-min` is the
+     smallest box a sign is allowed to have, and `rail.geometry.test.js`
+     holds the one relation between them. Measured at 393px: a single-digit
+     sign is 31.2 × 32.2. */
+  .flat {
+    --rail-w: 46px;
+    --car: 22px;
+    --plate-min: 31px;
+  }
   /* NBC-66, measured on a Pixel 6a at 411px: the rail is *drawn* 58px wide but
      only 37 of them answered a finger. The trough sits inside the rail's own
      10px side padding, and the rail is `position: fixed` — so the two 10px
@@ -950,10 +972,31 @@
   .rail-mark { padding: 0; align-items: center; }
   .rail-code { display: none; }
   .rail-tick { display: inline; }
-  .rail-mark .enamel { font-size: 13px; padding: 8px 10px; letter-spacing: 0; }
+  .rail-mark .enamel {
+    font-size: 13px;
+    padding: 8px 10px;
+    letter-spacing: 0;
+    min-width: var(--plate-min);
+    text-align: center;
+  }
   .rail-mark:not([aria-current="true"]) .enamel { opacity: 0.32; }
-  .rail-guide { left: 50%; margin-left: -15px; }
-  .rail-car { left: 50%; margin-left: -18px; }
+  /* Both centred on the shaft rather than carrying the desktop's 2px bias:
+     the sign is centred here too, and the car only disappears behind it if
+     the two share a centre line. */
+  .rail-guide {
+    --guide-w: 22px;
+    left: 50%;
+    margin-left: calc(var(--guide-w) / -2);
+  }
+  .rail-car {
+    left: 50%;
+    width: var(--car);
+    height: var(--car);
+    margin-left: calc(var(--car) / -2);
+    margin-top: calc(var(--car) / -2);
+  }
+  /* The lamp in the car's window, kept in proportion to the smaller car. */
+  .rail-car::after { inset: 6px 5px; }
   .instrument-board { grid-template-columns: repeat(2, 1fr); }
   .crt-grid,
   .eg-grid { grid-template-columns: 1fr; }
