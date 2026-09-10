@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { LOCALES } from '../i18n/locale.js';
-import { PERSON, PROJECT_STATS, SKILL_GROUPS } from './content.js';
+import { PERSON, SKILL_GROUPS } from './content.js';
 
 const ids = LOCALES.map((l) => l.id);
 
@@ -38,11 +38,7 @@ describe('PERSON, in all four languages', () => {
   });
 });
 
-describe('PROJECT_STATS and SKILL_GROUPS labels', () => {
-  it('translate every stat label', () => {
-    for (const stat of PROJECT_STATS) expectFullLocale(stat.label, `stat ${stat.value}`);
-  });
-
+describe('SKILL_GROUPS labels', () => {
   it('translate every skill group label, and leave the tech line alone', () => {
     for (const group of SKILL_GROUPS) {
       expectFullLocale(group.label, `group ${group.tech}`);

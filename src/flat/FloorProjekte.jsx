@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { PROJECT_STATS } from '../decks/content.js';
 import { SLIDES, localized } from '../decks/projects.js';
 import { DECKS } from '../lift/decks.js';
 import { FLOORS } from './floors.js';
@@ -110,14 +109,9 @@ function FloorProjekte() {
                 </a>
               </p>
             )}
-            <div className="stat-row">
-              {PROJECT_STATS.map((stat) => (
-                <div key={stat.value}>
-                  <p className="stat-val">{stat.value}</p>
-                  <p className="stencil stencil--sm">{pick(stat.label).toUpperCase()}</p>
-                </div>
-              ))}
-            </div>
+            {slide?.stack && (
+              <p className="stencil stencil--sm" style={{ marginTop: 14 }}>{slide.stack}</p>
+            )}
           </div>
         </div>
       </div>

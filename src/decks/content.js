@@ -65,13 +65,6 @@ export const PERSON = {
   portrait: null,
 };
 
-export const PROJECT_STATS = [
-  { value: '06', label: { de: 'Entwickler', en: 'Developers', uk: 'Розробники', ru: 'Разработчики' } },
-  { value: '40%', label: { de: 'Performance', en: 'Performance', uk: 'Продуктивність', ru: 'Производительность' } },
-  { value: '20%', label: { de: 'Tempo', en: 'Speed', uk: 'Швидкість', ru: 'Скорость' } },
-  { value: '03', label: { de: 'Releases', en: 'Releases', uk: 'Релізи', ru: 'Релизы' } },
-];
-
 export const SKILL_GROUPS = [
   { label: { de: 'Backend', en: 'Backend', uk: 'Бекенд', ru: 'Бэкенд' }, tech: 'ASP.NET Core · EF Core' },
   { label: { de: 'Frontend', en: 'Frontend', uk: 'Фронтенд', ru: 'Фронтенд' }, tech: 'React · TypeScript' },
