@@ -113,6 +113,28 @@ describe('the archive itself', () => {
     }
   });
 
+  it('keeps every notice inside the room the flat card has for it', () => {
+    // NBC-99 measured it in the browser rather than guessing: on a 360x635
+    // viewport — a phone with its own toolbars showing, the case the archive
+    // floor used to overflow on — the notice may run to 307 characters before
+    // the floor stops fitting, and that is *after* the picture has given up
+    // every pixel it can. This budget keeps a margin under that number, and
+    // exists because the alternative is finding out on the phone: the layout
+    // has no way to refuse a notice that is too long for it.
+    //
+    // Below about 340px of width the room runs out sooner (132 characters at
+    // 320x568) and the floor scrolls inside itself. That is accepted — the
+    // scroll is graceful and the device is a 2016 four-inch screen.
+    const BUDGET = 200;
+    for (const project of PROJECTS) {
+      for (const { id } of LOCALES) {
+        const notice = localized(project.blurb, project.blurbI18n, id);
+        expect(notice.length, `${project.id} (${id}) runs to ${notice.length} characters`)
+          .toBeLessThanOrEqual(BUDGET);
+      }
+    }
+  });
+
   it('keeps the wall notice out of the business of naming the project, in every language', () => {
     // The name is already on the console's plate under the glass, and the
     // stencil on the crate says it a second time. A blurb that opens with it

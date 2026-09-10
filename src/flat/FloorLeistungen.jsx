@@ -49,7 +49,7 @@ function FloorLeistungen() {
 
   return (
     <Floor meta={FLOORS[1]}>
-      <p className="label">1. Untergeschoss</p>
+      <p className="label floor-label">1. Untergeschoss</p>
       <h2 style={{ fontSize: 'clamp(26px, 4.6vw, 54px)', marginTop: 8 }}>{pick(DECKS[1].label)}</h2>
       <div className="panel" style={{ marginTop: 'clamp(14px, 2.4vh, 28px)' }}>
         <div className="panel-body instrument-board">

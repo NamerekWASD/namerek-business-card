@@ -38,12 +38,12 @@ function FloorProjekte() {
 
   return (
     <Floor meta={FLOORS[2]}>
-      <p className="label">2. Untergeschoss</p>
+      <p className="label floor-label">2. Untergeschoss</p>
       <h2 style={{ fontSize: 'clamp(26px, 4.6vw, 54px)', marginTop: 8 }}>{pick(DECKS[2].label)}</h2>
 
       <div className="panel" style={{ marginTop: 'clamp(12px, 2vh, 24px)' }}>
         <div className="panel-body crt-grid">
-          <div>
+          <div className="crt-col">
             <button
               type="button"
               className="crt"
@@ -87,20 +87,24 @@ function FloorProjekte() {
 
           <div>
             <span className="enamel">{slide ? slide.title : t('floorProjekte.empty')}</span>
-            {caption && (
-              <h3 style={{ fontSize: 'clamp(18px, 2.4vw, 30px)', marginTop: 12 }}>{caption}</h3>
-            )}
+            {/* The caption names the picture and the stencil beside it says
+                which of the project's pictures this is. Two answers to one
+                question, so they share one line — on a short screen the line
+                they used to take in turn is a line of the notice below. */}
+            <div className="shot-line">
+              {caption && <h3>{caption}</h3>}
+              {slide && (
+                <p className="stencil">
+                  {t('floorProjekte.shotOf', { shot: slide.shot, shots: slide.shots })}
+                </p>
+              )}
+            </div>
             {/* The same works notice the scene hangs on the landing wall, so
                 the two renderings of this card say the same thing about the
                 same picture. Here it can stand under the name plate rather
                 than a metre away from it. */}
             {blurb && (
-              <p key={slide.project} style={{ marginTop: 10, lineHeight: 1.7 }}>{blurb}</p>
-            )}
-            {slide && (
-              <p className="stencil" style={{ marginTop: 8 }}>
-                {t('floorProjekte.shotOf', { shot: slide.shot, shots: slide.shots })}
-              </p>
+              <p className="notice" key={slide.project}>{blurb}</p>
             )}
             {slide?.url && (
               <p style={{ marginTop: 14 }}>

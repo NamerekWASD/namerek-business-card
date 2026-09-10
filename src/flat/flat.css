@@ -802,6 +802,30 @@
     radial-gradient(130% 120% at 50% 50%, transparent 52%, rgba(0, 0, 0, 0.78));
 }
 
+/* The picture's caption and its place in the project, on one line: two answers
+   to the question "which shot is this" that used to take a line each. They wrap
+   to two lines only where the caption itself is long enough to need them. */
+.shot-line {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 12px;
+}
+/* Declared here rather than inline on the element: the handset block below has
+   to be able to reach it, and no rule outranks an inline style. */
+.shot-line h3 { font-size: clamp(18px, 2.4vw, 30px); }
+
+/* The works notice. Its leading is here rather than inline on the element for
+   the same reason as the caption's size: NBC-93 tightened `.crt-grid p` on a
+   handset and this paragraph — the tallest block on the floor, the one the
+   rule was written for — never heard it, because no rule outranks an inline
+   style. */
+.notice {
+  margin-top: 10px;
+  line-height: 1.7;
+}
+
 .console {
   display: flex;
   align-items: center;
@@ -809,6 +833,11 @@
   margin-top: 12px;
   flex-wrap: wrap;
 }
+
+/* The console keeps its full height while the tube above it yields — see
+   NBC-99 and the handset block. Buttons that shrink are buttons a thumb
+   misses. */
+.crt-col > .console { flex: 0 0 auto; }
 
 .lamp-btn {
   font-family: var(--mono);
@@ -1002,7 +1031,62 @@
   .eg-grid { grid-template-columns: 1fr; }
   .eg-grid { grid-template-columns: 1fr auto; }
   .field { grid-template-columns: 1fr; gap: 0; }
-  .crt { max-height: 32vh; max-height: 32dvh; }
+  /* NBC-99: the tube is the part of the floor that yields. Everything else
+     here is either type, a 44px target or a fixed plate, so when a notice runs
+     long the only box that can give up height without losing a fact is the
+     picture — and it loses nothing, because a tap opens it full screen. Its
+     upper bound stays 32dvh; below `min-height` it would stop being a picture.
+
+     For that shrink to happen the whole chain down to it has to be allowed to
+     shrink too: a flex item's `min-height` is `auto`, which means "no smaller
+     than my content", and one box left at that default makes the tube's
+     `flex` a rule that silently does nothing. Held by `floorFit.test.js`. */
+  .floor-inner,
+  .panel,
+  .crt-grid {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  /* Everything above is a container and is told it may shrink to nothing. The
+     column holding the tube is not, and neither is it left to work its own
+     minimum out: an item with an aspect ratio contributes a minimum derived
+     from its width, which stopped the tube 11px into a yield that is the whole
+     point of this. So the two floors are declared, from one pair of tokens —
+     the tube's own, and the same plus the console that rides under it.
+
+     `min-height: 0` here instead and the column collapses to nothing under a
+     long enough notice: the tube keeps its floor, paints straight over the
+     text beside it, and the floor measures as though everything fits. */
+  .crt-grid {
+    --tube-min: 116px;
+    --console-h: 56px;
+  }
+  .crt-col {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: calc(var(--tube-min) + var(--console-h));
+  }
+  .crt {
+    flex: 1 1 auto;
+    min-height: var(--tube-min);
+    max-height: 32vh;
+    max-height: 32dvh;
+  }
+
+  /* The enamel tag in the corner, the marker on the rail and the floor's own
+     heading already say which floor this is. The line above the heading says
+     it a fourth time and costs a line of the notice below. EG's own line is
+     not this — it carries a fact of its own and sits inside the card. */
+  .floor-label { display: none; }
+
+  /* A caption at the desktop size takes two lines of a 264px column and pushes
+     the shot number onto a third. Smaller, it is still the largest type in the
+     panel — the notice under it is 13px — and the pair costs two lines
+     instead of three. */
+  .shot-line { margin-top: 10px; }
+  .shot-line h3 { font-size: 15px; }
 
   /* NBC-94: the corner bolts read oversized against a floor's own mobile
      text sizes — the desktop panel has the width to spare, a phone does not.

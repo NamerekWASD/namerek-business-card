@@ -72,7 +72,7 @@ function FloorKontakt() {
 
   return (
     <Floor meta={FLOORS[3]}>
-      <p className="label">3. Untergeschoss</p>
+      <p className="label floor-label">3. Untergeschoss</p>
       <h2 style={{ fontSize: 'clamp(26px, 4.6vw, 54px)', marginTop: 8 }}>{pick(DECKS[3].label)}</h2>
 
       <div className="panel" style={{ marginTop: 'clamp(12px, 2vh, 24px)' }}>
