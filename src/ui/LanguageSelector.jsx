@@ -48,8 +48,12 @@ const VIEW_W = 200;
 const PITCH = VIEW_W / LOCALES.length;
 const BADGE = { w: 34, h: 23 };
 const BADGE_Y = 27;
-const CODE_Y = 58;
 const GROOVE_Y = 70;
+// The code sits low under the badge and a step smaller than the plate would
+// take, because both hosts hang this strip at about 150px: at three quarters
+// of these units a code set on the old line started on the badge's own bezel,
+// and a label touching the plate above it has stopped being a label. NBC-98.
+const CODE = { y: 60, size: 9 };
 // The hit areas are the full pitch and nearly the full height of the strip:
 // on a handset these four are the only targets on the page that are not a
 // whole floor, and a gap between them buys nothing but a missed tap.
@@ -220,12 +224,12 @@ function LanguageSelector({ value, onChange, compact = false, disabled = false, 
                 />
                 <text
                   x={cx}
-                  y={CODE_Y}
+                  y={CODE.y}
                   textAnchor="middle"
                   fill={live ? '#ffb454' : '#d0b895'}
                   fillOpacity={live ? 1 : 0.45}
                   fontFamily="var(--mono, monospace)"
-                  fontSize="10"
+                  fontSize={CODE.size}
                   letterSpacing="1.4"
                 >
                   {locale.code}
@@ -249,7 +253,6 @@ function LanguageSelector({ value, onChange, compact = false, disabled = false, 
               into it, which is what the easing in `index.css` is. */}
           <g className="lang-pointer" style={{ '--sel-x': `${SEAT[index] - SEAT[0]}px` }}>
             <g transform={`translate(${SEAT[0]} 0)`}>
-              <path d={`M -5 ${GROOVE_Y - 8} L 5 ${GROOVE_Y - 8} L 0 ${GROOVE_Y - 3} Z`} fill="#ffb454" />
               <rect x="-9" y={GROOVE_Y - 3.5} width="18" height="8" rx="2" fill="url(#langBezel)" stroke="#120c06" strokeWidth="0.8" />
               <rect x="-8" y={GROOVE_Y - 2.6} width="16" height="2" rx="1" fill="#ffe0ac" fillOpacity="0.45" />
             </g>

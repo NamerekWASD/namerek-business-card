@@ -1146,7 +1146,14 @@
 
    The padding is the shadow's room: `overflow: hidden` cuts a drop shadow as
    readily as it cuts the plate, and a plate whose stand-off is sliced down its
-   own edge reads as printed on the page. */
+   own edge reads as printed on the page.
+
+   NBC-98: which is also why the drawer is what goes transparent, and not the
+   plate inside it. Parked, the plate is cut away but the shadow it throws is
+   not — 20px of it lands back inside the drawer's own box and reads as a dark
+   panel across the floor's enamel tag. The plate cannot be told to disappear
+   from here either: `RivettedPanel` writes its `opacity` inline, and no class
+   selector outranks that. See `langDrawer.test.js`. */
 .flat-lang-drawer {
   position: absolute;
   top: 100%;
@@ -1157,21 +1164,21 @@
   margin: 0 -14px;
   overflow: hidden;
   pointer-events: none;
+  opacity: 0;
+  transition: opacity 140ms linear;
 }
 .flat-lang-drawer > * {
   transform: translateY(-115%);
-  opacity: 0;
-  transition:
-    transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1),
-    opacity 120ms linear 40ms;
+  transition: transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-.flat-lang.is-open .flat-lang-drawer { pointer-events: auto; }
-.flat-lang.is-open .flat-lang-drawer > * {
-  transform: none;
+.flat-lang.is-open .flat-lang-drawer {
+  pointer-events: auto;
   opacity: 1;
 }
+.flat-lang.is-open .flat-lang-drawer > * { transform: none; }
 
 @media (prefers-reduced-motion: reduce) {
+  .flat-lang-drawer,
   .flat-lang-drawer > *,
   .flat-lang-caret { transition: none; }
 }

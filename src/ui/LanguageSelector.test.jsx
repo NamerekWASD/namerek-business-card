@@ -170,3 +170,40 @@ describe('while the cabin is moving', () => {
     expect(live[0].getAttribute('aria-label')).toBe('English');
   });
 });
+
+// ── the plate is only ever hung small ───────────────────────────────────────
+// NBC-98. Both hosts hang this strip at about 150px — the cabin's head panel
+// at 128, the flat card's corner at 154 — so the drawing is always at roughly
+// three quarters of its own units, and two details stop reading at that scale:
+// the code starts exactly on the badge's bezel above it, and the carriage's
+// index reaches back up to meet the code. On the live position — lit badge,
+// lit code, brass carriage — the three merge into one bright smudge, which is
+// what the report called a white spot. Both are spacing, so both are measured.
+describe('the strip at the size it is actually drawn', () => {
+  const face = (compact) => {
+    render(<LanguageSelector value="ru" onChange={vi.fn()} compact={compact} />);
+    return document.querySelector('.lang-face');
+  };
+
+  // A cap is a little under three quarters of the em it is set in, and it is
+  // the top of the cap — not the box — that runs into the plate above it.
+  const CAP = 0.72;
+
+  for (const compact of [true, false]) {
+    it(`keeps the code clear of the badge above it${compact ? ' (small box)' : ''}`, () => {
+      for (const mark of face(compact).querySelectorAll('.lang-mark')) {
+        const flag = mark.querySelector('svg');
+        // The bezel is a stroke drawn one unit outside the flag.
+        const bezel = Number(flag.getAttribute('y')) + Number(flag.getAttribute('height')) + 1;
+        const code = mark.querySelector('text');
+        const top = Number(code.getAttribute('y')) - CAP * Number(code.getAttribute('font-size'));
+        expect(top).toBeGreaterThanOrEqual(bezel + 2);
+      }
+    });
+
+    it(`carries no index over the carriage${compact ? ' (small box)' : ''}`, () => {
+      // It is the part that closes the gap under the code again.
+      expect(face(compact).querySelector('.lang-pointer path')).toBeNull();
+    });
+  }
+});
