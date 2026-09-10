@@ -94,6 +94,9 @@ export const STRINGS = {
   },
   'floorKontakt.directory': { de: 'Verzeichnis', en: 'Directory', uk: 'Каталог', ru: 'Каталог' },
   'floorKontakt.workshop': { de: 'Werkstatt', en: 'Workshop', uk: 'Майстерня', ru: 'Мастерская' },
+  'floorKontakt.emailBtn': { de: 'E-Mail', en: 'Email', uk: 'Email', ru: 'Email' },
+  'floorKontakt.linkedinBtn': { de: 'LinkedIn', en: 'LinkedIn', uk: 'LinkedIn', ru: 'LinkedIn' },
+  'floorKontakt.githubBtn': { de: 'GitHub', en: 'GitHub', uk: 'GitHub', ru: 'GitHub' },
   'floorKontakt.switchTo3d': {
     de: 'Zur 3D-Ansicht wechseln ↗',
     en: 'Switch to the 3D view ↗',

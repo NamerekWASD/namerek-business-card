@@ -892,6 +892,25 @@
   cursor: pointer;
 }
 .copy-btn:hover { color: var(--glow); }
+
+.link-btn {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  min-height: 44px;
+  padding: 8px 14px;
+  color: var(--ink);
+  background: #241a11;
+  border: 1px solid var(--line);
+  border-radius: 1px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.link-btn:hover { color: var(--glow); border-color: var(--glow); }
+.link-btn svg { flex: none; }
 .copied {
   border: 2px solid var(--enamel-green);
   color: #7fbf9d;
