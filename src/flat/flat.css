@@ -1142,11 +1142,30 @@
 }
 .field-value:hover { color: var(--glow); }
 
+/* The despatch desk's divider: a punched tape across the form. NBC-102 — the
+   holes were drawn in absolute pixels for a 26px bar (a circle centred 13px
+   down an 18×26 tile), and the handset block shortened the bar to 16px
+   without touching the pattern. A hole centred 13px down a 16px box loses its
+   bottom to the bar's own edge, which is a row of scallops rather than a
+   punched tape.
+
+   So the hole is placed *inside its own tile* — half the pitch across, half
+   the bar down — and the tile takes the bar's height from the same token the
+   bar does. A shorter bar now punches shorter, centred holes, and a handset
+   only ever changes tokens. `tape.test.js` keeps the pattern out of that
+   block, because two patterns to keep in step is how this happened. */
 .tape {
-  height: 26px;
+  --tape-h: 26px;
+  --tape-pitch: 18px;
+  --tape-hole: 3px;
+  height: var(--tape-h);
   margin: 16px 0;
   background:
-    radial-gradient(circle at 9px 13px, #120c07 0 3px, transparent 3.5px) 0 0 / 18px 26px repeat-x,
+    radial-gradient(
+      circle at calc(var(--tape-pitch) / 2) 50%,
+      #120c07 0 var(--tape-hole),
+      transparent calc(var(--tape-hole) + 0.5px)
+    ) 0 0 / var(--tape-pitch) var(--tape-h) repeat-x,
     linear-gradient(180deg, #3a2b1b, #241a11);
   border-top: 1px solid #5c4530;
   border-bottom: 1px solid #0f0a06;
@@ -1378,8 +1397,16 @@
 
   /* The despatch form's two tapes are a divider, not content — 16px of
      margin on each side of a 26px bar was sized for the desktop column,
-     not a floor fighting for every pixel. */
-  .tape { height: 16px; margin: 10px 0; }
+     not a floor fighting for every pixel. NBC-102: tokens only. The hole and
+     the pitch come down with the bar, so the tape stays a tape — a 16px bar
+     with the desktop's own hole in it was a row of half-circles cut off by
+     the bottom edge. */
+  .tape {
+    --tape-h: 16px;
+    --tape-pitch: 14px;
+    --tape-hole: 2.2px;
+    margin: 10px 0;
+  }
 }
 
 @media (max-width: 560px) {
