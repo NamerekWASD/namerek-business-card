@@ -42,6 +42,11 @@
      bottom signs' *centres* and `Rail` measures that off this. */
   --rail-w: 178px;
   --mark-h: 62px;
+  /* The language badge's lane in the top-right corner: the badge stands in it
+     and `.floor-tag` keeps clear of it. Declared here rather than on
+     `.flat-lang` because the tag is not inside the switch. NBC-96. */
+  --lang-badge: 44px;
+  --lang-strip: 154px;
   --mono: "Space Mono", ui-monospace, monospace;
   --display: "Archivo Black", "Space Grotesk", system-ui, sans-serif;
 }
@@ -276,7 +281,11 @@
    padding's own line sits half on the steel and half off it. */
 .floor-tag {
   position: absolute;
-  right: clamp(10px, 2vw, 26px);
+  /* Clear of the language badge's lane, not under it — the badge is fixed and
+     this tag rides the floor past it. See `.flat-lang` and NBC-96. The 10px is
+     the gap between the two plates; the fallback is for a floor rendered
+     outside the flat card, where there is no badge to dodge. */
+  right: calc(clamp(10px, 2vw, 26px) + var(--lang-badge, 0px) + 10px);
   top: clamp(22px, 4vw, 36px);
   z-index: 2;
 }
@@ -1027,30 +1036,116 @@
   .crt img { animation: none !important; }
 }
 
-/* The language rotary, bolted in the corner the rail is not in. Fixed, because
+/* The language switch, bolted in the corner the rail is not in. Fixed, because
    the card is four snapping floors and a switch that scrolls off the top is a
    switch reachable only from the ground floor; above the rail's own z-index so
-   nothing about the two overlapping is left to source order. The instrument
-   itself is styled in `index.css` — both renderings share it. */
+   nothing about the two overlapping is left to source order. The strip itself
+   is styled in `index.css` — both renderings share it.
+
+   NBC-96: what is fixed up here is the badge, not the strip. The corner is
+   also where every floor bolts its own enamel number, and a fixed 154px plate
+   over a riding one ate it on the way past. `--lang-badge` is the lane the two
+   share: the badge stands in it and `.floor-tag` keeps clear of it, so they
+   read as a pair of plates on one line. */
 .flat-lang {
   position: fixed;
-  top: 14px;
+  /* Hung from the same line as `.floor-tag`, and by the same expression: the
+     two plates are a pair on one rail, and the drawer under this one is placed
+     against the badge's own bottom edge — which is below the tag's, so the
+     strip clears the tag rather than opening across it. */
+  top: calc(clamp(22px, 4vw, 36px) + env(safe-area-inset-top, 0px));
   right: calc(14px + env(safe-area-inset-right, 0px));
-  width: 154px;
   z-index: 31;
+}
+
+/* The plate itself: the same field, arris and stand-off `RivettedPanel` draws,
+   by hand rather than by component — at 44px its corner bolts would be four
+   brass balls the size of the flag. */
+.flat-lang-badge {
+  display: block;
+  width: var(--lang-badge);
+  padding: 4px;
+  cursor: pointer;
+  background-image: linear-gradient(163deg, #302518 0%, #241b11 46%, #1b140c 100%);
+  border: 1px solid #4a3821;
+  border-radius: 3px;
+  box-shadow:
+    inset 0 1px 0 rgba(212, 172, 104, 0.18),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.6),
+    0 6px 14px rgba(0, 0, 0, 0.55);
+  transition: box-shadow 200ms linear, border-color 200ms linear;
+}
+.flat-lang-badge svg { display: block; width: 100%; height: auto; }
+.flat-lang-badge:hover { border-color: var(--brass); }
+.flat-lang-badge:focus-visible {
+  outline: 2px solid var(--glow);
+  outline-offset: 2px;
+}
+/* Open is a lit plate, not a pressed one: the drawer under it is already the
+   loud half of the state, and a second loud thing beside it is noise. */
+.flat-lang.is-open .flat-lang-badge {
+  border-color: var(--brass);
+  box-shadow:
+    inset 0 1px 0 rgba(212, 172, 104, 0.18),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.6),
+    0 0 14px rgba(255, 180, 84, 0.45);
+}
+.flat-lang-caret {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.flat-lang.is-open .flat-lang-caret { transform: rotate(180deg); }
+
+/* The drawer. It clips, and the strip inside it is parked one full height up —
+   so the strip slides out from *under* the badge rather than appearing beside
+   it, which is the difference between a plate on a hinge and a tooltip.
+
+   The padding is the shadow's room: `overflow: hidden` cuts a drop shadow as
+   readily as it cuts the plate, and a plate whose stand-off is sliced down its
+   own edge reads as printed on the page. */
+.flat-lang-drawer {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  box-sizing: content-box;
+  width: var(--lang-strip);
+  padding: 6px 14px 22px;
+  margin: 0 -14px;
+  overflow: hidden;
+  pointer-events: none;
+}
+.flat-lang-drawer > * {
+  transform: translateY(-115%);
+  opacity: 0;
+  transition:
+    transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    opacity 120ms linear 40ms;
+}
+.flat-lang.is-open .flat-lang-drawer { pointer-events: auto; }
+.flat-lang.is-open .flat-lang-drawer > * {
+  transform: none;
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flat-lang-drawer > *,
+  .flat-lang-caret { transition: none; }
 }
 
 @media (max-width: 900px) {
   /* The stencil over the row goes — at this width it would be six pixels tall,
      which is not a smaller label but a smudge. The switch drops it itself
      (`compact`), so the plate loses that band of height rather than keeping an
-     empty one; all this rule owns is the box. It gets *wider* here, not
-     narrower: the four positions are the only touch targets on the page that
-     are not a whole floor, and a thumb needs them to be more than the 27px a
-     118px plate would give. */
+     empty one; all this rule owns is the box. The strip stays wide: the four
+     positions are the only touch targets on the page that are not a whole
+     floor, and a thumb needs them to be more than the 27px a 118px plate would
+     give. The badge is what shrinks, and not below a thumb's own 40px. */
+  .flat {
+    --lang-badge: 40px;
+    --lang-strip: 150px;
+  }
   .flat-lang {
-    top: calc(8px + env(safe-area-inset-top, 0px));
     right: calc(8px + env(safe-area-inset-right, 0px));
-    width: 150px;
   }
 }

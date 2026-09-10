@@ -8,7 +8,7 @@ import FloorLeistungen from './FloorLeistungen.jsx';
 import FloorProjekte from './FloorProjekte.jsx';
 import FloorKontakt from './FloorKontakt.jsx';
 import { prefersReducedMotion } from '../motion/reduced.js';
-import LanguageSelector from '../ui/LanguageSelector.jsx';
+import FlatLang from './FlatLang.jsx';
 import { useLocale } from '../i18n/LocaleContext.jsx';
 import useViewport from '../hooks/useViewport.js';
 
@@ -156,10 +156,11 @@ export default function FlatCard() {
           than laid on a floor — the card is four snapping floors and a switch
           that scrolls away is a switch you can only reach from the ground
           floor — and it has to be out of the rail, which is 58px drawn and 37
-          live on a handset with no room to spare. */}
-      <div className="flat-lang">
-        <LanguageSelector value={locale} onChange={setLocale} compact={vw <= 900} />
-      </div>
+          live on a handset with no room to spare. NBC-96 shut it behind a
+          badge: the corner it is fixed in is also the one every floor bolts
+          its own number to, and a fixed plate over a riding one is a plate
+          that eats it. */}
+      <FlatLang value={locale} onChange={setLocale} compact={vw <= 900} />
       <Rail
         active={active}
         progress={progress}
