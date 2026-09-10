@@ -949,6 +949,11 @@
   .field { grid-template-columns: 1fr; gap: 0; }
   .crt { max-height: 32vh; max-height: 32dvh; }
 
+  /* NBC-94: the corner bolts read oversized against a floor's own mobile
+     text sizes — the desktop panel has the width to spare, a phone does not.
+     Flat design only; the scene's own rivets are a separate asset. */
+  .panel::before { background-size: 6px 6px; }
+
   /* NBC-93: stacking `.crt-grid` and `.field` to one column on a narrow
      viewport makes a floor *taller*, not shorter — the two columns that used
      to sit side by side now sit on top of each other. On a phone short
