@@ -271,10 +271,13 @@
   to { opacity: var(--rest-opacity, 1); }
 }
 
+/* NBC-95: hung a beam's depth below the floor's own top edge rather than at
+   it. The splice plate above is drawn *over* the floor, so a tag on the
+   padding's own line sits half on the steel and half off it. */
 .floor-tag {
   position: absolute;
   right: clamp(10px, 2vw, 26px);
-  top: clamp(10px, 2vw, 26px);
+  top: clamp(22px, 4vw, 36px);
   z-index: 2;
 }
 
@@ -991,6 +994,19 @@
 }
 
 @media (max-width: 560px) {
+  /* NBC-95: the splice plate is sized for a desktop floor. At this width its
+     22px take a line of copy off every floor but the first, and its bolts —
+     drawn at the beam's own 11px — read as a row of studs across a 360px
+     screen rather than as fasteners. Thinner beam, smaller heads. */
+  .floor + .floor::before {
+    height: 13px;
+    background:
+      var(--rivet-iron, none) var(--rail-w) 6px / 60px 3px repeat-x,
+      linear-gradient(180deg, #0b0805, #241a11 55%, #0b0805);
+  }
+
+  .enamel--lg { font-size: 12px; padding: 9px 15px; letter-spacing: 0.18em; }
+  .stencil--sm { font-size: 9px; }
   .eg-grid { grid-template-columns: 1fr; }
   .instrument-board { grid-template-columns: repeat(2, 1fr); gap: 6px; }
   .dial { max-width: 104px; }
