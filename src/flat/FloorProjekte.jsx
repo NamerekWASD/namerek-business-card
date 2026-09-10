@@ -6,6 +6,7 @@ import { FLOORS } from './floors.js';
 import Floor from './Floor.jsx';
 import FullscreenImageModal from '../scene/r3f/FullscreenImageModal.jsx';
 import { useLocale, usePick, useT } from '../i18n/LocaleContext.jsx';
+import { AddressIcon } from '../ui/icons.jsx';
 
 // The archive, on a picture tube. It pages the same flat run of shots the
 // console in the scene pages — `SLIDES`, not `PROJECTS` — for the same reason:
@@ -106,9 +107,17 @@ function FloorProjekte() {
             {blurb && (
               <p className="notice" key={slide.project}>{blurb}</p>
             )}
+            {/* NBC-100. A plate, not a run of text: this was `.field-value`,
+                the treatment the page gives plain copy, and it read as a line
+                of the notice rather than as the one thing on this half of the
+                panel that can be pressed. `.link-btn` is the vocabulary the
+                despatch desk already uses for a secondary control — the
+                console's brass keys belong to the console, and borrowing them
+                here would say this pages the archive too. */}
             {slide?.url && (
               <p style={{ marginTop: 14 }}>
-                <a className="field-value" href={slide.url} target="_blank" rel="noreferrer noopener">
+                <a className="link-btn" href={slide.url} target="_blank" rel="noreferrer noopener">
+                  <AddressIcon href={slide.url} />
                   {t('floorProjekte.viewSource')}
                 </a>
               </p>

@@ -5,41 +5,7 @@ import { webglAvailable } from '../scene/renderers/flag.js';
 import { FLOORS } from './floors.js';
 import Floor from './Floor.jsx';
 import { usePick, useT } from '../i18n/LocaleContext.jsx';
-
-const ICON_PROPS = { width: 18, height: 18, viewBox: '0 0 18 18', fill: 'none', 'aria-hidden': 'true' };
-
-function EmailIcon() {
-  return (
-    <svg {...ICON_PROPS}>
-      <rect x="1.5" y="3.5" width="15" height="11" rx="1" stroke="currentColor" strokeWidth="1.4" />
-      <path d="M2 4.5 L9 10 L16 4.5" stroke="currentColor" strokeWidth="1.4" fill="none" />
-    </svg>
-  );
-}
-
-function LinkedinIcon() {
-  return (
-    <svg {...ICON_PROPS}>
-      <rect x="1.5" y="1.5" width="15" height="15" rx="1.5" stroke="currentColor" strokeWidth="1.4" />
-      <circle cx="5.3" cy="5.3" r="1.1" fill="currentColor" />
-      <path d="M5.3 7.9 V13" stroke="currentColor" strokeWidth="1.4" />
-      <path d="M8.6 13 V9.8 C8.6 8 11.4 8 11.4 9.8 V13" stroke="currentColor" strokeWidth="1.4" fill="none" />
-    </svg>
-  );
-}
-
-function GithubIcon() {
-  return (
-    <svg {...ICON_PROPS}>
-      <path
-        d="M9 1.6c-4.1 0-7.4 3.3-7.4 7.4 0 3.3 2.1 6.1 5.1 7.1.4.1.5-.2.5-.4v-1.5c-2.1.4-2.5-1-2.5-1-.3-.8-.8-1.1-.8-1.1-.7-.5.1-.5.1-.5.7.1 1.1.7 1.1.7.7 1.2 1.8.8 2.2.6.1-.5.3-.8.5-1-1.7-.2-3.5-.9-3.5-3.8 0-.8.3-1.5.7-2-.1-.2-.3-1 .1-2.1 0 0 .6-.2 2 .8a6.8 6.8 0 0 1 3.6 0c1.4-1 2-.8 2-.8.4 1.1.2 1.9.1 2.1.5.5.7 1.2.7 2 0 2.9-1.8 3.6-3.5 3.8.3.2.5.7.5 1.5v2.2c0 .2.1.5.6.4 3-1 5.1-3.8 5.1-7.1 0-4.1-3.3-7.4-7.4-7.4Z"
-        stroke="currentColor"
-        strokeWidth="0.4"
-        fill="currentColor"
-      />
-    </svg>
-  );
-}
+import { EmailIcon, GithubIcon, LinkedinIcon } from '../ui/icons.jsx';
 
 // The despatch desk — the only floor with a job beyond being read. Every
 // address is a real, copyable link: a recruiter copying an email out of a

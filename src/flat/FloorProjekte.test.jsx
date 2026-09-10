@@ -28,6 +28,22 @@ describe('FloorProjekte', () => {
     expect(shot.textContent).toContain(String(SLIDES[0].shots));
   });
 
+  it('offers the source as a control, not a run of text', () => {
+    // NBC-100: it was a `.field-value` inside a paragraph — the same treatment
+    // the page gives plain copy — and a visitor read straight past it. The
+    // panel already has a vocabulary for a secondary control: `.link-btn`, the
+    // dark plate the despatch desk uses for its own addresses.
+    const { container } = render(<FloorProjekte />);
+    const link = container.querySelector('.crt-grid a[href^="http"]');
+    expect(link, 'the source link is gone').toBeTruthy();
+    expect(link.classList.contains('link-btn')).toBe(true);
+    expect(link.classList.contains('field-value')).toBe(false);
+    // It leaves the site, and says so before it is pressed.
+    expect(link.querySelector('svg')).toBeTruthy();
+    expect(link.target).toBe('_blank');
+    expect(link.rel).toContain('noopener');
+  });
+
   it('marks the floor’s own identity line so a short screen can drop it', () => {
     const { container } = render(<FloorProjekte />);
     const label = container.querySelector('.floor-inner > .label');
