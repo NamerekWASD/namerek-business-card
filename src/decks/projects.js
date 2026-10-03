@@ -157,7 +157,29 @@ export const PROJECTS = [
         captionI18n: { en: 'Logs', uk: 'Логи', ru: 'Логи' },
       },
     ],
-  }
+  },
+  {
+    id: 'baton',
+    title: 'Baton',
+    url: null,
+    blurb: 'Ein Staffellauf für KI-Agenten: der Backlog läuft nach Abhängigkeiten, '
+      + 'jede Aufgabe in eigener Claude-Code-Sitzung und eigenem Worktree — ein Merge startet die nächste.',
+    blurbI18n: {
+      en: 'A relay race for AI coding agents: the backlog runs in dependency order, '
+        + 'each task in its own Claude Code session and git worktree, and a merge starts the next one.',
+      uk: 'Естафета для ШІ-агентів: беклог іде в порядку залежностей, кожна задача — '
+        + 'у власній сесії Claude Code і своєму git worktree, а мердж запускає наступну.',
+      ru: 'Эстафета для ИИ-агентов: бэклог идёт в порядке зависимостей, каждая задача — '
+        + 'в своей сессии Claude Code и своём git worktree, а мердж запускает следующую.',
+    },
+    stack: 'TYPESCRIPT · NODE · REACT',
+    shots: [
+      {
+        src: '/projects/baton/coming-soon.png', caption: 'Screenshots folgen',
+        captionI18n: { en: 'Screenshots coming soon', uk: 'Скриншоти згодом', ru: 'Скриншоты скоро' },
+      },
+    ],
+  },
 ];
 
 /**
