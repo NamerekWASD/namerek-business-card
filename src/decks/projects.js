@@ -175,7 +175,29 @@ export const PROJECTS = [
     stack: 'TYPESCRIPT · NODE · REACT',
     shots: [
       {
-        src: '/projects/baton/coming-soon.png', caption: 'Screenshots folgen',
+        src: '/projects/coming-soon.png', caption: 'Screenshots folgen',
+        captionI18n: { en: 'Screenshots coming soon', uk: 'Скриншоти згодом', ru: 'Скриншоты скоро' },
+      },
+    ],
+  },
+  {
+    id: 'coldbloom',
+    title: 'Coldbloom',
+    url: null,
+    blurb: 'Eine Sonde auf einem toten Planeten baut Kopien von sich selbst, und aus einer wird '
+      + 'ein Schwarm. Aufbaustrategie ohne Wellen und Quests: wohin er wächst, entscheidet der Spieler.',
+    blurbI18n: {
+      en: 'A lone probe on a dead planet builds copies of itself, and one becomes a swarm. '
+        + 'An automation strategy game with no waves and no quests: where it grows is up to the player.',
+      uk: 'Самотній зонд на мертвій планеті будує власні копії — і з одного виростає рій. '
+        + 'Стратегія автоматизації без хвиль і квестів: куди рости, вирішує гравець.',
+      ru: 'Одинокий зонд на мёртвой планете строит копии самого себя — и из одного вырастает рой. '
+        + 'Стратегия автоматизации без волн и квестов: куда расти, решает игрок.',
+    },
+    stack: 'UNITY · DOTS · C#',
+    shots: [
+      {
+        src: '/projects/coming-soon.png', caption: 'Screenshots folgen',
         captionI18n: { en: 'Screenshots coming soon', uk: 'Скриншоти згодом', ru: 'Скриншоты скоро' },
       },
     ],
