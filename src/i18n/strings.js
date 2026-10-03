@@ -59,6 +59,15 @@ export const STRINGS = {
   'floorProjekte.empty': {
     de: 'Kein Bestand', en: 'No stock', uk: 'Немає в наявності', ru: 'Нет в наличии',
   },
+  'archive.release.shipped': {
+    de: 'Ausgeliefert {date}', en: 'Released {date}', uk: 'Випущено {date}', ru: 'Выпущено {date}',
+  },
+  'archive.release.due': {
+    de: 'Liefertermin {date}', en: 'Release {date}', uk: 'Реліз {date}', ru: 'Релиз {date}',
+  },
+  'archive.release.open': {
+    de: 'Liefertermin offen', en: 'Release: TBD', uk: 'Реліз: без дати', ru: 'Релиз: без даты',
+  },
   'floorProjekte.shotOf': {
     de: 'Aufnahme {shot} von {shots}',
     en: 'Shot {shot} of {shots}',

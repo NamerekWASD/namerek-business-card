@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { PROJECTS, SLIDES } from '../../decks/projects.js';
+import { PROJECTS, SLIDES, releaseStamp } from '../../decks/projects.js';
 import {
   BELT, beltAt, beltCount, beltTrip, boxRise, boxYaw, fingerXs, liftDrop, pathLength, posAt,
   rollPitch, rollerSpin, slatHalfWidth, slatPush, slatSwing, slatXs,
@@ -1286,7 +1286,7 @@ function Workbench({ M, x, floorY, z, ambient, yaw }) {
  * at luminance 35 — two black lines lying across the one face on this box that
  * has anything to say.
  */
-function ArtifactBox({ M, mark, spec, ambient, strap, fade, ...rest }) {
+function ArtifactBox({ M, mark, spec, when, ambient, strap, fade, ...rest }) {
   const { w, h, d } = BELT.BOX;
   // ── NBC-77: the box comes up out of the dark rather than appearing in it ───
   // Bound by traverse rather than by hand, and on every commit rather than
@@ -1296,7 +1296,7 @@ function ArtifactBox({ M, mark, spec, ambient, strap, fade, ...rest }) {
   // which is what makes running it on every commit free.
   const body = useRef(null);
   useLayoutEffect(() => { bindMouthFadeTree(body.current, fade); });
-  const face = artifactFace(mark, spec, true);
+  const face = artifactFace(mark, spec, true, when);
   const side = artifactFace(mark, spec, false);
   const faceArt = artwork(face, ambient);
   const sideArt = artwork(side, ambient);
@@ -2200,6 +2200,7 @@ function Conveyor({ M, x, floorY, z, ambient, leftEnd, live }) {
             M={M}
             mark={PROJECTS[p]?.title ?? ''}
             spec={PROJECTS[p]?.stack ?? ''}
+            when={PROJECTS[p] ? releaseStamp(PROJECTS[p].release, 'de') : ''}
             ambient={ambient}
             strap={ironAt(2.1)}
             fade={fade}

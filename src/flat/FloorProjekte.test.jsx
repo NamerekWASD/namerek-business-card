@@ -18,7 +18,7 @@
 import { describe, expect, it, afterEach } from 'vitest';
 import { cleanup, render } from '@testing-library/react';
 import FloorProjekte from './FloorProjekte.jsx';
-import { SLIDES, localized } from '../decks/projects.js';
+import { SLIDES, localized, releaseStamp } from '../decks/projects.js';
 import { DEFAULT_LOCALE } from '../i18n/locale.js';
 
 afterEach(cleanup);
@@ -84,6 +84,15 @@ describe('FloorProjekte', () => {
     expect(batten, 'the stack has no batten to sit on').toBeTruthy();
     expect(batten.querySelector('.crawl'), 'a long stack would wrap instead of walking').toBeTruthy();
     expect(batten.textContent).toContain(SLIDES[0].stack);
+  });
+
+  it('stamps the release on the batten beside the stack, outside the walking window', () => {
+    // Reserved even when there is no date: the stamp then says so, and the
+    // batten keeps one shape for every project.
+    const { container } = render(<FloorProjekte />);
+    const stamp = container.querySelector('.stack-batten > .ship-stamp');
+    expect(stamp, 'the batten carries no release stamp').toBeTruthy();
+    expect(stamp.textContent).toBe(releaseStamp(SLIDES[0].release, DEFAULT_LOCALE));
   });
 
   it('marks the floor’s own identity line so a short screen can drop it', () => {

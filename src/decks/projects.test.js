@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { LOCALES } from '../i18n/locale.js';
-import { PROJECTS, localized, projectSlides } from './projects.js';
+import { PROJECTS, localized, projectSlides, releaseStamp } from './projects.js';
 
 // The archive is hand-edited data, which is the whole point of it — and the
 // thing hand-edited data does is arrive slightly wrong. Everything below fails
@@ -184,5 +184,39 @@ describe('translated fields (NBC-85)', () => {
   it('carries the sidecar down onto the slide, the same way blurb and caption already ride it', () => {
     const [slide] = projectSlides(PROJECTS);
     expect(slide.blurbI18n).toBe(PROJECTS[0].blurbI18n);
+  });
+});
+
+describe('the release stamp', () => {
+  it('says shipped, due or open, and prints a month as MM/YYYY', () => {
+    expect(releaseStamp({ shipped: '2023' }, 'de')).toBe('Ausgeliefert 2023');
+    expect(releaseStamp({ shipped: '2026-08' }, 'en')).toBe('Released 08/2026');
+    expect(releaseStamp({ due: '2026-10' }, 'de')).toBe('Liefertermin 10/2026');
+    expect(releaseStamp({ due: '2026-10' }, 'ru')).toBe('Релиз 10/2026');
+  });
+
+  it('keeps the place when nothing is known yet', () => {
+    expect(releaseStamp(undefined, 'de')).toBe('Liefertermin offen');
+    expect(releaseStamp({}, 'en')).toBe('Release: TBD');
+  });
+
+  it('carries the release down onto every slide, an empty one included', () => {
+    const slides = projectSlides([
+      { id: 'a', title: 'A', release: { due: '2027-01' }, shots: ['/a.png'] },
+      { id: 'b', title: 'B', shots: ['/b.png'] },
+    ]);
+    expect(slides[0].release).toEqual({ due: '2027-01' });
+    expect(slides[1].release).toEqual({});
+  });
+
+  it('holds the archive to dates it can print, and to one state per project', () => {
+    // A typo here does not throw; it stamps "Liefertermin 2026-1O" on a box.
+    for (const project of PROJECTS) {
+      const { shipped, due } = project.release ?? {};
+      expect(shipped && due, `${project.id} is both shipped and due`).toBeFalsy();
+      for (const value of [shipped, due].filter(Boolean)) {
+        expect(value, `${project.id} release`).toMatch(/^\d{4}(-(0[1-9]|1[0-2]))?$/);
+      }
+    }
   });
 });

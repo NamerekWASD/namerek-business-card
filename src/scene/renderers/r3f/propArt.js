@@ -426,13 +426,14 @@ const PLY = ['#4c3f28', '#544526', '#453a25', '#584a2c'];
  * @param {string} mark what shipped — the project's own name
  * @param {string} spec what it runs on, in stencil case
  * @param {boolean} labelled whether this is the face the manifest is on
+ * @param {string} [when] the release stamp — see `releaseStamp` in `projects.js`
  */
-export const artifactFace = (mark, spec, labelled = true) => bake(
+export const artifactFace = (mark, spec, labelled = true, when = '') => bake(
   // Half again the canvas it used to be, because the box is half again the
   // object it used to be — see `BELT.BOX`. The lettering below is set as
   // fractions of the canvas rather than in pixels, so the two move together
   // and a bigger sheet buys resolution rather than smaller type.
-  `artifact:${labelled ? `${mark}|${spec}` : 'blank'}`, 768, 576, (ctx, w, h) => {
+  `artifact:${labelled ? `${mark}|${spec}|${when}` : 'blank'}`, 768, 576, (ctx, w, h) => {
     const rnd = seeded(0x9c1f5 + (labelled ? mark.length * 37 + spec.length : 0));
 
     // the sheet itself, and the long veneer streaks that say it is peeled
@@ -543,6 +544,31 @@ export const artifactFace = (mark, spec, labelled = true) => bake(
     spray(spec.toUpperCase(), h * 0.65, sub, 0.82);
     spray('NAMEREK RECHENWERKE', h * 0.79, h * 0.055, 0.5);
     ctx.restore();
+
+    // ── when: a rubber stamp in the band above the mark ─────────────────────
+    // Struck by hand after the stencil, so it is boxed and askew rather than
+    // sprayed square — the label's fourth line arrives later than the other
+    // three, which is exactly what a release date does.
+    if (when) {
+      const text = when.toUpperCase();
+      const size = fit(text, h * 0.06, h * 0.035, w * 0.3);
+      ctx.save();
+      ctx.translate(w * 0.5, h * 0.15);
+      ctx.rotate(-0.035);
+      ctx.font = `700 ${size}px "Archivo Black", "Arial Black", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const bw = ctx.measureText(text).width + size * 1.1;
+      const bh = size * 1.7;
+      ctx.globalAlpha = 0.78;
+      ctx.fillStyle = INK;
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = Math.max(3, size * 0.12);
+      ctx.strokeRect(-bw / 2, -bh / 2, bw, bh);
+      ctx.fillText(text, 0, size * 0.04);
+      ctx.restore();
+      ctx.globalAlpha = 1;
+    }
 
     // and the skips: paint does not sit evenly on a scuffed sheet
     // Fewer and thinner than they were: at the old ink they were texture on

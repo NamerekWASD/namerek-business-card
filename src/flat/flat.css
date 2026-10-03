@@ -1010,6 +1010,22 @@
     0 3px 5px rgba(0, 0, 0, 0.5);
 }
 .stack-batten .crawl-run { line-height: 1.2; }
+.stack-batten {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.stack-batten > .crawl { flex: 1 1 auto; }
+/* A rubber stamp, not a second stencil: boxed, a touch askew, never wrapped. */
+.ship-stamp {
+  flex: none;
+  white-space: nowrap;
+  line-height: 1.2;
+  padding: 0 6px;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  transform: rotate(-2deg);
+}
 
 /* NBC-101, second pass. The call: the keys go the full width. A rail of
    four naturally-sized plates leaves a ragged gap on the right that reads as

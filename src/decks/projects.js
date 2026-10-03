@@ -1,3 +1,5 @@
+import { t } from '../i18n/strings.js';
+
 // ── the project archive ──────────────────────────────────────────────────────
 // Everything the Projekte console shows, as plain data. It is the one file to
 // edit when a project appears:
@@ -55,14 +57,47 @@
 // glass, under the picture, where it answers the same question a second time
 // for anyone who reads captions rather than plates.
 
+// ── when it shipped ─────────────────────────────────────────────────────────
+// The despatch label on the crate always said "a name, what it runs on, who
+// shipped it and when" and printed only the first three. `release` is the
+// fourth, and its place is reserved: a project with no date is stamped as
+// open rather than left blank, so every crate and every batten has one shape.
+//
+//   release: { shipped: '2023' }       already out — a year, or 'YYYY-MM'
+//   release: { due: '2026-10' }        planned — prefer a month to a day, so a
+//                                      slip of a few days does not make it lie
+//   (no release)                       open
+//
+// The crate is a prop and stays German (`releaseStamp(r, 'de')`); the flat
+// card's batten is read as content and follows the visitor's locale.
+
 /**
  * @typedef {Partial<Record<'en' | 'uk' | 'ru', string>>} I18nSidecar
  * @typedef {{ src: string, caption?: string, captionI18n?: I18nSidecar }} Shot
+ * @typedef {{ shipped?: string, due?: string }} Release
  * @typedef {{
  *   id: string, title: string, url?: string | null,
- *   blurb?: string, blurbI18n?: I18nSidecar, stack?: string, shots: Array<string | Shot>,
+ *   blurb?: string, blurbI18n?: I18nSidecar, stack?: string, release?: Release,
+ *   shots: Array<string | Shot>,
  * }} Project
  */
+
+/** 'YYYY' stays as it is; 'YYYY-MM' prints as 'MM/YYYY'. */
+function stampDate(value) {
+  const [year, month] = value.split('-');
+  return month ? `${month}/${year}` : year;
+}
+
+/**
+ * @param {Release | undefined} release
+ * @param {import('../i18n/locale.js').LocaleId} locale
+ * @returns {string}
+ */
+export function releaseStamp(release, locale) {
+  if (release?.shipped) return t('archive.release.shipped', locale, { date: stampDate(release.shipped) });
+  if (release?.due) return t('archive.release.due', locale, { date: stampDate(release.due) });
+  return t('archive.release.open', locale);
+}
 
 // ── NBC-85: `blurb`/`caption` stay German, translations ride beside them ────
 // `blurb` and `caption` are also read by canvas texture code — the wall
@@ -105,6 +140,7 @@ export const PROJECTS = [
         + 'где владелец сам ведёт свои тайтлы.',
     },
     stack: 'ASP.NET CORE · REACT',
+    release: { shipped: '2023' },
     shots: [
       {
         src: '/projects/game-store/1.png', caption: 'Homepage',
@@ -147,6 +183,7 @@ export const PROJECTS = [
         + 'классифицируется, проверяется на сроки и архивируется с подписью.',
     },
     stack: 'PYTHON · FASTAPI · DOCKER',
+    release: { shipped: '2026-08' },
     shots: [
       {
         src: '/projects/paperless-ocr-cascade/1.png', caption: 'Paperless webhook config',
@@ -173,6 +210,7 @@ export const PROJECTS = [
         + 'в своей сессии Claude Code и своём git worktree, а мердж запускает следующую.',
     },
     stack: 'TYPESCRIPT · NODE · REACT',
+    release: { due: '2026-10' },
     shots: [
       {
         src: '/projects/coming-soon.png', caption: 'Screenshots folgen',
@@ -207,7 +245,7 @@ export const PROJECTS = [
 /**
  * @typedef {{
  *   key: string, project: string, title: string, url: string | null,
- *   blurb: string, blurbI18n?: I18nSidecar, stack: string,
+ *   blurb: string, blurbI18n?: I18nSidecar, stack: string, release: Release,
  *   src: string, caption: string, captionI18n?: I18nSidecar, shot: number, shots: number,
  * }} Slide
  */
@@ -236,6 +274,7 @@ export function projectSlides(projects = PROJECTS) {
       blurb: project.blurb ?? '',
       blurbI18n: project.blurbI18n,
       stack: project.stack ?? '',
+      release: project.release ?? {},
       src: shot.src,
       caption: shot.caption ?? '',
       captionI18n: shot.captionI18n,

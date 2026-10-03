@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { SLIDES, localized } from '../decks/projects.js';
+import { SLIDES, localized, releaseStamp } from '../decks/projects.js';
 import { DECKS } from '../lift/decks.js';
 import { FLOORS } from './floors.js';
 import Floor from './Floor.jsx';
@@ -45,7 +45,7 @@ import { AddressIcon } from '../ui/icons.jsx';
 //   the legend         — which shot this is              caption + shot number
 //   the control rail   — everything you can press        pager, and the source
 //   the notice window  — what the project is and why     the blurb, scrolled
-//   the batten         — what was shipped                the stack, one line
+//   the batten         — what was shipped, and when      stack + release stamp
 //
 // A label longer than its box walks it (`Crawl`) instead of growing it, the
 // notice scrolls inside its own, and
@@ -167,12 +167,15 @@ function FloorProjekte() {
 
             {/* What was shipped, sprayed along a batten across the foot of the
                 panel — one line at the same size, never two. The crate in the
-                3D room carries this same stencil. */}
-            {slide?.stack && (
+                3D room carries this same stencil. The release stamp sits at
+                its end, outside the walking window: the stack walks, the date
+                stays put where the eye looks for it. */}
+            {slide && (
               <div className="stack-batten">
-                <Crawl dep={slide.project}>
+                <Crawl dep={`${slide.project}:${locale}`}>
                   <span className="stencil stencil--sm">{slide.stack}</span>
                 </Crawl>
+                <span className="stencil stencil--sm ship-stamp">{releaseStamp(slide.release, locale)}</span>
               </div>
             )}
           </div>
