@@ -26,6 +26,7 @@ dist-ssr
 
 # Personal Claude Code config
 .claude/*
+!.claude/settings.json
 
 .temp/*
 .codex/*
