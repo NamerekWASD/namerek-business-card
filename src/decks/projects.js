@@ -196,8 +196,8 @@ export const PROJECTS = [
     ],
   },
   {
-    id: 'baton',
-    title: 'Baton',
+    id: 'even-keel',
+    title: 'Even Keel',
     url: null,
     blurb: 'Ein Staffellauf für KI-Agenten: der Backlog läuft nach Abhängigkeiten, '
       + 'jede Aufgabe in eigener Claude-Code-Sitzung und eigenem Worktree — ein Merge startet die nächste.',
