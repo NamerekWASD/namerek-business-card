@@ -59,7 +59,7 @@ const edgeness = (x, y, w, h) => {
 // The first cut was authored at the yellow a post box is in daylight (#c2941b)
 // and it did not belong in this room: against a landing wall sitting at 0.20
 // sRGB it came out three and a half times brighter than anything around it and
-// read, in Mykolai's words, as realistic and not part of the scene. A prop that
+// read, in review's words, as realistic and not part of the scene. A prop that
 // out-values every surface it stands against is a prop the eye goes to first,
 // and this one is furniture standing under the page's own heading.
 //
@@ -485,8 +485,8 @@ export const artifactFace = (mark, spec, labelled = true, when = '') => bake(
     // Both passes used to be `#191207`, so the "harder pass" was the same near
     // black as its own shadow, laid on plywood painted around `#4c3f28`. That
     // is about two stops of separation on a surface lit by one pendant across a
-    // room, and it is exactly what Mykolai reported on NBC-68 — "они
-    // практически сливаются с фоном ящика". He is right and the fix is not more
+    // room, and it is exactly what was reported on NBC-68 — "they practically
+    // merge into the crate's background". That is right and the fix is not more
     // alpha: it is that despatch stencils are not sprayed in dark paint on dark
     // timber. They are sprayed in white. So the halo stays dark and the pass on
     // top of it is `INK`, which is what actually carries the letter.
@@ -607,8 +607,8 @@ export const artifactFace = (mark, spec, labelled = true, when = '') => bake(
 // painted bottle never will.
 //
 // ── drawn to the frame reference ────────────────────────────────────────────
-// Mykolai's reference for the wall screen's frame is the style note for this
-// panel too — he said so directly. What that image does, and what is copied
+// The design reference for the wall screen's frame is the style note for this
+// panel too — the brief said so directly. What that image does, and what is copied
 // here, is three things and no more: **dark aged cast metal** as the field,
 // **brass** as the only bright accent and only ever on a raised member, and
 // **engraved cream strips** carrying the legend. Everything else in it is wear.
@@ -1285,7 +1285,7 @@ export const drawerFace = () => bake('bench:drawer', 384, 96, (ctx, w, h) => {
  *
  * It is the one object under there with any value at all — the shelf is the
  * darkest place in the room — so the panel is painted a shade lighter than the
- * frame around it and carries the strapping and the two lid catches. Mykolai
+ * frame around it and carries the strapping and the two lid catches. The brief
  * named it and the lamp as the two things about the reference that had to
  * survive whatever else got simplified.
  */
@@ -1346,9 +1346,9 @@ export const chestPanel = () => bake('bench:chest', 256, 160, (ctx, w, h) => {
 });
 
 // ── the wall screen's frame ──────────────────────────────────────────────────
-// Painted to Mykolai's reference, with one deliberate departure from it: the
-// band is a good deal narrower. He liked the frame and said the width was the
-// one thing he did not — "мне только не нравятся сильно широкие рамки" — and
+// Painted to the design reference, with one deliberate departure from it: the
+// band is a good deal narrower. Review liked the frame and said the width was
+// the one thing it did not — the bands were too wide — and
 // chose a band about two thirds of the reference's rather than half, so there
 // is still room for a step and a rail to sit in.
 //
@@ -1438,7 +1438,7 @@ export const frameBand = () => bake('screen:band', 128, 64, (ctx, w, h) => {
 // the first cut. That one baked the plate, the bead, the bolts and the legend
 // into a single picture and then handed the *whole picture* through as an
 // `emissiveMap` — so the swell that was meant to say "this legend is lit" lit
-// the button's paintwork, its bolts and its grime along with it, and Mykolai's
+// the button's paintwork, its bolts and its grime along with it, and review's
 // verdict on the result was the correct one. An illuminated pushbutton has a
 // lamp behind its legend, not behind its face.
 //
@@ -1449,8 +1449,8 @@ export const frameBand = () => bake('screen:band', 128, 64, (ctx, w, h) => {
 //
 // ── and why grey ─────────────────────────────────────────────────────────────
 // Everything else on this panel is the scene's iron: warm, dark, corroded, and
-// stated as such all through `SURFACES`. Mykolai asked for the buttons to sit
-// *outside* that — «серый оттенок, чтобы он выбивался из общей концепции» —
+// stated as such all through `SURFACES`. The brief asked for the buttons to sit
+// *outside* that — a grey that stands out from the rest of the palette —
 // and the reason it works rather than looking like a mistake is that it is the
 // same distinction a real panel makes. The case is painted ironwork; the
 // controls are a different component, bought in, moulded in a pale grey
@@ -1640,7 +1640,7 @@ export const counterPlate = (text) => bake(`screen:counter:${text}`, 256, 88, (c
  * ── why the console needs one at all ─────────────────────────────────────────
  * The counter above the glass walks *pictures*, not projects, because a counter
  * that sits still through three presses of NEXT looks stuck. The cost of that
- * is the question Mykolai asked before it was built: three shots of one job in
+ * is the question asked before it was built: three shots of one job in
  * a row read as three different jobs. This is the answer — the project's name,
  * on its own lit window, standing still while the pictures change under it.
  *

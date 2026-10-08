@@ -1,7 +1,7 @@
 // ── telling a viewer that a button is a button ───────────────────────────────
 // The wall screen's controls are modelled, lit and pressable, and none of that
-// says *press me*. Mykolai's words for the problem: человек не догадается что
-// их можно нажимать. On a real panel of this period the answer is not a label,
+// says *press me*. Review's words for the problem: a visitor will not guess
+// they can be pressed. On a real panel of this period the answer is not a label,
 // it is that the legend is **lit** — an illuminated pushbutton advertises
 // itself, and a dark one is a plate.
 //

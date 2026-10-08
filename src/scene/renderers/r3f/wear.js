@@ -9,9 +9,9 @@
 // under its handle because that is where a hand lands, a bench rail is pitted
 // along its bottom edge because that is where the water sat. Tile any one of
 // those and it repeats — and a repeated accident is the single loudest tell
-// that a scene was made rather than found. Mykolai's words for the requirement:
-// потёртости не должны быть шаблоном, а задаваться произвольно для каждой
-// поверхности отдельно.
+// that a scene was made rather than found. The brief's words for the
+// requirement: wear must not be a template, it is set freely for each surface
+// on its own.
 //
 // So the surface says *where* and this file says *what*.
 //

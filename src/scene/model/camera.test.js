@@ -47,7 +47,7 @@ describe('projectToScreen', () => {
     // The deck column travels at this rate, and the landing it is printed over
     // travels at whatever the camera actually does to that depth. They are the
     // same plane, so they must be the same number — the whole of the shake
-    // Mykolai reported was these two being 0.80 and 0.58.
+    // reported in review was these two being 0.80 and 0.58.
     const q = projectToScreen([0, 0, -SHAFT_DEPTH - LANDING_SETBACK], VW, VH);
     expect(q.s).toBeCloseTo(LANDING_WALL_SCALE);
   });

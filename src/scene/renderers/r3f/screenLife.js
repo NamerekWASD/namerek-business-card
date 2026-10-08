@@ -1,8 +1,8 @@
 // ── making the wall screen read as running ───────────────────────────────────
 // The panel was a bake: a pool of light behind fluted glass, painted once and
 // then held perfectly still for as long as anyone stood in front of it. It is a
-// good picture and it reads as exactly that — «это читается как текстура, а не
-// эмиссивный экран с низкой герцовкой».
+// good picture and it reads as exactly that — a texture, not an emissive
+// screen with a low refresh rate.
 //
 // Three things are wrong with a still screen, and none of them is detail:
 //
@@ -20,8 +20,8 @@
 //
 // ── and the bead rolls with it ───────────────────────────────────────────────
 // The moulding round the glass is driven from this same waveform, and that is
-// the point of it rather than a flourish. Mykolai read the bead as a *gap* in
-// the frame — «я только сейчас понял что это труба а не гэп» — and the reason
+// the point of it rather than a flourish. Review read the bead as a *gap* in
+// the frame, and only later saw it was a tube — and the reason
 // it could be read that way is that it was the one member of the frame lit by
 // nothing: two of the four beads catch a rake off the pendant and two never can
 // (a cylinder gets its highlight from a light crossing its axis, and the

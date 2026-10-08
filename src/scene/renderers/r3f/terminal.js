@@ -9,8 +9,8 @@
 //
 // ── the log is laid out as a character grid, and that is the whole design ────
 // The first cut set the log as pixels — a 17px face on a 560px canvas — and it
-// was unreadable on screen. Mykolai had to lean into the monitor to make it out,
-// and the arithmetic says he was right to: the glass is about 520 scene pixels
+// was unreadable on screen. A reader had to lean into the monitor to make it out,
+// and the arithmetic says why: the glass is about 520 scene pixels
 // wide, it stands two rooms back so the perspective divide takes it to roughly
 // 260 *screen* pixels, and 17 canvas pixels of type inside a 560-pixel canvas
 // stretched to that is under eight pixels of actual letter.
@@ -42,7 +42,7 @@
 // ── and the tube fills the glass, whatever shape the glass is ────────────────
 // The grid above is a *page*, and it used to be the whole canvas: a fixed 0.707
 // rectangle fitted inside the opening, which on a wide viewport left a hand's
-// width of bare fluted glass down either side. Mykolai read that for what it
+// width of bare fluted glass down either side. Review read that for what it
 // was — a window open on a screen rather than a screen — first on the 1. OG
 // sheet and then here.
 //

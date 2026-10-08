@@ -29,7 +29,7 @@ const TAU = Math.PI * 2;
  * One tooth being taken up: most of the travel in the first third of the
  * interval, then a ring-down as the mechanism settles against the stop.
  *
- * The wobble is the "поддёргивание" — and it is damped by `(1 - p)` so it dies
+ * The wobble is the twitch the brief asked for — and it is damped by `(1 - p)` so it dies
  * out before the next tooth rather than beating against it.
  *
  * @param {number} f 0–1 through this tooth's interval

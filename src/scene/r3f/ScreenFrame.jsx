@@ -14,7 +14,7 @@ import useReducedMotion from '../../motion/reduced.js';
 // What was here before was a slab: one box the size of the panel with the glass
 // laid on the *front* of it, so the "frame" was whatever strip of box showed
 // round the edge, and the glass stood proud of the thing framing it. At two
-// metres that is a picture with a border, and Mykolai's reference is not a
+// metres that is a picture with a border, and the design reference is not a
 // picture with a border — it is an object bolted to a wall.
 //
 // Three things separate the two, and all three are why this is geometry rather
@@ -33,8 +33,8 @@ import useReducedMotion from '../../motion/reduced.js';
 // grammar, which the architrave in this same scene already states.
 //
 // ── how wide ────────────────────────────────────────────────────────────────
-// Mykolai's one objection to the reference was the width — "мне только не
-// нравятся сильно широкие рамки" — and his call was to narrow it by half again
+// The one objection to the reference in review was the width — the bands were
+// too wide — and the call was to narrow it by half again
 // rather than by half. The reference's band is about eleven per cent of the
 // panel, so `BAND` is 7.3%: enough to seat a rail and a step, not enough to
 // crowd the glass.
@@ -53,7 +53,7 @@ const CONSOLE_FOOT = 1.95;
 // of what was wrong with them: a control panel is a *surface you reach for*,
 // and every machine that has ever wanted a thumb found — a jukebox, a pinball
 // table, an arcade cabinet, a lift car's own car station — puts its controls on
-// a plate raked toward the person standing at it. Mykolai asked for exactly
+// a plate raked toward the person standing at it. The brief asked for exactly
 // that, and it earns its geometry three times over:
 //
 // *It catches a different light.* The frame's runs face the room square, so the
@@ -145,7 +145,7 @@ export function frameMetrics(w, h, console_ = false) {
     // the *difference* above the panel's own centre — and the sign matters:
     // inverted, Projekte's glass was pushed down by the very amount the console
     // had pushed it up, which opened a band of bare wall under the top run
-    // nearly a whole member wide and read, exactly as Mykolai put it, as the
+    // nearly a whole member wide and read, exactly as review put it, as the
     // frame having come unglued. `plain` never showed it because there
     // `foot === band` and the term is zero.
     glassY: (foot - band) / 2,
@@ -262,7 +262,7 @@ function Boss({ r, z, material, cap }) {
  *
  * A black band a fifth of a member wide, lying between the lit glass and the
  * run, is not read as a moulding. It is read as a hole, which is exactly what
- * happened — «рамка экрана разъехалась по вертикали от самого экрана», and it
+ * happened — "the screen's frame has come apart vertically from the screen", and it
  * took a scanline through the render to establish that the frame and the glass
  * are in fact flush to the pixel and that the "gap" was this.
  *
@@ -345,7 +345,7 @@ function Vent({ y, w, band, material, rib, z }) {
  *
  * `GAP` is the reveal — the bare slot between the cap and the metal round it,
  * which is where the lamp behind the button shows. It is the whole of what
- * Mykolai asked for: the glow used to be smeared over the cap's own face, and a
+ * the brief asked for: the glow used to be smeared over the cap's own face, and a
  * lit cap is a lamp, while a dark cap in a lit slot is a *control*.
  *
  * `SHOULDER` is the bezel left outside the reveal. It has to survive the spill
@@ -368,7 +368,7 @@ const SHOULDER = 0.12;
  * 1.61, so the grade takes whatever warmth the light leaves on a surface and
  * multiplies it. Working back from the measurement, an albedo that came out
  * neutral through that would need eight times more blue than red — there is no
- * such pigment, and Mykolai's «серый оттенок» is unreachable by repainting.
+ * such pigment, and the grey the brief asked for is unreachable by repainting.
  *
  * So the cap is carried the way every painted prop on this landing is carried
  * (see `artwork` in `LandingProps.jsx`): its albedo is dropped to near black so
@@ -436,7 +436,7 @@ function PressButton({
   // Ten scene pixels of relief at the band this frame is built to, and half of
   // that in travel. Both were a third of this in the first cut, and a cap
   // standing three pixels off its bezel is a printed rectangle whichever way it
-  // moves — which is precisely what Mykolai asked this not to be.
+  // moves — which is precisely what the brief asked this not to be.
   const travel = band * 0.13;
 
   // The bezel, and the glow plane laid over it — one size, so the bake knows
@@ -634,7 +634,7 @@ function useBandMaterial(texture, len, roughness = 0.5, metalness = 0.4) {
  * The frame itself.
  *
  * `variant` is `'plain'` everywhere but Projekte, which gets `'console'` — a
- * counter above the glass and a raked control deck under it, to Mykolai's
+ * counter above the glass and a raked control deck under it, to the
  * second reference. Two variants of one component rather than two components:
  * they share the band, the corners and the recess, and the only honest way to
  * keep those in step is for there to be one of each.

@@ -146,7 +146,7 @@ function SceneLights({
       // is wide. Everything thinner than the blur was reading its own body as
       // the occluder and rendering fully shadowed: the run's rollers, its
       // channels and its trestles came out as one black band, which is what
-      // "ролики всё ещё чёрные" was. `normalBias` steps the lookup out along the
+      // "the rollers are still black" was. `normalBias` steps the lookup out along the
       // surface normal, so it costs a flat wall nothing and rescues a tube.
       light.shadow.normalBias = readLight().shadowNormalBias;
 

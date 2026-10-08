@@ -142,7 +142,7 @@ export default function Dieselpunk() {
   // this wrapper as a `--deck-lag` custom property. It is gone, and it is not
   // coming back. **The text is printed on the landing wall**, so the only
   // motion it may have is the wall's — anything else is a heading sliding
-  // across the plaster it is stencilled on, which is exactly what Mykolai saw
+  // across the plaster it is stencilled on, which is exactly what review saw
   // at the end of every trip and read, correctly, as the text coming loose from
   // the scene. Chasing it as a *timing* bug got the lag onto the ticker's clock
   // and made it smooth; it was never a timing bug. A sign bolted to a wall does

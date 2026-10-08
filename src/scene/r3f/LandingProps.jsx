@@ -60,13 +60,13 @@ import useReducedMotion from '../../motion/reduced.js';
 // nothing casting it. The pendant casts; the props cast; the floor receives.
 
 // ── where a prop stands ──────────────────────────────────────────────────────
-// **Furniture goes under the page's own column, against the wall.** Mykolai's
+// **Furniture goes under the page's own column, against the wall.** Review's
 // call, twice, and it overturned what was here before — which put every prop on
 // the *other* half, standing in front of the lit wall screen for the sake of a
 // silhouette. That reasoning was not wrong about silhouettes and was wrong
 // about the picture: a full-size object out in the open on the empty half stops
 // being furniture and starts being the subject of the shot, and this scene
-// already has a subject. His words for it were "в сцену не вписывается" —
+// already has a subject. Review's words for it were "does not fit the scene" —
 // realistic, and not part of the room.
 //
 // Under the text it is background. The column runs down the middle of one half
@@ -78,7 +78,7 @@ import useReducedMotion from '../../motion/reduced.js';
 // gets its whole panel to itself again.
 //
 // What a prop must not do down there is out-shine the text above it, which is
-// the other half of "не вписывается" — see the note on the post box's enamel.
+// the other half of "does not fit" — see the note on the post box's enamel.
 
 /**
  * Where to stand something so it lands under the page's own column.
@@ -450,7 +450,7 @@ function ValveRack({ M, x, y, z, ambient, live }) {
           a 0.78 m leaf turning about a hinge 0.08 m proud of the plaster
           reaches 0.72 m back and 0.31 m across, so all that emerged was its
           own edge — a pair of unexplained vertical stripes beside the case,
-          which is exactly what Mykolai circled in red. A door has to come out
+          which is exactly what review circled in red. A door has to come out
           into the room to read as a door. */}
       <group position={[-caseW / 2, 0, front]} rotation={[0, -1.78, 0]}>
         <mesh position={[caseW / 2, 0, -0.012 * M]} castShadow receiveShadow>
@@ -504,8 +504,8 @@ const offRoom = (vw, z, dir = 1) =>
  * ── the route, and why it is this one ───────────────────────────────────────
  * The old conduit ran floor to ceiling in two straight pieces with the case
  * sitting in front of the middle of it, so it arrived from under the skirting
- * and left into the plaster having touched nothing on the way. Mykolai read it
- * as "a black stripe with white dots" and said so — and he is right that it is
+ * and left into the plaster having touched nothing on the way. Review read it
+ * as "a black stripe with white dots" and said so — and that is right: it is
  * not a cable, because nothing about it says where it comes from or what it is
  * for. In a dieselpunk building services are *on* the fabric, not buried in it.
  *
@@ -623,8 +623,8 @@ function WallCable({ M, from, runY, toX, radius, z }) {
 // Everything else about the bench exists to hold that plane at 0.92 m and give
 // it an underside to be dark.
 //
-// ── built to Mykolai's reference ─────────────────────────────────────────────
-// `.temp/workbench and data blocks reference.png`. His brief was explicit about
+// ── built to the design reference ────────────────────────────────────────────
+// `.temp/workbench and data blocks reference.png`. The brief was explicit about
 // what could be dropped and what could not: the very fine detail may be
 // simplified or lost, **the palette and the concept — the lamp standing on the
 // bench, the chest under it — stay**. So those two are modelled properly and
@@ -934,7 +934,7 @@ function Workbench({ M, x, floorY, z, ambient, yaw }) {
         ))}
       </group>
 
-      {/* the chest on the shelf — his, by name, and the one object under there
+      {/* the chest on the shelf — named in the brief, and the one object under there
           with any value at all */}
       <group position={[-0.34 * M, shelfY, 0.02 * M]} rotation={[0, 0.09, 0]}>
         <mesh position={[0, 0.115 * M, 0]} castShadow receiveShadow>
@@ -1239,7 +1239,7 @@ function Workbench({ M, x, floorY, z, ambient, yaw }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // 2. OG — the conveyor, and what rides on it
 // ─────────────────────────────────────────────────────────────────────────────
-// Three crates stood here in a pile, for looks. Mykolai's objection was that
+// Three crates stood here in a pile, for looks. The objection in review was that
 // the most *programmer* object a building can have was sitting in this room
 // doing nothing: the industry names itself after this machine. A pipeline is a
 // conveyor. What comes off one is an artifact. `dotnet publish` produces a
@@ -1667,8 +1667,8 @@ function RollerRun({
 
       {/* ── the rollers ──────────────────────────────────────────────────────
           The band that used to be here was a scrolling texture on a plane, and
-          Mykolai's reading of it was the correct one: "выглядит как плоская
-          текстура". These are turned tubes on a pitch the lift's comb depends
+          review's reading of it was the correct one: "looks like a flat
+          texture". These are turned tubes on a pitch the lift's comb depends
           on, and the ticker owns their rotation. */}
       <instancedMesh
         ref={rollersRef}
@@ -1706,7 +1706,7 @@ function RollerRun({
       {/* ── the infeed end ──────────────────────────────────────────────────
           A plate across the frame with the channels' own ends lapped over it,
           standing a little proud of the flange the way a stop does. It is the
-          detail Mykolai asked for and the argument is his: a run that simply
+          detail the brief asked for, and the argument is the brief's: a run that simply
           stops has been cut off, a run that is closed has been built.
 
           Its outer face is where the machine ends, and that is not a free
@@ -1738,7 +1738,7 @@ function RollerRun({
  * the box go.
  *
  * Bars rather than the little rollers this shipped with, and the argument is
- * Mykolai's: a bed of micro-rollers is a second conveyor riding on the first
+ * review's: a bed of micro-rollers is a second conveyor riding on the first
  * one, which is neither dieselpunk nor a thing a works would build. Nothing
  * here turns. What sends the box out of the wall is inside the wall.
  *
@@ -1779,7 +1779,7 @@ function LiftSection({
           between its rollers. Flat stock on edge rather than the box section
           with wheels set into it this replaces: nothing on the lift turns, and
           nothing needs to — what comes out of the wall is pushed from inside
-          it, which is the reading Mykolai offered and the only one that does
+          it, which is the reading review offered and the only one that does
           not put a roller conveyor inside a machine already standing on one. */}
       {fingers.map((fx) => (
         <mesh key={fx} position={[fx * M, -barH / 2, zc]} castShadow receiveShadow>
@@ -1980,7 +1980,7 @@ function Conveyor({ M, x, floorY, z, ambient, leftEnd, live }) {
     // Clamped to the frame, at both ends. The grid is anchored at the station
     // and the run's ends are not on it, so the outermost roller of an unclamped
     // grid lands *past* the channel that is supposed to be holding it — which
-    // is exactly what Mykolai photographed at the infeed: two tubes in the air
+    // is exactly what the review screenshot showed at the infeed: two tubes in the air
     // beyond the end of the machine.
     const stop = tail - (BELT.ROLL.D / 2) * M;
     const xs = [];
@@ -2062,8 +2062,8 @@ function Conveyor({ M, x, floorY, z, ambient, leftEnd, live }) {
   // to read as "the conveyor" was the band's *upward* face, and the pendant
   // strikes that: it came out at luminance 38 of 255. What it reads now is the
   // side channel's web and the trestles under it, all of them vertical, and
-  // those came out at 18 — "конструкция ковейера сейчас черная", and he is
-  // right.
+  // those came out at 18 — "the conveyor's frame is black right now", and
+  // that is right.
   //
   // Three measurements say what the lever is and what it is not. Turning the
   // channel's albedo to white and its metalness off moved it 18 → 27, so the
@@ -2222,7 +2222,7 @@ function Conveyor({ M, x, floorY, z, ambient, leftEnd, live }) {
  * cut out of the wall rather than as metal in front of it.
  *
  * It stops just under the mouth's sill. Carried any higher it would cut across
- * the opening, which is the same "коллизия" the works notice was moved for.
+ * the opening, which is the same "collision" the works notice was moved for.
  *
  * It runs the room's full width and off both ends, because a corridor does —
  * the argument written out at length on `WallCable`.
@@ -2583,9 +2583,9 @@ function LandingProps({ idx, vw, vh, top, live = true }) {
               out of the room to the left, because a corridor does. */}
           {/* Hard against the column's inner edge rather than out in the
               middle of it, so the mouth lands in the gap between the notice
-              above and the console beside it — Mykolai's call once he saw the
-              first cut ("нужно чтобы окно и конвейер был правее, поближе к
-              экрану"). Not as far as it will go, though: at the column's own
+              above and the console beside it — review's call on seeing the
+              first cut (the window and the conveyor further right, closer to
+              the screen). Not as far as it will go, though: at the column's own
               inner edge the mouth ended up *behind* the console's frame and the
               head run with it, so the one thing the move was for — seeing the
               product come out of the wall — was the thing it hid. This is the
@@ -2612,8 +2612,8 @@ function LandingProps({ idx, vw, vh, top, live = true }) {
 
               ── the height is not a taste call ─────────────────────────────
               The first cut hung it where a sign gets hung and its bottom run
-              landed straight across the mouth in the wall. Mykolai's word for
-              it was "коллизия" and he is right: a sign growing out of a hole
+              landed straight across the mouth in the wall. Review's word for
+              it was "collision", and rightly: a sign growing out of a hole
               is worse than no sign. The mouth tops out at
               `TOP + MOUTH.H − 0.12` above the floor, so this clears that with
               a hand's width of plaster showing between the two — and it had to
@@ -2630,7 +2630,7 @@ function LandingProps({ idx, vw, vh, top, live = true }) {
       )}
       {idx === 3 && (
         // Out toward the column's far edge and turned to face back across the
-        // room, which is the one prop Mykolai placed by hand.
+        // room, which is the one prop placed by hand in review.
         <PostBox
           M={M} x={underColumn(vw, content, 0.87, boxZ)} floorY={floorY} z={boxZ}
           ambient={ambient} yaw={facingIn * 0.5}

@@ -23,8 +23,8 @@ import { useSceneLocale } from '../../i18n/LocaleContext.jsx';
 // It is the same object as the landing screens, built a size down. Same frame,
 // same fluted glass, same hum and roll bar, and the bands come out proportion-
 // ately narrower because `ScreenFrame` measures every member as a fraction of
-// the panel — which is exactly what Mykolai asked for ("похож на тот что на
-// других этажах ... но с меньшими рамками") and why no second frame was drawn.
+// the panel — which is exactly what the brief asked for (like the one on the
+// other floors, but with narrower bands) and why no second frame was drawn.
 //
 // ── the two writers, and how they stay apart ─────────────────────────────────
 // `useScreenLife` owns `emissiveIntensity` on the glass and the bead, as it

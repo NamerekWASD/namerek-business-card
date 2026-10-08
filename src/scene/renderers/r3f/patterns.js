@@ -84,8 +84,8 @@ export const gateLattice = () => bake('gate', 128, 128, (ctx, w, h) => {
 /**
  * The shaft's safety rack: the toothed rail a runaway cage's gear bites into.
  *
- * Mykolai asked for it — «люди придумали металлические зубья на 2 краях шахты,
- * чтобы в случае чего лифт не падал плашмя вниз» — and asked whether it could be
+ * The brief asked for it — metal teeth down both edges of the shaft, so that if
+ * anything went wrong the car would not drop flat — and asked whether it could be
  * done as a texture. It can, and the reason it can is the **alpha**: the teeth
  * are cut out of the canvas rather than painted onto it, so the plane carrying
  * this has a genuinely toothed *silhouette* against the wall behind it. A
@@ -188,7 +188,7 @@ export const guideRack = () => bake('rack', 96, 128, (ctx, w, h) => {
 // steel frame with a stack of cast-iron slabs dropped into it, and how many
 // slabs there are is how the machine was balanced against the car it was fitted
 // to — which is why the stack, and not the frame, is the thing that says what
-// the object is. Mykolai's word for them is «блины», and that is what they are:
+// the object is. The brief called them plates, and that is what they are:
 // slabs a hand's depth thick, cast in a sand mould, with rounded edges because
 // a sand mould has no arrises to give in the first place.
 //
@@ -286,8 +286,8 @@ export const counterweightPlate = (variant = 0) => bake(
 /**
  * The light escaping round a recessed button.
  *
- * Mykolai's brief for the console: «нужно вместо текущего свечения сделать
- * свечение по краям предварительно сделав отступ». A pushbutton of this period
+ * The brief for the console: instead of the current glow, a glow round the
+ * edges, with a gap left first. A pushbutton of this period
  * is not a lamp with a lens on the front — it is a cap standing in a hole, with
  * the lamp behind it, and what a viewer across the room actually sees of that
  * lamp is the **reveal**: the few millimetres of gap between the cap and the
@@ -717,8 +717,8 @@ export const screenGlow = (flutes = 26) => bake(`screen:${flutes}`, 256, 256, (c
  *
  * ── why a screen needs one at all ────────────────────────────────────────────
  * `screenGlow` above is a perfectly good picture of a lit panel and that is
- * exactly its problem: a picture. Mykolai's words for it — «это читается как
- * текстура, а не эмиссивный экран с низкой герцовкой». He is right, and the
+ * exactly its problem: a picture. Review's words for it — it reads as a
+ * texture, not as an emissive screen with a low refresh rate. That is right, and the
  * reason is that nothing about a static bake distinguishes *glass with a lamp
  * behind it* from *a screen that is drawing*. The flutes already run the right
  * way — across the panel, like scan lines — so what is missing is not detail,

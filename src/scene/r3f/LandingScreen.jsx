@@ -25,8 +25,8 @@ import { t } from '../../i18n/strings.js';
 
 // The wall screen every landing shares: a fluted glass panel recessed into a
 // frame on the back wall. Plain exported numbers rather than a live panel — this is layout, not
-// a taste call judged frame-to-frame like the lighting rig — so Mykolai can
-// nudge them by hand here whenever the landing's proportions change.
+// a taste call judged frame-to-frame like the lighting rig — so they can be
+// nudged by hand here whenever the landing's proportions change.
 //
 // The frame's own dimensions are not here: how wide a band is, how far each of
 // its tiers stands off the wall and where the glass sits inside it are all
@@ -730,7 +730,7 @@ function LandingScreen({
         // The whole glass, edge to edge, and *not* fitted inside it the way the
         // terminal is. A tube shows its picture to the rim; a drawing floating
         // in the middle of one with bare fluted glass down either side reads as
-        // a window open on a screen, which is exactly what Mykolai saw in the
+        // a window open on a screen, which is exactly what review saw in the
         // first cut. Nothing is stretched to manage it — the sheet is built at
         // the opening's own shape. See the head of `flow.js`.
         //

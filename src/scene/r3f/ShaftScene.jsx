@@ -46,7 +46,7 @@ import { doorClosureAt } from '../../lift/ride.js';
 // The toothed rail down each side of the shaft, and the one fitting in here that
 // is about the *machine* rather than the room: a cage hangs on ropes, ropes part,
 // and what stops the car going down flat is a gear that bites into a rack bolted
-// to the shaft. Mykolai asked for it and asked whether a texture could carry it.
+// to the shaft. The brief asked for it and asked whether a texture could carry it.
 // It can — the teeth are cut out of `guideRack`'s canvas rather than painted on,
 // so the plane has a genuinely toothed silhouette (see the note there).
 //
@@ -809,7 +809,7 @@ function ShaftCable({ vh, x, pos, floorPx, ticker }) {
 // park and nothing like what it is from six feet away, which is where this
 // camera stands: a steel frame with a stack of cast-iron filler weights dropped
 // into it, one slab per unit of balance the machine was set up with. The stack
-// is the object — «блины», in Mykolai's words — and rebuilding it as one was
+// is the object — a pile of plates, as the brief put it — and rebuilding it as one was
 // worth doing for the silhouette alone: a box has one straight vertical edge
 // down each side, while a stack of slabs with their corners knocked off has
 // three dozen scallops, and that edge is most of what the eye gets of this

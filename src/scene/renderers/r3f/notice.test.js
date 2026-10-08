@@ -27,7 +27,7 @@ describe('the tube, changing project', () => {
     expect(late).toBeGreaterThan(0);
   });
 
-  // "как на старых телевизорах" — a cathode does not come up to level, it comes
+  // "like on old televisions" — a cathode does not come up to level, it comes
   // up past it. Without the overshoot this is a cross-fade with extra steps.
   it('strikes brighter than it settles', () => {
     const peak = warmUp(NOTICE.FADE + NOTICE.FLARE * NOTICE.RISE);

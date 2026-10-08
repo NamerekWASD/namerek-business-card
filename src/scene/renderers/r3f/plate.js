@@ -1,6 +1,6 @@
 // ── the corridor's plating, painted rather than photographed ─────────────────
 // The two walls the cage runs between are steel, not masonry, and that is
-// Mykolai's call rather than a rendering one: the ironwork already bolted to
+// a design call rather than a rendering one: the ironwork already bolted to
 // them — three rivet seams and a brass line — reads as fixings into plate, and
 // the shaft's safety gear (see `guideRack` in `patterns.js`) has to be bolted to
 // something that could take it. The blind wall at the far end stays brick; it is

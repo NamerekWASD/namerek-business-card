@@ -36,7 +36,7 @@ describe('Floor arrival', () => {
   });
 
   it('brings the lamp up once, without a beat back towards dark', () => {
-    // NBC-63, second pass: he picked the cascade on its own, so the contactor
+    // NBC-63, second pass: review picked the cascade on its own, so the contactor
     // hit is gone. jsdom will not run the animation, but a keyframe that goes
     // back up in opacity is a flash by definition — assert the curve only ever
     // falls, and no reviewer has to eyeball it again.

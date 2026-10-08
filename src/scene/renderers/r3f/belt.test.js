@@ -33,7 +33,7 @@ describe('the conveyor', () => {
   });
 
   // NBC-72's first half. The old L pushed the box sideways at a junction while
-  // keeping it square to the camera, which is the physics Mykolai objected to.
+  // keeping it square to the camera, which is the physics review objected to.
   // There is one direction of travel on the run now, and the only thing that
   // moves across it is the lift, which moves nothing while a box is on the run.
   it('runs one way and only one way', () => {
@@ -54,8 +54,8 @@ describe('the conveyor', () => {
     expect(BELT.MOUTH.H).toBeGreaterThan(BELT.BOX.h);
   });
 
-  // Mykolai's own correction to his first ask — "опускать так сильно не нужно,
-  // с масштабом я перегнул, пускай будет на 0.25 м ниже". The frame under the
+  // The brief's own correction to its first ask — no need to drop it that far,
+  // the scale was overdone, make it 0.25 m lower. The frame under the
   // rollers and the legs under that still have to fit between the roller tops
   // and the floor, and 0.68 − 1 m, which was the first figure, is below it.
   it('stands the run off the floor rather than on it', () => {
@@ -116,8 +116,8 @@ describe('the rollers', () => {
     expect(perTick).toBeLessThan(Math.PI / BELT.ROLL.FACETS);
   });
 
-  // And the other side of it, which is the fault Mykolai actually reported on
-  // NBC-68 — "будто очень мало фпс". A box moves with the run now, so a tick
+  // And the other side of it, which is the fault actually reported on
+  // NBC-68 — "as if the fps were very low". A box moves with the run now, so a tick
   // rate merely acceptable for a texture offset is a visible step in a solid.
   it('is not sampled so slowly that the run steps', () => {
     expect(BELT.SPEED / BELT.HZ).toBeLessThan(rollPitch() / 10);
@@ -125,8 +125,8 @@ describe('the rollers', () => {
 });
 
 describe('the lift, and its comb', () => {
-  // NBC-72 point 4, in one number: "САМОЕ ГЛАВНОЕ: ролики подъёмника не должны
-  // соприкасаться с роликами конвейера". Two dark metal things in the same
+  // NBC-72 point 4, in one number: "MOST IMPORTANT: the lift's rollers must not
+  // touch the conveyor's rollers". Two dark metal things in the same
   // millimetres do not announce themselves; they flicker per pixel as the
   // camera moves and read as a rendering fault.
   it('leaves air between a finger and the roller either side of it', () => {
@@ -167,8 +167,8 @@ describe('the lift, and its comb', () => {
     expect(liftDrop(STATION + BELT.LIFT.HOLD + liftWait() + BELT.LIFT.RETURN, PATH)).toBe(0);
   });
 
-  // Mykolai, on the first cut: "нужно чтобы коробка уехала и только после этого
-  // подьемник вернулся вверх". A lift that starts back up the moment it has let
+  // Review, on the first cut: the box has to leave first, and only then may the
+  // lift go back up. A lift that starts back up the moment it has let
   // go puts four steel fingers up through a plywood case still standing over
   // them, and it is not subtle.
   it('stays at the bottom while the box it set down is still over it', () => {
@@ -194,7 +194,7 @@ describe('the lift, and its comb', () => {
     expect(BELT.PITCH).toBeGreaterThan(minPitch());
   });
 
-  // The clause that would have caught the fault Mykolai reported, swept over a
+  // The clause that would have caught the fault review reported, swept over a
   // whole cycle rather than argued at the boundaries: at no travel at all may a
   // finger standing above the roller line share any of its width with a box
   // that is standing on the rollers.
@@ -219,8 +219,8 @@ describe('the lift, and its comb', () => {
     }
   });
 
-  // A fall that eases out is a lift setting a box down. Mykolai asked for the
-  // other thing: "опускают коробку быстро, будто с рывком". So the second half
+  // A fall that eases out is a lift setting a box down. The brief asked for the
+  // other thing: set the box down fast, with a jolt. So the second half
   // of the fall has to cover more ground than the first.
   it('falls faster the further it has fallen', () => {
     const at = (f) => liftDrop(STATION + BELT.LIFT.HOLD * (BELT.LIFT.PAUSE
@@ -300,7 +300,7 @@ describe('the twist a landing puts on a box', () => {
 
   // The bound is the manifest. The face with the lettering on it is turned at
   // the camera, and a box far enough round is a box whose whole point cannot be
-  // read — the constraint Mykolai attached to the ask himself.
+  // read — the constraint the brief attached to the ask itself.
   it('never turns the manifest far enough off the camera to lose it', () => {
     for (let i = 0; i < 24; i += 1) {
       const y = boxYaw(i, STATION + BELT.PITCH, PATH);
@@ -324,7 +324,7 @@ describe('the twist a landing puts on a box', () => {
     expect(alternating).toBe(false);
   });
 
-  // Never straightened out again. Correcting it is the "идеализированность"
+  // Never straightened out again. Correcting it is the "idealisation"
   // the whole of this was opened against.
   it('is kept for the rest of the trip', () => {
     const settled = boxYaw(2, STATION + BELT.LIFT.HOLD + BELT.LIFT.BOUNCE, PATH);
@@ -434,8 +434,8 @@ describe('the boxes, without end', () => {
 
 describe('the lead-in, behind the wall', () => {
   // The fault this exists for: a box switched on standing in the plane of the
-  // wall is half a box appearing between one tick and the next — "ящики просто
-  // спаунятся из ничего". A box has to have somewhere to come *from*.
+  // wall is half a box appearing between one tick and the next — "the boxes
+  // just spawn out of nothing". A box has to have somewhere to come *from*.
   it('starts the box further back than the box is long', () => {
     expect(BELT.LEAD).toBeGreaterThan(BELT.BOX.d);
   });

@@ -65,7 +65,7 @@ describe('the wall at the end of the shaft', () => {
     expect(strength).toBeLessThan(1.2);
   });
 
-  // He asked for the red to come down, and "less saturated at the same
+  // Review asked for the red to come down, and "less saturated at the same
   // luminance" is a thing that is easy to say and easy to undo by eye later.
   // The map is a multiplier normalised to a neutral mean, so this hex is the
   // whole of the wall's colour.

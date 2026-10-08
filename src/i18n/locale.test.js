@@ -75,7 +75,7 @@ describe('picking a value for a locale', () => {
   });
 
   it('passes a plain value through untouched, for facts that are not translated', () => {
-    expect(pick('Duisburg', 'ru')).toBe('Duisburg');
+    expect(pick('Springfield', 'ru')).toBe('Springfield');
     expect(pick(42, 'en')).toBe(42);
     expect(pick(null, 'en')).toBe(null);
   });

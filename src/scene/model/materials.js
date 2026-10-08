@@ -121,7 +121,7 @@ export const SURFACES = {
   // in the scene because it is furthest from the lamp
   shaftWall: { from: '#342d23', to: '#1a1711', tile: 'plate', scale: 513, tex: 0.34, rough: 0.86, metal: 0.22 },
   // The blind wall at the far end: brick, and less saturated than the first cut
-  // at it — «цвет кирпича слишком насыщенно красный», so the chroma came down
+  // at it — the brick read as far too saturated a red, so the chroma came down
   // about a quarter at the same luminance. Still plainly brick, no longer
   // plainly a fire engine.
   backWall: { from: '#482d22', to: '#231611', tile: 'brick', scale: 513, tex: 0.32, rough: 0.94, metal: 0.05 },

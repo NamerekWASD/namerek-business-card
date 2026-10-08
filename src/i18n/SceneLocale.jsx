@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 // canvases baked into textures, and a language change has to draw every one of
 // them again.
 //
-// That is a repaint of half a dozen surfaces in one commit, and Mykolai ruled
+// That is a repaint of half a dozen surfaces in one commit, and review ruled
 // out doing it in front of the visitor: a batch of textures re-uploaded while
 // somebody is looking at them is the known shape of a hitch in this scene (see
 // `project_r3f_hitch_playbook`). So the cabin performs the one gesture it
@@ -22,7 +22,7 @@ import { useEffect, useRef, useState } from 'react';
 // **The whole scene waits, not only the textures.** The first build let the DOM
 // half — the deck headings, the plates, the body copy, the floor buttons —
 // change the instant the switch was turned, on the theory that a DOM string
-// costs nothing to redraw. Mykolai saw exactly what that is: the text on the
+// costs nothing to redraw. Review saw exactly what that is: the text on the
 // landing wall changing language in front of you while the screen bolted to the
 // same wall waits for the doors. One wall, two clocks. So `useT` and `usePick`
 // read this value too, and the only thing left reading the choice directly is

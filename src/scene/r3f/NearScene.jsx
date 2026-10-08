@@ -458,8 +458,8 @@ function Cage({ vw, vh }) {
   const inset = cageInset(vw);
   const railY = floorY - 300;
   const lattice = gateLattice();
-  // The uprights and the hand rails — "вертикальные и горизонтальные стойки
-  // лифта", the two members the eye spends the whole ride looking past. Both
+  // The uprights and the hand rails — the cage's vertical and horizontal
+  // members, the two the eye spends the whole ride looking past. Both
   // were untextured, which on a bar facing the camera dead-on is fatal: a
   // vertical member has no convergence available to it, so grain is the only
   // thing it has left to be read by.

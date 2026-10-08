@@ -24,7 +24,7 @@ describe('the valve rack', () => {
     expect(PX_W / PX_H).toBeCloseTo(RACK.PLATE.W / RACK.PLATE.H, 2);
   });
 
-  // Three decks of eight, which is what Mykolai asked for and what the case
+  // Three decks of eight, which is what the brief asked for and what the case
   // was resized around.
   it('holds three rows of eight', () => {
     expect(RACK.SHELVES).toHaveLength(3);

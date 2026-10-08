@@ -4,7 +4,7 @@
 // NBC-90's second half. The screens on a landing wall are textures and cannot
 // be repainted in front of anyone, so a language change waits for the doors to
 // shut. The text *beside* them on the same wall is DOM and could change on the
-// spot — and that is precisely what must not happen: Mykolai watched the
+// spot — and that is precisely what must not happen: review watched the
 // heading change language while the screen a hand's width away sat waiting, and
 // what it looks like is the room coming apart, not a fast interface.
 //

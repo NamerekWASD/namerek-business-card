@@ -97,8 +97,8 @@ describe('usePick', () => {
   });
 
   it('passes a plain fact through untouched', () => {
-    render(<LocaleProvider><PickProbe value="Duisburg" /></LocaleProvider>);
-    expect(screen.getByText('Duisburg')).toBeDefined();
+    render(<LocaleProvider><PickProbe value="Springfield" /></LocaleProvider>);
+    expect(screen.getByText('Springfield')).toBeDefined();
   });
 });
 

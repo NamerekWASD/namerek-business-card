@@ -4,7 +4,7 @@
 // that landing's back wall and looked at *through* the hole its own floor has in
 // the shaft's masonry. Clipped to the cage's opening alone, as it was, a heading
 // stayed on screen long after its own doorway had gone behind the brick, which
-// is what Mykolai caught mid-ride between the ground floor and the second.
+// is what review caught mid-ride between the ground floor and the second.
 //
 // jsdom composites nothing, so this cannot say what the picture looks like. What
 // it holds is the arithmetic underneath it: two planes, two rates, and the

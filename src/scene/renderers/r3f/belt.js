@@ -18,9 +18,9 @@
 // ── what NBC-72 changed, and why the L had to go ─────────────────────────────
 // The run used to turn a right angle: a head run out of the wall, a long run
 // away to the left, and a box shoved sideways at the junction without turning.
-// Mykolai's objection is a physics one and it is correct — "по законам логики
-// (и физики) коробка должна была развернуться примерно на 90 градусов из-за
-// того, что переднюю часть коробки двигает конвейер, что двигает влево". A
+// The objection in review is a physics one and it is correct — by logic (and
+// physics) the box should have swung round about 90 degrees, because its front
+// is being dragged left by the run it has just landed on. A
 // rectangular transfer with nothing on it does not earn that.
 //
 // There is one conveyor now, running left, moved back to where the head run
@@ -32,14 +32,14 @@
 // lift-and-transfer, it is what a works actually uses for this, and it is the
 // one arrangement in which "the box does not rotate" is not a lie.
 //
-// The band went with the corner. A scrolling texture on a plane "выглядит как
-// плоская текстура" because that is what it is; the run is rollers now, turned
+// The band went with the corner. A scrolling texture on a plane "looks like a
+// flat texture" because that is what it is; the run is rollers now, turned
 // cylinders, and the lift's fingers pass *between* them — which is what fixes
 // the pitch below at a roller and a gap rather than at anything decorative.
 
 export const BELT = {
   // The roller tops, off the floor. Down a quarter of a metre from the 0.68 the
-  // band sat at, which is Mykolai's own figure — the first ask was 0.5 to 1 m
+  // band sat at, which is the brief's own figure — the first ask was 0.5 to 1 m
   // and 0.68 − 0.5 is practically the floor. The mouth in the wall does *not*
   // come down with it: the drop is what the lift is now for, and 0.43 + `RISE`
   // puts the opening back to the millimetre where it already was.
@@ -85,10 +85,10 @@ export const BELT = {
   // lift's wall gear rather than level with it. That reasoning was sound and
   // the number was not: the counterweight hangs on that gear at the height of
   // the roller line, so a run carried out under it is a run with a cylinder of
-  // cast iron standing through its rollers and its far channel — "конструкция
-  // подьемника правее окна пробивает насквозь ролики и каркас".
+  // cast iron standing through its rollers and its far channel — "the lift
+  // gear right of the window goes straight through the rollers and the frame".
   //
-  // So the run stops where the opening's own surround stops, which is his call
+  // So the run stops where the opening's own surround stops, which was review's call
   // and is also the one line in the picture that can justify an end: the
   // machine is as wide as the hole that feeds it. The end frame's outer face
   // lands on the surround's outer edge — `MOUTH.W / 2 + MOUTH.FRAME / 2` — and
@@ -148,14 +148,14 @@ export const BELT = {
 
   // ── the lift ───────────────────────────────────────────────────────────────
   // The one part of this that is not a constant speed, and the one part
-  // Mykolai asked for by feel rather than by measurement: "пускай ролики-
-  // подъёмники опускают коробку быстро, будто с рывком, а коробка немножко
-  // подпрыгнет и чутка повернётся… хочется немного инерции в этой сцене, а то
-  // тухло пока что и идеализировано. Так не должно быть, это же дизельпанк!"
+  // the brief asked for by feel rather than by measurement: the lift should set
+  // the box down fast, with a jolt, and the box should hop a little and turn a
+  // touch — some inertia in a scene that was dull and idealised, which is not
+  // how a dieselpunk machine behaves.
   //
   // So the fall is `t²` — all acceleration and no arrival — and everything
   // after it is the arrival being paid for: one hop, and a twist the box then
-  // *keeps*. Straightening it back up is the idealisation he is objecting to.
+  // *keeps*. Straightening it back up is the idealisation being objected to.
   //
   // `HOLD` is the station, in metres of travel rather than in seconds, so it
   // rides the same clock as everything else: the box's own arc position is the
@@ -168,8 +168,8 @@ export const BELT = {
     HOLD: 0.09, // metres of travel the station takes
     PAUSE: 0.42, // of which this fraction is spent at the top
     // Metres of travel the section takes to come back up, and how long it
-    // stays down first. The wait is Mykolai's, on seeing the first cut: "нужно
-    // чтобы коробка уехала и только после этого подьемник вернулся вверх" —
+    // stays down first. The wait came from review of the first cut: the box
+    // has to leave first, and only then may the lift go back up —
     // rising the moment it has let go puts four fingers of steel up through the
     // box still standing over them. It is derived rather than dialled; see
     // `liftWait`.
@@ -183,9 +183,9 @@ export const BELT = {
     // ── why a finger is a plain bar ────────────────────────────────────────
     // It used to be a box section with eight small rollers set into it, eight
     // per finger, thirty-two turning wheels on a machine that carries one
-    // parcel every ten seconds. Mykolai's objection is not a rendering one:
-    // "нелогично то, что там микроролики, которые не вписываются в тематику
-    // дизельпанка" — and the escape he offers with it is the right one, that
+    // parcel every ten seconds. The objection in review is not a rendering one:
+    // micro-rollers make no sense there and do not belong in dieselpunk — and
+    // the escape offered with it is the right one, that
     // nothing has to be *shown* pushing the box out of the wall for the wall to
     // be where it came from.
     //
@@ -239,7 +239,7 @@ export const BELT = {
   // still picture redrawn 165 times a second is two fans spinning for nothing.
   // So the belt is ticked at a rate of its own instead of at the display's.
   // 12 Hz was enough for a texture offset on a band nobody tracks and is not
-  // enough for a solid object crossing the room — "будто очень мало фпс" was
+  // enough for a solid object crossing the room — "as if the fps were very low" was
   // exactly right. `beltStep` and `rollerStep` are the clauses.
   // Up from 0.16 with NBC-72, and the reason is `PITCH` rather than taste: the
   // lift's cycle forced the spacing out from 1.5 m to 2 m, and at the old speed
@@ -283,8 +283,8 @@ export const fingerXs = () => Array.from(
 /**
  * The air between a finger and the nearest roller, across the run.
  *
- * This is the whole of NBC-72 point 4 — "САМОЕ ГЛАВНОЕ: ролики подъёмника не
- * должны соприкасаться с роликами конвейера" — reduced to one number. Negative
+ * This is the whole of NBC-72 point 4 — "MOST IMPORTANT: the lift's rollers
+ * must not touch the conveyor's rollers" — reduced to one number. Negative
  * here is a lift that descends *through* the run, which at this size announces
  * itself as nothing at all: two dark metal things occupying the same
  * millimetres, resolved per pixel by whichever the depth buffer saw last.
@@ -297,7 +297,7 @@ export const combClearance = () => rollPitch() / 2 - BELT.ROLL.D / 2 - BELT.LIFT
  * The fingers are fixed and the box is going left, so they are inside it until
  * its trailing corner has passed the outermost one. Rising before that is four
  * steel fingers coming up through a plywood case — visible immediately, and the
- * first thing Mykolai said about the first cut of this.
+ * first thing review said about the first cut of this.
  */
 export const liftWait = () => BELT.BOX.w / 2 + Math.max(...fingerXs())
   + BELT.LIFT.FINGER_W / 2 + BELT.LIFT.WAIT_GAP;

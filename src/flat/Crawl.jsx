@@ -24,7 +24,7 @@ import useReducedMotion from '../motion/reduced.js';
 // *Not a marquee.* A marquee runs continuously and scrolls the first word out
 // of a box it already fitted inside. This measures the overflow and travels
 // exactly that far, holds at both ends, and holds still when the content fits
-// — which, for every language in the archive today at his own viewport, is
+// — which, for every language in the archive today at the reviewed viewport, is
 // most of the time.
 //
 // *Not a filter or a mask on the moving part.* Everything that moves is a

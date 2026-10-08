@@ -21,8 +21,8 @@
 //
 // ── the sheet is the glass, not a picture hung on it ─────────────────────────
 // The first cut fixed the canvas at one shape and fitted it inside the opening,
-// the way `terminal.js` fits its log — and Mykolai caught what that looks like
-// straight away: «типа как програмка открытая на экране». It was a window
+// the way `terminal.js` fits its log — and review caught what that looks like
+// straight away: "like a little program open on the screen". It was a window
 // floating on a tube, with a hand's width of bare fluted glass down either side.
 //
 // A tube shows its picture edge to edge, so this canvas takes the *glass's own

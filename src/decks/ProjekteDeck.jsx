@@ -7,13 +7,13 @@
 // selectable DOM text — which is what `project_deck_text_stays_dom` argued for
 // and why 3D text was turned down at the time.
 //
-// NBC-68 turned it down the other way, and Mykolai's reason is better than the
-// one it overruled. The plate had one job — say what the project *is* — and it
-// was failing at it in a way no amount of typography fixes: when the console
-// paged into a different job, the paragraph quietly swapped its words and
-// nobody saw it happen. "Сложно понять что описание изменилось." A plate cannot
-// go dark and come back; a tube can, and that is the whole of the fix. On the
-// question of selecting the text: "человеку его незачем выделять" — it is one
+// NBC-68 turned it down the other way, and the reason given in review is better
+// than the one it overruled. The plate had one job — say what the project *is* —
+// and it was failing at it in a way no amount of typography fixes: when the
+// console paged into a different job, the paragraph quietly swapped its words
+// and nobody saw it happen — it was hard to tell the description had changed at
+// all. A plate cannot go dark and come back; a tube can, and that is the whole
+// of the fix. On the question of selecting the text: nobody needs to — it is one
 // sentence next to a screen already showing the thing and a plate already
 // naming it, and nobody has ever wanted it on their clipboard.
 //

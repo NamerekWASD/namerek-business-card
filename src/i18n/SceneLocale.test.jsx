@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 //
 // NBC-90. What the canvases are painted in, and when that is allowed to change.
-// The rule this pins down is the one Mykolai set: a repaint never happens in
+// The rule this pins down is the one review set: a repaint never happens in
 // front of the visitor. It happens behind shut doors, or — for someone who
 // asked for no motion — on the spot, because there is nothing to hide it
 // behind and nothing that needs hiding.

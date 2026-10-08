@@ -2,7 +2,7 @@
 // `projects.js` own that — but still text a visitor reads: rail labels, the
 // dispatch-desk form, the archive's empty state. Two things break silently
 // here: a key present in German and quietly missing in one of the other
-// three (NBC-85's "Готово когда: все четыре языка полны"), and a template
+// three (NBC-85's "done when: all four languages are complete"), and a template
 // whose `{placeholder}` survives into what a visitor actually sees because a
 // variable was never passed.
 

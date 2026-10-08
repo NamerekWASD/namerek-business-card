@@ -14,7 +14,7 @@ const LOG = logLines('de');
 // both are the kind of thing an edit breaks silently: a warning message a few
 // characters longer runs off the side of a screen nobody is looking closely at,
 // and one more warning pushes the cursor off the bottom. Neither shows up as an
-// error anywhere. They show up as Mykolai leaning into the monitor, which is
+// error anywhere. They show up as a reader leaning into the monitor, which is
 // where this started.
 
 describe('the log fits the tube it is printed on', () => {

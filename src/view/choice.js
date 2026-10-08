@@ -3,8 +3,8 @@
 //
 // NBC-56 asked for that default to be judged on a real handset rather than
 // argued, and it now has been — a Pixel 6a on a cable, the production build,
-// portrait. The scene does not present the card there: at 411px the name is
-// cut to "MYKOLA / TYMCHE", every line of the intro is clipped, and the deck
+// portrait. The scene does not present the card there: at 411px both lines of the
+// name lose their last letters, every line of the intro is clipped, and the deck
 // navigation runs 343px past the right edge. Sweeping the viewport width on
 // that same device puts the point where nothing clips any more at 820px —
 // which is `SCENE_MIN_WIDTH` below, and is a measurement rather than the

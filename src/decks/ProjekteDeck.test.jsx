@@ -3,7 +3,7 @@
 // NBC-22 put a works notice here — the current project's description, as real
 // selectable DOM text on an enamel plate. NBC-68 moved it into the scene as a
 // screen of its own, because the one thing it had to do was be *seen* changing
-// and a plate cannot go dark and come back. The reasoning, and Mykolai's own
+// and a plate cannot go dark and come back. The reasoning, and the review's
 // argument for giving up the selectable text, is in `ProjekteDeck.jsx`.
 //
 // So what is left to hold is the boundary rather than the content: this floor's

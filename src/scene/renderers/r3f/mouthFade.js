@@ -2,12 +2,12 @@
 // NBC-77. A box on the 2. OG conveyor used to appear at the plane of the
 // plaster: the black behind the opening is opaque, so a box in the tunnel is
 // not dark, it is *not drawn*, and the first frame any of it exists it exists
-// at full brightness. Mykolai's word for it was "спаунятся из темноты", and the
+// at full brightness. Review's word for it was "spawning out of the dark", and the
 // mechanic is right — the product does come out of the works behind the wall —
 // but nothing was grading the arrival.
 //
 // ── why it could not be done with a card ────────────────────────────────────
-// His own first idea was a semi-transparent black quad hung in the opening. It
+// The first idea in review was a semi-transparent black quad hung in the opening. It
 // cannot ramp: alpha grades in the plane of the card, and what has to grade
 // here is *depth*. One card is a step — behind it darker, in front of it
 // instantly not — and the step lands on the box's silhouette exactly as hard as

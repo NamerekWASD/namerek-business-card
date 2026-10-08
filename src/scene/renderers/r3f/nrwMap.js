@@ -33,9 +33,9 @@
 // one under the cross.
 //
 // ── the sheet is the glass, not a picture hung on it ─────────────────────────
-// The rule `flow.js` was rebuilt around, and the one fault Mykolai has caught on
+// The rule `flow.js` was rebuilt around, and the one fault review has caught on
 // this screen twice: a canvas fixed at one shape and fitted inside the opening
-// arrives as «программка, открытая на экране» — a window floating on a tube,
+// arrives as "a little program open on the screen" — a window floating on a tube,
 // with a hand's width of bare fluted glass down either side. So the canvas takes
 // the **glass's own aspect** as an argument and is built to it; nothing is ever
 // stretched to cover the difference. The tube, the rules and the head run the

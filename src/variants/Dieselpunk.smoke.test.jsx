@@ -14,6 +14,7 @@
 import { describe, expect, it, beforeAll, afterEach, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import Dieselpunk from './Dieselpunk.jsx';
+import { PERSON } from '../decks/content.js';
 
 // jsdom has no WebGL context, so the real `Canvas` would throw trying to build
 // a renderer (and, before that, on the missing `ResizeObserver` it measures
@@ -55,7 +56,7 @@ describe('Dieselpunk', () => {
     // dimmed or clipped — it is not built. If this starts finding the ground
     // floor's heading on the first frame, that optimisation has been lost.
     render(<Dieselpunk />);
-    expect(screen.queryByText(/Tymchenko/)).toBeNull();
+    expect(screen.queryByText(new RegExp(PERSON.family))).toBeNull();
   });
 
   it('keeps the debug panel out of the way unless it is asked for', () => {
@@ -77,7 +78,7 @@ describe('Dieselpunk', () => {
   // NBC-79. The deck column's transform is written every ride frame, and a
   // reference filter anywhere above it takes that transform off the compositor:
   // the whole opening is repainted and convolved on the main thread instead,
-  // which is what Mykolai saw as the text running at its own slower rate while
+  // which is what review saw as the text running at its own slower rate while
   // the scene behind it stayed smooth. jsdom cannot measure that, so what is
   // held here is the shape of the fix — no live filter over the moving layer.
   it('hangs no filter over the moving decks', () => {

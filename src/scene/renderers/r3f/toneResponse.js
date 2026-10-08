@@ -1,7 +1,7 @@
 // What a surface will actually render as, computed instead of photographed.
 //
 // ── why this file exists ────────────────────────────────────────────────────
-// NBC-72 spent an evening on "конструкция конвейера чёрная" and did not settle
+// NBC-72 spent an evening on "the conveyor's frame is black" and did not settle
 // it. The method was the problem: change a number, reload the scene (HMR does
 // not reliably reflect a three.js edit), raycast a grid of screen points, read
 // the pixels back out of a screenshot, average per object. Five minutes a

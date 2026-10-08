@@ -4,7 +4,7 @@
 // It was a plate of selectable HTML text, and the reason it was is written out
 // at length in `project_deck_text_stays_dom`: text drawn into the scene cannot
 // be selected, copied or read by a screen reader. That reasoning was sound and
-// Mykolai overruled it on NBC-68 with a better one — nobody has any reason to
+// Review overruled it on NBC-68 with a better one — nobody has any reason to
 // copy this paragraph out. It is one sentence saying what a project is, next to
 // a screen already showing the project and a plate already naming it. What it
 // has to do is be *noticed changing*, which an enamel plate that quietly swaps
@@ -42,9 +42,9 @@ export const NOTICE_ASPECT = W / H;
 export const NOTICE_ROWS = Math.floor((H - PAD_TOP * 1.2) / LINE);
 
 // ── the change, as a picture tube warming up ─────────────────────────────────
-// Mykolai's brief, near enough word for word: full fade, then half a second of
-// the print coming back brighter than it settles at, "как на старых телевизорах
-// или приемниках". Both halves are load-bearing. The fade is what makes the
+// The brief, near enough word for word: full fade, then half a second of the
+// print coming back brighter than it settles at, "like on old televisions or
+// radio sets". Both halves are load-bearing. The fade is what makes the
 // change impossible to miss — a screen that goes black is an event, and a
 // paragraph that swaps its words is not. The overshoot is what makes it a
 // *tube* rather than a CSS cross-fade: a cathode does not come up to level, it
