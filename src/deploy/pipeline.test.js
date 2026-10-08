@@ -37,6 +37,13 @@ describe('the pipeline calls things that exist', () => {
   it('the workflow builds before it deploys', () => {
     expect(steps.indexOf('npm run build')).toBeLessThan(steps.indexOf('pages deploy'));
   });
+
+  it('WebKit runs on the build and gates the deploy', () => {
+    // NBC-89: it serves `dist`, so before the build it would test nothing.
+    const webkit = steps.indexOf('npm run test:webkit');
+    expect(webkit).toBeGreaterThan(steps.indexOf('npm run build'));
+    expect(webkit).toBeLessThan(steps.indexOf('pages deploy'));
+  });
 });
 
 describe('the install is reproducible', () => {

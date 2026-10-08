@@ -49,6 +49,13 @@ jobs:
 
       - run: npm run build
 
+      # The built site in WebKit, the engine of every iPhone browser. It is
+      # always about the newest Safari, so old-Safari syntax is caught earlier,
+      # by `browserFloor.test.js` inside `npm run test`.
+      - run: npx playwright install --with-deps webkit
+
+      - run: npm run test:webkit
+
       # Pull requests get everything above and stop here. Only main is
       # published, and only after the three steps that could have caught it.
       - name: Deploy to Cloudflare Pages

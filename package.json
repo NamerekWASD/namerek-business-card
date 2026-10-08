@@ -9,6 +9,7 @@
     "lint": "oxlint",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:webkit": "playwright test",
     "preview": "vite preview",
     "tone": "vitest run toneResponse -t \"the sweep\" --disable-console-intercept"
   },
@@ -21,6 +22,7 @@
     "three": "^0.185.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.0",
     "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
