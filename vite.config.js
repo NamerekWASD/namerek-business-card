@@ -26,9 +26,10 @@ export default defineConfig({
   // Measured on this commit, default target against this one: 1 297 320 →
   // 1 299 968 bytes, 360 953 → 361 808 gzipped. 855 gzipped bytes, 0.24%.
   //
-  // Verify by transforming a fresh `dist` bundle at this target and at `esnext`
-  // and diffing: any difference is a feature newer than the floor, and the next
-  // visitor on an old handset pays for it.
+  // It also holds the CSS up: `build.cssTarget` defaults to it, and without it
+  // the minifier deletes every `vh` fallback that sits in front of a `dvh`.
+  //
+  // `src/deploy/browserFloor.test.js` guards both, on a fresh in-memory build.
   build: {
     target: ['es2020', 'chrome87', 'edge88', 'firefox78', 'safari14', 'ios14'],
   },
