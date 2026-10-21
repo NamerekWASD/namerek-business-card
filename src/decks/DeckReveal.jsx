@@ -70,6 +70,8 @@ export default function DeckReveal({
     >
       <div
         ref={wallRef}
+        // What `useFitToWall` measures a too-tall column against.
+        data-deck-wall=""
         style={{
           position: 'absolute', left: 0, right: 0, top: 0, height,
           display: 'flex', flexDirection: 'column', justifyContent: 'center',

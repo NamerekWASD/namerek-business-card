@@ -15,7 +15,7 @@ import StartDeck from './StartDeck.jsx';
 import KontaktDeck from './KontaktDeck.jsx';
 import FloorStart from '../flat/FloorStart.jsx';
 import FloorKontakt from '../flat/FloorKontakt.jsx';
-import { PERSON } from './content.js';
+import { BRIEF, LOG, PERSON } from './content.js';
 import { LOCALES, KEY, pick } from '../i18n/locale.js';
 import { LocaleProvider } from '../i18n/LocaleContext.jsx';
 
@@ -72,6 +72,24 @@ describe('the same language on both pages, for all four locales', () => {
 
       withLocale(id, <FloorKontakt />);
       expect(screen.getByText(new RegExp(`${pick(PERSON.city, id)}.*${pick(PERSON.availability, id)}`, 'i'))).toBeDefined();
+    });
+
+    // NBC-106: the nameplate and the logbook are the entrance's own facts, so
+    // both pages carry every row of both, in every language.
+    it(`signs the same nameplate and logbook in ${id} on both pages`, () => {
+      for (const Page of [StartDeck, FloorStart]) {
+        withLocale(id, <Page />);
+        for (const row of BRIEF) {
+          expect(screen.getByText(pick(row.label, id))).toBeDefined();
+          expect(screen.getByText(pick(row.value, id))).toBeDefined();
+        }
+        for (const entry of LOG) {
+          expect(screen.getByText(entry.year)).toBeDefined();
+          expect(screen.getByText(pick(entry.text, id))).toBeDefined();
+        }
+        cleanup();
+        localStorage.clear();
+      }
     });
   }
 });

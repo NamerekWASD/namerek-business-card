@@ -34,23 +34,13 @@ export const PERSON = {
     uk: '.NET / C# — Backend та Fullstack розробник',
     ru: '.NET / C# — Backend и Fullstack разработчик',
   },
+  // The second line — open to work, and where — moved onto the nameplate
+  // below (NBC-106), which says it as two rows rather than a sentence.
   intro: {
-    de: [
-      'Baue Systeme, die tragen — von der Datenbank bis zur Oberfläche.',
-      'Offen für neue Aufgaben im Ruhrgebiet / NRW.',
-    ],
-    en: [
-      'I build systems that hold — from the database to the interface.',
-      'Open to new roles in the Ruhr area / NRW.',
-    ],
-    uk: [
-      'Будую системи, які тримають навантаження — від бази даних до інтерфейсу.',
-      'Відкритий до нових задач у Рурській області / Північному Рейні-Вестфалії.',
-    ],
-    ru: [
-      'Строю системы, которые выдерживают нагрузку — от базы данных до интерфейса.',
-      'Открыт к новым задачам в Рурской области / Северный Рейн-Вестфалия.',
-    ],
+    de: ['Baue Systeme, die tragen — von der Datenbank bis zur Oberfläche.'],
+    en: ['I build systems that hold — from the database to the interface.'],
+    uk: ['Будую системи, які тримають навантаження — від бази даних до інтерфейсу.'],
+    ru: ['Строю системы, которые выдерживают нагрузку — от базы данных до интерфейса.'],
   },
   greeting: {
     de: 'Lust auf ein Gespräch?', en: 'Up for a conversation?', uk: 'Є бажання поговорити?', ru: 'Есть желание пообщаться?',
@@ -64,6 +54,81 @@ export const PERSON = {
   github: 'https://github.com/NamerekWASD',
   portrait: null,
 };
+
+/**
+ * NBC-106: the entrance's nameplate — the "in short" a visitor reads in five
+ * seconds. Rows, not a sentence, because a machine's plate is a list of
+ * ratings. The role headline above stays .NET on purpose; what the work looks
+ * like lately is a row here, and it says plainly that agents write the code.
+ */
+export const BRIEF = [
+  {
+    label: { de: 'Zuletzt', en: 'Lately', uk: 'Останнім часом', ru: 'Последнее время' },
+    value: {
+      de: 'Führe KI-Agenten, die den Code schreiben — TypeScript / Node, Unity (C#)',
+      en: 'Directing AI agents that write the code — TypeScript / Node, Unity (C#)',
+      uk: 'Керую ШІ-агентами, які пишуть код — TypeScript / Node, Unity (C#)',
+      ru: 'Руковожу ИИ-агентами, которые пишут код — TypeScript / Node, Unity (C#)',
+    },
+  },
+  {
+    label: { de: 'Gesucht', en: 'Looking for', uk: 'Шукаю', ru: 'Ищу' },
+    value: {
+      de: 'Backend / Fullstack · remote oder hybrid',
+      en: 'Backend / fullstack · remote or hybrid',
+      uk: 'Backend / Fullstack · віддалено або гібрид',
+      ru: 'Backend / Fullstack · удалённо или гибрид',
+    },
+  },
+  {
+    label: { de: 'Region', en: 'Region', uk: 'Регіон', ru: 'Регион' },
+    value: {
+      de: 'Duisburg · Ruhrgebiet / NRW',
+      en: 'Duisburg · Ruhr area / NRW',
+      uk: 'Дуйсбург · Рурська область / NRW',
+      ru: 'Дуйсбург · Рурская область / NRW',
+    },
+  },
+  {
+    label: { de: 'Arbeitserlaubnis', en: 'Work permit', uk: 'Дозвіл на роботу', ru: 'Разрешение на работу' },
+    value: { de: 'unbeschränkt', en: 'unrestricted', uk: 'без обмежень', ru: 'без ограничений' },
+  },
+];
+
+/**
+ * NBC-106: the logbook — where it started and what it went through, one dated
+ * line each. Not a CV: three entries, the year is the whole date, and where it
+ * has arrived is the nameplate's "lately" row rather than a fourth line here.
+ */
+export const LOG = [
+  {
+    year: '2020',
+    text: {
+      de: 'Studium Software Engineering, Kyjiw',
+      en: 'Studied software engineering in Kyiv',
+      uk: 'Інженерія ПЗ, навчання в Києві',
+      ru: 'Программная инженерия, учёба в Киеве',
+    },
+  },
+  {
+    year: '2022',
+    text: {
+      de: '.NET-Entwickler: Aufträge, Lager, Rechnungen',
+      en: '.NET developer: orders, stock, invoicing',
+      uk: '.NET-розробник: замовлення, склад, рахунки',
+      ru: '.NET-разработчик: заказы, склад, счета',
+    },
+  },
+  {
+    year: '2024',
+    text: {
+      de: 'Lead Engineer, Team von sechs',
+      en: 'Lead engineer, a team of six',
+      uk: 'Lead engineer, команда з шести',
+      ru: 'Lead engineer, команда из шести',
+    },
+  },
+];
 
 export const SKILL_GROUPS = [
   { label: { de: 'Backend', en: 'Backend', uk: 'Бекенд', ru: 'Бэкенд' }, tech: 'ASP.NET Core · EF Core' },

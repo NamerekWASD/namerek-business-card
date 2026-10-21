@@ -259,6 +259,15 @@ button {
   filter: saturate(0.94) brightness(1);
 }
 
+/* NBC-106: the entrance deck carries a nameplate and a logbook under the
+   name, and in a laptop-height window the column ran past its doorway. The
+   intro is the part that yields, as it does on the flat card: it is the one
+   line on the floor that carries no fact. Inline styles cannot ask for a
+   media query, so this one rule lives here. */
+@media (max-height: 800px) {
+  .start-intro { display: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .lang-pointer,
   .lang-mark .lang-enamel {

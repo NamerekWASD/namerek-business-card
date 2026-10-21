@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { LOCALES } from '../i18n/locale.js';
-import { PERSON, SKILL_GROUPS } from './content.js';
+import { BRIEF, LOG, PERSON, SKILL_GROUPS } from './content.js';
 
 const ids = LOCALES.map((l) => l.id);
 
@@ -35,6 +35,29 @@ describe('PERSON, in all four languages', () => {
     expect(typeof PERSON.email).toBe('string');
     expect(typeof PERSON.linkedin).toBe('string');
     expect(typeof PERSON.github).toBe('string');
+  });
+});
+
+describe('the nameplate and the logbook, in all four languages', () => {
+  it('translates every BRIEF row, label and value', () => {
+    expect(BRIEF.length).toBeGreaterThan(0);
+    for (const row of BRIEF) {
+      expectFullLocale(row.label, `brief ${row.label.en}`);
+      expectFullLocale(row.value, `brief ${row.label.en} value`);
+    }
+  });
+
+  it('translates every LOG entry and stamps it with a plain year', () => {
+    expect(LOG.length).toBeGreaterThan(0);
+    for (const entry of LOG) {
+      expect(entry.year).toMatch(/^\d{4}$/);
+      expectFullLocale(entry.text, `log ${entry.year}`);
+    }
+  });
+
+  it('keeps the logbook in order, oldest first', () => {
+    const years = LOG.map((e) => Number(e.year));
+    expect(years).toEqual([...years].sort((a, b) => a - b));
   });
 });
 

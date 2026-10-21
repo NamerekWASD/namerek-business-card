@@ -57,6 +57,7 @@ export const WEAR_SEED = {
   leistungen: 100,
   projekte: 200,
   console: 300,
+  start: 400,
 };
 
 /** How far a bolt's corrosion creeps out from its head, in CSS pixels. */

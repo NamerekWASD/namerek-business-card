@@ -1,4 +1,4 @@
-import { PERSON } from '../decks/content.js';
+import { BRIEF, LOG, PERSON } from '../decks/content.js';
 import { FLOORS } from './floors.js';
 import Floor from './Floor.jsx';
 import Chevrons from './Chevrons.jsx';
@@ -40,8 +40,33 @@ function FloorStart() {
               </div>
             )}
           </div>
-          <div className="hairline" style={{ margin: '22px 0 18px' }} />
-          <span className="enamel enamel--lg">{pick(PERSON.availability).toUpperCase()}</span>
+          <div className="eg-facts">
+            <section className="eg-plate">
+              <p className="stencil stencil--sm">Typenschild</p>
+              <dl className="eg-rows">
+                {BRIEF.map((row) => (
+                  <div key={row.label.en}>
+                    <dt>{pick(row.label)}</dt>
+                    <dd>{pick(row.value)}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+            <section className="eg-log">
+              <p className="stencil stencil--sm">Betriebsbuch</p>
+              <ol className="eg-rows">
+                {LOG.map((entry) => (
+                  <li key={entry.year}>
+                    <span className="eg-year">{entry.year}</span>
+                    <span>{pick(entry.text)}</span>
+                  </li>
+                ))}
+              </ol>
+            </section>
+            {/* Under the log, beside the plate: the log is the shorter of the
+                two, so the sign takes room the floor already had. */}
+            <span className="enamel enamel--lg eg-status">{pick(PERSON.availability).toUpperCase()}</span>
+          </div>
         </div>
       </div>
       <Chevrons />
