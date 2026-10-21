@@ -46,7 +46,7 @@ function FloorKontakt() {
           <div className="form-head">
             <div>
               <p className="stencil">{t('floorKontakt.formTitle')}</p>
-              <p className="label" style={{ marginTop: 6 }}>{t('floorKontakt.formSub')}</p>
+              <p className="label form-sub" style={{ marginTop: 6 }}>{t('floorKontakt.formSub')}</p>
             </div>
             <span className="stamp">{t('floorKontakt.stamp')}</span>
           </div>

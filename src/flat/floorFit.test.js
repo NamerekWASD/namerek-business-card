@@ -186,6 +186,36 @@ describe('the entrance on the smallest phone', () => {
   });
 });
 
+// NBC-113. The same 320x568 phone held upright, two floors below the entrance:
+// the instrument board ran 64px past its panel and the despatch form 82px.
+// Each floor gives up what carries no fact — the board its dials' size, the
+// form its punched tapes and then its form number — and on the narrowest
+// screens the corner tag, which the rail and the heading both repeat, yields
+// the heading its width.
+const NARROW = block('@media (max-width: 560px)');
+const LOW_HANDSET = block('@media (max-width: 560px) and (max-height: 660px)');
+const LOWEST_HANDSET = block('@media (max-width: 560px) and (max-height: 600px)');
+const NARROWEST = block('@media (max-width: 340px)');
+
+describe('the lower floors on the smallest phone', () => {
+  it('shrinks the dials with the floor’s height, never to nothing', () => {
+    expect(declarationsFor('.dial', NARROW)).toMatch(/max-width:\s*clamp\(\d+px,\s*calc\(50dvh[^;]*\),\s*104px\)/);
+  });
+
+  it('keeps each instrument inside its half of the board', () => {
+    expect(declarationsFor('.instrument-board', NARROW)).toMatch(/repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
+  });
+
+  it('gives up the punched tapes first, then the form number', () => {
+    expect(declarationsFor('.tape', LOW_HANDSET)).toMatch(/display:\s*none/);
+    expect(declarationsFor('.form-sub', LOWEST_HANDSET)).toMatch(/display:\s*none/);
+  });
+
+  it('lets the heading have the corner where there is no width for both', () => {
+    expect(declarationsFor('.floor-tag', NARROWEST)).toMatch(/display:\s*none/);
+  });
+});
+
 // NBC-112. A phone held sideways is a handset by width and a short desktop
 // window by height: 568x320 to 844x390. The yield chain above shrank every
 // panel to that height and the content ran 99-413px past its frame — tags over

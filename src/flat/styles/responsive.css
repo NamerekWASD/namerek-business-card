@@ -215,8 +215,22 @@
   .eg-log { padding: 4px 0 0 11px; }
   .eg-rows { font-size: 10.5px; line-height: 1.4; margin-top: 5px; row-gap: 3px; }
   .eg-plate .eg-rows dd { margin-bottom: 3px; }
-  .instrument-board { grid-template-columns: repeat(2, 1fr); gap: 6px; }
-  .dial { max-width: 104px; }
+  /* NBC-113: `1fr` alone has a floor of its content's widest word, and at
+     320px one column took 139px of a 218px board and pushed its tags off the
+     panel. The tags wrap instead; the plates take the tighter tracking. */
+  .instrument-board { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .instrument { padding: 10px 2px; }
+  .instrument .enamel { letter-spacing: 0.06em; padding: 7px 8px; }
+  /* NBC-113: the board is two rows of dial, plate and tags, and on a 568px
+     phone it ran 64px past its panel. The dial is the part that yields: its
+     needle and unit are presentation, not content (see `FloorLeistungen`), so
+     a smaller face loses nothing a reader learns. Below a 640px window each
+     dial gives up half a pixel per pixel of height, so the two rows hand back
+     what the window lost, down to a 56px face. */
+  .dial {
+    max-width: clamp(56px, calc(50vh - 216px), 104px);
+    max-width: clamp(56px, calc(50dvh - 216px), 104px);
+  }
   /* NBC-107 set the tags at 11px; the longest of them is the column's minimum,
      and at 360px it pushed the board past the panel. Tighter, not smaller. */
   .tech { letter-spacing: 0.06em; padding: 6px 7px 5px; }
@@ -237,6 +251,24 @@
    screen wraps more of the plate, so it runs out of room 40px sooner. */
 @media (max-width: 560px) and (max-height: 620px), (max-width: 340px) and (max-height: 660px) {
   .eg-log { display: none; }
+}
+
+/* NBC-113: the despatch form ran 11-82px past its panel below a 660px window.
+   The punched tapes go first — a divider, and the fields' own dashed rules
+   still divide — and on a 568px phone the form number after them, which is
+   the one line of the form that is set dressing rather than an address. */
+@media (max-width: 560px) and (max-height: 660px) {
+  .tape { display: none; }
+}
+@media (max-width: 560px) and (max-height: 600px) {
+  .form-sub { display: none; }
+}
+
+/* NBC-113: at 320px the corner tag stands over the last 18-31px of the
+   floor's heading. The rail's lit marker and the heading itself both say
+   which floor this is, so the tag is the one that steps aside. */
+@media (max-width: 340px) {
+  .floor-tag { display: none; }
 }
 
 /* NBC-112: a phone held sideways. The handset chain above shrinks the panel to
