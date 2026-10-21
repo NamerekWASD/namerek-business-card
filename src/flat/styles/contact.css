@@ -1,0 +1,114 @@
+/* ---------- 3. OG despatch form ---------- */
+
+.form-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.stamp {
+  border: 2px solid var(--enamel-red);
+  color: var(--enamel-red);
+  padding: 6px 10px;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  transform: rotate(-4deg);
+  opacity: 0.85;
+}
+
+.field {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  border-bottom: 1px dashed var(--line);
+  padding: 6px 0;
+}
+.field-value {
+  font-size: clamp(12px, 1.5vw, 15px);
+  letter-spacing: 0.1em;
+  color: var(--ink);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  word-break: break-all;
+}
+.field-value:hover { color: var(--glow); }
+
+/* The despatch desk's divider: a punched tape across the form. NBC-102 — the
+   holes were drawn in absolute pixels for a 26px bar (a circle centred 13px
+   down an 18×26 tile), and the handset block shortened the bar to 16px
+   without touching the pattern. A hole centred 13px down a 16px box loses its
+   bottom to the bar's own edge, which is a row of scallops rather than a
+   punched tape.
+
+   So the hole is placed *inside its own tile* — half the pitch across, half
+   the bar down — and the tile takes the bar's height from the same token the
+   bar does. A shorter bar now punches shorter, centred holes, and a handset
+   only ever changes tokens. `tape.test.js` keeps the pattern out of that
+   block, because two patterns to keep in step is how this happened. */
+.tape {
+  --tape-h: 26px;
+  --tape-pitch: 18px;
+  --tape-hole: 3px;
+  height: var(--tape-h);
+  margin: 16px 0;
+  background:
+    radial-gradient(
+      circle at calc(var(--tape-pitch) / 2) 50%,
+      #120c07 0 var(--tape-hole),
+      transparent calc(var(--tape-hole) + 0.5px)
+    ) 0 0 / var(--tape-pitch) var(--tape-h) repeat-x,
+    linear-gradient(180deg, #3a2b1b, #241a11);
+  border-top: 1px solid #5c4530;
+  border-bottom: 1px solid #0f0a06;
+}
+
+.copy-btn {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  min-height: 44px;
+  padding: 8px 12px;
+  color: var(--muted);
+  background: #241a11;
+  border: 1px solid var(--line);
+  border-radius: 1px;
+  cursor: pointer;
+}
+.copy-btn:hover { color: var(--glow); }
+
+.link-btn {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  min-height: 44px;
+  padding: 8px 14px;
+  color: var(--ink);
+  background: #241a11;
+  border: 1px solid var(--line);
+  border-radius: 1px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.link-btn:hover { color: var(--glow); border-color: var(--glow); }
+.link-btn svg { flex: none; }
+.copied {
+  border: 2px solid var(--enamel-green);
+  color: #7fbf9d;
+  padding: 6px 9px;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  transform: rotate(-3deg);
+}
+
+/* The flat page's own fullscreen viewer used to live here. It rendered as
+   `Viewer.jsx`, a second implementation of `FullscreenImageModal` — NAM-53
+   decided that modal wins, and `FloorProjekte` now portals the shared one in
+   instead, styled by `.fullscreen-modal-*` in `index.css`. */

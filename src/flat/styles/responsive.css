@@ -1,0 +1,248 @@
+/* ---------- responsive ---------- */
+
+@media (max-width: 900px) {
+  /* The names go and the shaft stays: below this there is no room for a floor
+     name that is legible, and an illegible one is not a compromise. Wide
+     enough for the car, which is the one thing that still has to be readable
+     at a glance. */
+  /* NBC-97. The shaft loses twelve pixels and the car loses ten: what stands
+     at a stop should be the floor's enamel sign, with the car behind it, and
+     a car wider and taller than the sign it stops at is a token sticking out
+     from under a plate. `--car` is the car's box, `--plate-min` is the
+     smallest box a sign is allowed to have, and `rail.geometry.test.js`
+     holds the one relation between them. Measured at 393px: a single-digit
+     sign is 31.2 × 32.2. */
+  .flat {
+    --rail-w: 46px;
+    --car: 22px;
+    --plate-min: 31px;
+  }
+  /* NBC-66, measured on a Pixel 6a at 411px: the rail is *drawn* 58px wide but
+     only 37 of them answered a finger. The trough sits inside the rail's own
+     10px side padding, and the rail is `position: fixed` — so the two 10px
+     strips beside it were the one place on the page where a drag did nothing
+     at all: not a scrub, because the trough is not under the finger, and not a
+     scroll, because the scroller is behind a fixed element. A thumb reaching
+     for the left edge — which is where a thumb goes — landed on 5% of the
+     screen that reads as a frozen page. The desktop layout keeps the padding;
+     there a pointer is precise and the strip is a margin, not a target.
+     Verified by dragging at 3, 8, 15, 29, 45, 53 and 57px on the device. */
+  .rail { padding: 8px 0; }
+  .rail-track { margin: 0; }
+  .rail-mark-name,
+  .rail-title { display: none; }
+  .rail-mark { padding: 0; align-items: center; }
+  .rail-code { display: none; }
+  .rail-tick { display: inline; }
+  .rail-mark .enamel {
+    font-size: 13px;
+    padding: 8px 10px;
+    letter-spacing: 0;
+    min-width: var(--plate-min);
+    text-align: center;
+  }
+  .rail-mark:not([aria-current="true"]) .enamel { opacity: 0.32; }
+  /* Both centred on the shaft rather than carrying the desktop's 2px bias:
+     the sign is centred here too, and the car only disappears behind it if
+     the two share a centre line. */
+  .rail-guide {
+    --guide-w: 22px;
+    left: 50%;
+    margin-left: calc(var(--guide-w) / -2);
+  }
+  .rail-car {
+    left: 50%;
+    width: var(--car);
+    height: var(--car);
+    margin-left: calc(var(--car) / -2);
+    margin-top: calc(var(--car) / -2);
+  }
+  /* The lamp in the car's window, kept in proportion to the smaller car. */
+  .rail-car::after { inset: 6px 5px; }
+  .instrument-board { grid-template-columns: repeat(2, 1fr); }
+  .crt-grid,
+  .eg-grid { grid-template-columns: 1fr; }
+  .eg-grid { grid-template-columns: 1fr auto; }
+  .field { grid-template-columns: 1fr; gap: 0; }
+  /* NBC-99: the tube is the part of the floor that yields. Everything else
+     here is either type, a 44px target or a fixed plate, so when a notice runs
+     long the only box that can give up height without losing a fact is the
+     picture — and it loses nothing, because a tap opens it full screen. Its
+     upper bound stays 32dvh; below `min-height` it would stop being a picture.
+
+     For that shrink to happen the whole chain down to it has to be allowed to
+     shrink too: a flex item's `min-height` is `auto`, which means "no smaller
+     than my content", and one box left at that default makes the tube's
+     `flex` a rule that silently does nothing. Held by `floorFit.test.js`. */
+  .floor-inner,
+  .panel,
+  .crt-grid {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  /* Everything above is a container and is told it may shrink to nothing. The
+     column holding the tube is not, and neither is it left to work its own
+     minimum out: an item with an aspect ratio contributes a minimum derived
+     from its width, which stopped the tube 11px into a yield that is the whole
+     point of this. So the two floors are declared, from one pair of tokens —
+     the tube's own, and the same plus the console that rides under it.
+
+     `min-height: 0` here instead and the column collapses to nothing under a
+     long enough notice: the tube keeps its floor, paints straight over the
+     text beside it, and the floor measures as though everything fits. */
+  .crt-grid {
+    --tube-min: 116px;
+    /* NBC-101: everything that rides under the tube, not just the console —
+       the legend strip (26, hung on the glass), and the rail, which is two
+       rows of 28 with 8 between them, plus the column's own gaps. The token
+       kept its name because `floorFit.test.js` holds the one relation it is
+       in. */
+    --console-h: 106px;
+    --strip-h: 26px;
+  }
+  .crt-col {
+    flex: 1 1 auto;
+    min-height: calc(var(--tube-min) + var(--console-h));
+  }
+  .crt {
+    flex: 1 1 auto;
+    min-height: var(--tube-min);
+    max-height: 32vh;
+    max-height: 32dvh;
+  }
+
+  /* The enamel tag in the corner, the marker on the rail and the floor's own
+     heading already say which floor this is. The line above the heading says
+     it a fourth time and costs a line of the notice below. EG's own line is
+     not this — it carries a fact of its own and sits inside the card. */
+  .floor-label { display: none; }
+
+  /* NBC-101: the caption used to be the largest type in the panel and took
+     two lines of a 264px column, pushing the shot number onto a third. It is
+     a legend on a lit strip now, so it is sized like one — and if a
+     translation is too long for the strip it walks it instead of growing. */
+  .shot-screen {
+    gap: 8px;
+    padding: 0 9px;
+  }
+  .shot-screen h3 { font-size: 11px; }
+
+  /* NBC-94: the corner bolts read oversized against a floor's own mobile
+     text sizes — the desktop panel has the width to spare, a phone does not.
+     Flat design only; the scene's own rivets are a separate asset. */
+  .panel::before { background-size: 6px 6px; }
+
+  /* NBC-93: stacking `.crt-grid` and `.field` to one column on a narrow
+     viewport makes a floor *taller*, not shorter — the two columns that used
+     to sit side by side now sit on top of each other. On a phone short
+     enough to show Safari's own toolbars, that stack was regularly taller
+     than the floor itself, so a floor scrolled inside its own section before
+     a swipe could ever reach `.bld`'s snap scroller. What follows claws back
+     just enough of that height, without touching anything with a real 44px
+     touch target. */
+  .panel-body { padding: clamp(14px, 3.6vw, 44px); }
+  .floor { padding-top: clamp(10px, 2.4vw, 32px); padding-bottom: clamp(10px, 2.4vw, 32px); }
+
+  /* The prev/counter/next row was wrapping to two lines below ~380px of
+     column width — a german "Zurück"/"Weiter" plus the counter do not fit
+     `.crt`'s own width in one row at the old padding. It now carries a fourth
+     control (the source link, NBC-101), and what buys the room for it is the
+     half-height plates plus their own tighter setting here. Below ~330px it
+     wraps to a second row, which is a floor's worth of pixels and not a jump:
+     a wrap depends on the viewport, never on which shot is loaded. */
+  .console { gap: 6px; }
+  .crt-col .lamp-btn { padding: 5px 7px; letter-spacing: 0.03em; }
+  .crt-col .link-btn { padding: 4px 7px; letter-spacing: 0.03em; }
+  .crt-col .counter { padding: 6px 7px; letter-spacing: 0.04em; }
+
+  /* The project blurb is the tallest single block once it is the full column
+     width and no longer beside the image. NBC-101 gave it a window with a
+     declared height, and this is what that height is on a handset: five lines
+     at 13px with tighter leading, which is what the two blurbs in the archive
+     measure today and what the floor can spare. A sixth line's worth of text
+     is fed through rather than added to the floor.
+
+     Measured against what this replaced: the caption's second line, the shot
+     number's own line and the source link's own 44px row are all gone from
+     the stack below the tube, and the pager is half its height — about 90px,
+     which is where the five reserved lines come from. */
+  .notice-slot {
+    --notice-lines: 5;
+    --notice-lh: 1.4;
+    font-size: 13px;
+  }
+  .archive-facts { gap: 10px; }
+  .stack-batten { padding: 6px 10px; }
+
+  /* The despatch form's two tapes are a divider, not content — 16px of
+     margin on each side of a 26px bar was sized for the desktop column,
+     not a floor fighting for every pixel. NBC-102: tokens only. The hole and
+     the pitch come down with the bar, so the tape stays a tape — a 16px bar
+     with the desktop's own hole in it was a row of half-circles cut off by
+     the bottom edge. */
+  .tape {
+    --tape-h: 16px;
+    --tape-pitch: 14px;
+    --tape-hole: 2.2px;
+    margin: 10px 0;
+  }
+}
+
+@media (max-width: 560px) {
+  /* NBC-95: the splice plate is sized for a desktop floor. At this width its
+     22px take a line of copy off every floor but the first, and its bolts —
+     drawn at the beam's own 11px — read as a row of studs across a 360px
+     screen rather than as fasteners. Thinner beam, smaller heads. */
+  .floor + .floor::before {
+    height: 13px;
+    background:
+      var(--rivet-iron, none) var(--rail-w) 6px / 60px 3px repeat-x,
+      linear-gradient(180deg, #0b0805, #241a11 55%, #0b0805);
+  }
+
+  .enamel--lg { font-size: 12px; padding: 9px 15px; letter-spacing: 0.18em; }
+  .stencil--sm { font-size: 9px; }
+  .eg-grid { grid-template-columns: 1fr; }
+  /* NBC-106: the plate, the log and the sign stack, and at 360x635 the stack
+     ran 47px past the floor's own plate (which shrinks, so `scrollHeight`
+     never shows it — measure the body's bottom against the panel's). The
+     intro is the part that yields: it is the one line on the floor that
+     carries no fact, and every fact it used to carry is a row on the plate. */
+  .eg-intro { display: none; }
+  .eg-facts { grid-template-columns: 1fr; gap: 10px; margin-top: 12px; }
+  .eg-facts .eg-plate { grid-row: auto; }
+  .eg-plate { padding: 9px 11px 10px; }
+  .eg-log { padding: 4px 0 0 11px; }
+  .eg-rows { font-size: 10.5px; line-height: 1.4; margin-top: 5px; row-gap: 3px; }
+  .eg-plate .eg-rows dd { margin-bottom: 3px; }
+  .instrument-board { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .dial { max-width: 104px; }
+}
+
+/* NBC-106: a window this short is out of room on the entrance for the same
+   reason a phone is, and the intro yields for the same reason. */
+@media (max-height: 620px) {
+  .eg-intro { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bld {
+    scroll-snap-type: y proximity;
+    scroll-behavior: auto;
+  }
+  .rail-shuttle { transition: none; }
+  /* No cascade, no lifting dark, and the floor simply arrives lit. What is
+     left has to look finished on its own — see NAM-55. */
+  .floor-lamp { display: none; }
+  .floor.is-lit .floor-inner > * { animation: none !important; }
+  .needle { animation: none !important; }
+  .crt-roll { display: none; }
+  .crt img { animation: none !important; }
+  /* NBC-101. A window keeps its reserved height — the floor is laid out around
+     it and a visitor who asked for stillness still needs the layout to hold —
+     and what goes is the travel. The text inside becomes something to scroll,
+     which is the one honest way to reach it with nothing moving by itself. */
+  .crawl-run { animation: none !important; }
+  .crawl { overflow-x: auto; }
+}

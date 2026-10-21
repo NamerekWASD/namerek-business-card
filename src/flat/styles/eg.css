@@ -1,0 +1,117 @@
+/* ---------- EG ---------- */
+
+.eg-grid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: clamp(16px, 3vw, 40px);
+  align-items: start;
+}
+
+/* The height term is NBC-106's: with the plate and the log under it, a 108px
+   name ran a 1366x657 laptop window 48px past its floor. At 900px tall and up
+   it is 108px as before. */
+.eg-name {
+  font-size: clamp(38px, min(8.4vw, 12vh), 108px);
+  color: var(--ink);
+  text-shadow: 0 2px 0 #120c07, 0 0 30px rgba(255, 180, 84, 0.12);
+}
+
+.eg-role {
+  margin-top: 12px;
+  font-size: 12px;
+  letter-spacing: 0.3em;
+  color: var(--brass);
+  text-transform: uppercase;
+}
+
+.eg-intro {
+  margin-top: 18px;
+  max-width: 46ch;
+  font-size: 12px;
+  line-height: 1.9;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+/* NBC-106: the nameplate and the logbook, side by side under the name. */
+.eg-facts {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: clamp(14px, 2.6vw, 36px);
+  margin-top: clamp(10px, 2vh, 26px);
+}
+.eg-facts .eg-plate { grid-row: span 2; }
+.eg-status { justify-self: start; align-self: end; }
+
+.eg-plate {
+  padding: 12px 14px 13px;
+  background: linear-gradient(163deg, #302518 0%, #241b11 46%, #1b140c 100%);
+  border: 1px solid #4a3821;
+  border-radius: 2px;
+  box-shadow:
+    inset 0 1px 0 rgba(212, 172, 104, 0.18),
+    inset 0 0 22px rgba(0, 0, 0, 0.5),
+    3px 3px 0 rgba(0, 0, 0, 0.55);
+}
+
+.eg-log {
+  padding: 12px 0 0 14px;
+  border-left: 2px solid rgba(212, 172, 104, 0.35);
+}
+
+.eg-rows {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: 12px;
+  row-gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11px;
+  line-height: 1.5;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.eg-rows > div,
+.eg-rows > li { display: contents; }
+.eg-rows dt,
+.eg-year {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--brass);
+}
+.eg-rows dd { margin: 0; color: var(--glow); }
+/* A plate's labels sit above their values: beside them, the longest label
+   ("Arbeitserlaubnis") took a third of the plate and folded every value. */
+.eg-plate .eg-rows { grid-template-columns: 1fr; row-gap: 0; }
+.eg-plate .eg-rows dd { margin-bottom: 5px; }
+.eg-plate .eg-rows dd:last-child { margin-bottom: 0; }
+
+.pass {
+  width: clamp(96px, 15vw, 168px);
+  aspect-ratio: 1;
+  padding: 6px;
+  background: #1d150e;
+  border: 1px solid #0f0a06;
+  box-shadow: inset 0 1px 0 rgba(255, 220, 170, 0.12);
+  clip-path: polygon(0 0, 100% 0, 100% 82%, 82% 100%, 0 100%);
+}
+.pass img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: sepia(0.35) contrast(1.05) brightness(0.86);
+  display: block;
+}
+
+.chevrons {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin-top: clamp(18px, 4vh, 44px);
+  color: var(--brass);
+}
+.chevrons svg:last-child { opacity: 0.45; }

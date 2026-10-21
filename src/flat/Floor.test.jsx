@@ -6,11 +6,11 @@
 // being the content's own opacity, the "page still loading" reading and the
 // flash rate come back with it and no test would have noticed.
 
-import { readFileSync } from 'node:fs';
 import { describe, expect, it, afterEach } from 'vitest';
 import { cleanup, render } from '@testing-library/react';
 import Floor from './Floor.jsx';
 import { FLOORS } from './floors.js';
+import { readFlatCss } from './readFlatCss.js';
 
 afterEach(cleanup);
 
@@ -40,7 +40,7 @@ describe('Floor arrival', () => {
     // hit is gone. jsdom will not run the animation, but a keyframe that goes
     // back up in opacity is a flash by definition — assert the curve only ever
     // falls, and no reviewer has to eyeball it again.
-    const css = readFileSync('src/flat/flat.css', 'utf8');
+    const css = readFlatCss();
     const block = css.match(/@keyframes lamp-lift\s*\{([^}]*\}\s*)*?\}/)[0];
     const stops = [...block.matchAll(/opacity:\s*([\d.]+)/g)].map((m) => Number(m[1]));
 

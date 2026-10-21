@@ -12,9 +12,9 @@
 // three responsive passes ago.
 
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFlatCss } from './readFlatCss.js';
 
-const CSS = readFileSync(new URL('./flat.css', import.meta.url), 'utf8');
+const CSS = readFlatCss();
 
 /** The body of a rule, brace-matched — a regexp cannot nest. */
 function block(header, source = CSS) {

@@ -1,0 +1,83 @@
+/* ---------- 1. UG instruments ---------- */
+
+.instrument-board {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: clamp(10px, 1.6vw, 22px);
+}
+
+.instrument {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: clamp(10px, 1.4vw, 18px);
+}
+
+/* The gauge is round now (NBC-64), so it no longer needs a square's worth of
+   width to show the same face. */
+.dial {
+  width: 100%;
+  max-width: 172px;
+  height: auto;
+  display: block;
+}
+
+/* The shared gradients `Dial` refers to. Rendered once and never seen. */
+.dial-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.needle {
+  transform-origin: 100px 100px;
+  transform: rotate(calc(-120deg + var(--needle-deg, 0deg)));
+}
+.is-lit .needle {
+  animation: settle 1.1s cubic-bezier(0.2, 1.5, 0.4, 1) forwards;
+}
+@keyframes settle {
+  0% { transform: rotate(-120deg); }
+  70% { transform: rotate(calc(-120deg + var(--needle-deg, 0deg) + 9deg)); }
+  100% { transform: rotate(calc(-120deg + var(--needle-deg, 0deg))); }
+}
+
+.tech-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px 8px;
+  justify-content: center;
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 0;
+}
+
+/* NBC-64: one small plate per technology, each hung a little off true — the
+   angle comes from the board (`--tilt`), the depth from here.
+   The depth is two inset lines and a drop shadow, not a gradient: a pressed
+   tag catches the lamp on its top edge and shades on its bottom one, and that
+   pair is the whole of what makes a flat rectangle read as a thing with an
+   edge. `transform` is what carries the tilt, so nothing here costs a layout.
+   `stencil` is deliberately not used on these: a stencil is sprayed onto
+   something consumable, and a tag screwed to an instrument board outlives the
+   board. */
+.tech {
+  transform: rotate(var(--tilt, 0deg));
+  font-family: var(--mono);
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--brass);
+  padding: 6px 9px 5px;
+  border-radius: 1px;
+  background: linear-gradient(178deg, #33251a, #20180f);
+  border: 1px solid #100b06;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 220, 170, 0.16),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.65),
+    0 3px 5px rgba(0, 0, 0, 0.5);
+}

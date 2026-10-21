@@ -1,0 +1,110 @@
+/* ---------- steel panels ---------- */
+
+.panel {
+  position: relative;
+  background:
+    linear-gradient(180deg, rgba(255, 220, 170, 0.06), transparent 30%),
+    linear-gradient(155deg, #33251803, #0000 40%),
+    linear-gradient(150deg, var(--panel), #241a11 70%, #1d150e);
+  border-radius: 1px;
+  border-top: 1px solid rgba(236, 225, 200, 0.16);
+  border-left: 1px solid rgba(236, 225, 200, 0.1);
+  border-bottom: 1px solid #120c07;
+  border-right: 1px solid #150e08;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 226, 180, 0.08),
+    inset -2px -2px 0 rgba(0, 0, 0, 0.45),
+    0 10px 24px rgba(0, 0, 0, 0.5);
+}
+
+/* NBC-65: four bolts, one per corner — not a dotted rule round the edge.
+   What was here was a 3px disc of one colour repeated every 34px along all
+   four sides, and at that size and that spacing a rivet has no chance of
+   reading as anything but a decorative border. The asset is `ui/rivet.js`;
+   `FlatCard` hands it in on `--rivet` because a stylesheet with no build step
+   cannot build a data URL itself.
+
+   `inset` and `background-size` together are what places them: the head is
+   `RIVET_HEAD` (22/32) of the asset's box, the rest being room for its own
+   shadow, so a 26px box puts an 18px head centred 26px in from the plate's
+   corner. */
+.panel::before {
+  content: "";
+  position: absolute;
+  inset: clamp(7px, 1.2vw, 13px);
+  pointer-events: none;
+  background-image: var(--rivet, none), var(--rivet, none), var(--rivet, none), var(--rivet, none);
+  background-repeat: no-repeat;
+  background-size: clamp(15px, 2.2vw, 26px) clamp(15px, 2.2vw, 26px);
+  background-position: left top, right top, left bottom, right bottom;
+}
+
+/* The padding has to clear the bolts, at every width: a rivet reaches
+   `inset + size` in from the corner, and text under a bolt head is the one
+   way four corner rivets can look worse than the dotted rule they replaced.
+   Kept a few pixels ahead of that reach at both ends of the clamp. */
+.panel-body {
+  position: relative;
+  z-index: 1;
+  padding: clamp(26px, 3.6vw, 44px);
+}
+
+/* ---------- enamel plates ---------- */
+
+.enamel {
+  display: inline-block;
+  font-family: var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--enamel-cream);
+  background: var(--enamel-green);
+  padding: 7px 12px;
+  border-radius: 1px;
+  border: 2px solid #0e0a06;
+  box-shadow:
+    inset 0 0 0 1px rgba(233, 223, 198, 0.75),
+    inset 0 0 14px rgba(0, 0, 0, 0.35),
+    3px 3px 0 rgba(0, 0, 0, 0.55);
+}
+.enamel--red { background: var(--enamel-red); }
+.enamel--dark { background: #2b211a; color: var(--muted); }
+.enamel--lg { font-size: 13px; padding: 9px 15px; letter-spacing: 0.18em; }
+
+/* ---------- stencils ---------- */
+
+.stencil {
+  /* Both the resting value and where the arrival cascade lands — see
+     `lamp-reach`. */
+  --rest-opacity: 0.82;
+  font-family: var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  font-size: 11px;
+  color: var(--muted);
+  opacity: var(--rest-opacity);
+  background-image: repeating-linear-gradient(
+    92deg,
+    transparent 0 7px,
+    rgba(26, 18, 14, 0.85) 7px 8px
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
+}
+.stencil--brass { color: var(--brass); }
+.stencil--sm { font-size: 10px; }
+
+.label {
+  font-family: var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.hairline {
+  height: 1px;
+  background: linear-gradient(90deg, var(--line), transparent);
+}

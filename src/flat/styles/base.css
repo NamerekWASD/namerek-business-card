@@ -1,0 +1,131 @@
+/* ==========================================================================
+   Dieselpunk building — flat DOM only. No Tailwind, no libraries.
+   ========================================================================== */
+
+/* The palette lives on the wrapper, not on the scroller, because the rail is a
+   fixed sibling of the scroller rather than a child of it. Declared on `.bld`
+   — as the generated draft had it — every `var()` in the rail resolved to
+   nothing: `width: var(--rail-w)` fell back to `auto` and the floors' matching
+   `padding-left` collapsed, which is why the floor plates sat outside the rail
+   and over the content. These values are a copy of `theme/tokens.js` and must
+   not drift from it. */
+.flat {
+  --bg: #1a120e;
+  --bg-2: #2a1a10;
+  --panel: #2c2015;
+  --screen: #100f0a;
+  --ink: #ece1c8;
+  --muted: #d0b895;
+  --line: #5c4530;
+  --brass: #c2903f;
+  --brass-deep: #8b5e22;
+  --glow: #ffb454;
+  --rivet: #4a3623;
+  --enamel-red: #8c2f26;
+  --enamel-green: #1e4034;
+  --enamel-cream: #e9dfc6;
+
+  /* NBC-62: the rail has to hold, on one line and inside its own edge, the
+     clearance for the guide and the car, an enamel plate reading "1. UG", and
+     the longest floor name in the building. At 184px it did not: the names
+     ran out over the content beside it, which is what made the rail look
+     unfinished however the rest of it was drawn. This is measured against
+     LEISTUNGEN — the longest — at the size below.
+
+     Beside the plate it would not fit under 270px, which is a fifth of a
+     laptop window given over to chrome on a business card. Stacked under the
+     plate it needs the widest of the two, not their sum, and the name gets to
+     be bigger rather than smaller. That is the layout in `.rail-mark`.
+
+     `--mark-h` is the floor sign's own height, declared rather than left to
+     the content, because the car's travel is the distance between the top and
+     bottom signs' *centres* and `Rail` measures that off this. */
+  --rail-w: 178px;
+  --mark-h: 62px;
+  /* The language badge's lane in the top-right corner: the badge stands in it
+     and `.floor-tag` keeps clear of it. Declared here rather than on
+     `.flat-lang` because the tag is not inside the switch. NBC-96. */
+  --lang-badge: 44px;
+  --lang-strip: 154px;
+  --mono: "Space Mono", ui-monospace, monospace;
+  --display: "Archivo Black", "Space Grotesk", system-ui, sans-serif;
+}
+
+/* Every `dvh`/`svh` below is preceded by its `vh` twin on purpose, and the pair
+   must stay a pair. Safari learned the dynamic viewport units in 15.4; below
+   that the whole declaration is thrown away rather than approximated, and a
+   floor with no height at all is the white page NBC-88 came from. `vh` ignores
+   the collapsing URL bar, which is the small, visible price of being readable
+   on an old handset. */
+.bld {
+  height: 100vh;
+  height: 100dvh;
+  overflow-y: scroll;
+  overflow-x: hidden;
+  scroll-snap-type: y mandatory;
+  scroll-behavior: smooth;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--mono);
+  position: relative;
+}
+
+.bld *,
+.bld *::before,
+.bld *::after {
+  box-sizing: border-box;
+}
+
+/* NAM-61 kept the native scrollbar in development, on the grounds that it was
+   the only honest signal that `.bld` and not the document is what scrolls.
+   NBC-62 removes it everywhere, because that stopped being true: the rail is
+   draggable now and reports the same scroller continuously. Two scrollbars
+   for one scroller, one of them on each edge of the window, is worse than
+   either alone. */
+.bld {
+  scrollbar-width: none;
+}
+.bld::-webkit-scrollbar {
+  display: none;
+}
+
+/* While the rail is being dragged. A mandatory snap re-snaps on every frame a
+   drag writes `scrollTop`, so for as long as a pointer is down there is no
+   snap at all and the release does the landing — see `Rail.jsx`. */
+.bld.is-scrubbing {
+  scroll-snap-type: none;
+  scroll-behavior: auto;
+}
+
+/* The a11y trap NAM-49 was filed over applies to the *snap itself* too, not
+   only to a floor's own overflow: below a viewport short enough that a
+   zoomed-in or landscape-phone visitor cannot see a floor's controls without
+   scrolling inside it, a mandatory snap keeps yanking them back before they
+   can act on what they found. Proximity still guides a normal scroll without
+   fighting one that has stopped short of a snap point. */
+@media (max-height: 480px) {
+  .bld { scroll-snap-type: y proximity; }
+}
+
+.bld :focus-visible {
+  outline: 2px solid var(--glow);
+  outline-offset: 2px;
+}
+
+.bld h1,
+.bld h2,
+.bld h3 {
+  font-family: var(--display);
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  margin: 0;
+  line-height: 0.94;
+}
+
+.bld p {
+  margin: 0;
+}
+
+.bld a {
+  color: var(--ink);
+}

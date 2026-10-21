@@ -1,0 +1,190 @@
+/* ---------- rail ---------- */
+
+.rail {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--rail-w);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  padding: 18px 10px;
+  background: linear-gradient(90deg, #150f0a, #241a11 70%, #120c08);
+  border-right: 1px solid #0f0a06;
+  box-shadow: 4px 0 18px rgba(0, 0, 0, 0.55);
+}
+
+.rail-title {
+  font-size: 10px;
+  letter-spacing: 0.34em;
+  color: var(--brass-deep);
+  text-transform: uppercase;
+  text-align: center;
+}
+
+/* The trough. Pressing it rides there and dragging it scrolls, so it says so
+   with the cursor and refuses to select text under a drag. */
+.rail-track {
+  position: relative;
+  flex: 1;
+  margin: 16px 0 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: stretch;
+  cursor: pointer;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  overflow: hidden;
+}
+.rail.is-dragging .rail-track { cursor: grabbing; }
+
+/* Two guides, not one: a lift car runs between a pair of them, and one alone
+   read as a progress bar with a token on it. The graduations between the
+   floors are what give the travel a length you can see. */
+.rail-guide {
+  /* The pair's overall width, and the only number in here: the left rail is
+     drawn from the near edge, the right one back from the far edge, so the two
+     stay a pair of rails at whatever gauge the shaft is built to. NBC-97
+     narrows it on a handset. */
+  --guide-w: 26px;
+  position: absolute;
+  left: 13px;
+  top: 0;
+  bottom: 0;
+  width: var(--guide-w);
+  background:
+    linear-gradient(90deg, #0d0906 0 1px, #453221 1px 5px, #0d0906 5px 6px, transparent 6px)
+      left top / var(--guide-w) 100% no-repeat,
+    linear-gradient(
+        90deg,
+        transparent 0 calc(var(--guide-w) - 6px),
+        #0d0906 calc(var(--guide-w) - 6px) calc(var(--guide-w) - 5px),
+        #453221 calc(var(--guide-w) - 5px) calc(var(--guide-w) - 1px),
+        #0d0906 calc(var(--guide-w) - 1px)
+      )
+      left top / var(--guide-w) 100% no-repeat,
+    repeating-linear-gradient(180deg, transparent 0 47px, rgba(122, 95, 63, 0.16) 47px 48px)
+      left top / var(--guide-w) 100% repeat-y;
+}
+
+.rail-shuttle {
+  position: absolute;
+  left: 0;
+  right: 0;
+  /* The car's travel is between the top and bottom plates' centres, and the
+     plates are laid out `space-between` — so half a plate is out of reach at
+     each end. `Rail` measures the same half off the plate itself when it maps
+     a pointer back to a scroll position. */
+  top: calc(var(--mark-h) / 2);
+  bottom: calc(var(--mark-h) / 2);
+  pointer-events: none;
+  will-change: transform;
+  z-index: 2;
+  /* A settling overshoot when the car lands, mirroring the brakes in
+     `lift/ride.js`. Most of a scroll gesture updates this every frame — a
+     moving target interrupts its own transition each time — so the bounce
+     only has room to show once the scroll actually stops and the last write
+     is the one left to settle toward. */
+  transition: transform 260ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+/* Nothing settles while a finger is on the rail: the car is under the pointer
+   and a 260ms spring behind it reads as lag, not as brakes. */
+.rail.is-dragging .rail-shuttle { transition: none; }
+
+.rail-car {
+  position: absolute;
+  left: 10px;
+  top: 0;
+  width: 32px;
+  height: 34px;
+  margin-top: -17px;
+  border-radius: 1px;
+  background: linear-gradient(180deg, #6d5231, #33261a);
+  border: 1px solid #0f0a06;
+  box-shadow: inset 0 1px 0 rgba(255, 210, 150, 0.35), 0 4px 10px rgba(0, 0, 0, 0.6);
+  will-change: transform;
+  z-index: 2;
+}
+/* The hoist rope, running up out of sight. Clipped by the track's own
+   `overflow`, so it costs one pseudo-element and no measurement. */
+.rail-car::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  width: 2px;
+  height: 200vh;
+  margin-left: -1px;
+  background: linear-gradient(180deg, rgba(74, 54, 35, 0), #4a3623 30%);
+}
+.rail-car::after {
+  content: "";
+  position: absolute;
+  inset: 9px 7px;
+  background: var(--glow);
+  opacity: 0.55;
+  border-radius: 1px;
+}
+
+/* The floor sign: the plate, and the floor's name under it. Stacked rather
+   than side by side because side by side is what made the names run out over
+   the content — see `--rail-w`. */
+.rail-mark {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 7px;
+  min-height: var(--mark-h);
+  padding: 0 8px 0 52px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font-family: var(--mono);
+  text-align: left;
+  text-decoration: none;
+}
+
+/* The plate carries the full floor number where there is room for it and the
+   short form where there is not — the rail's own version of the swap the
+   scene's dial makes. Both are `aria-hidden`; the link is named by its
+   `aria-label`, so neither is what a screen reader reads. */
+.rail-tick { display: none; }
+
+.rail-mark .enamel {
+  font-size: 13px;
+  padding: 8px 12px;
+  letter-spacing: 0.16em;
+  opacity: 0.62;
+  transition: opacity 200ms linear;
+  white-space: nowrap;
+}
+.rail-mark[aria-current="true"] .enamel {
+  opacity: 1;
+  background: var(--enamel-green);
+  color: #fff4dc;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 244, 220, 0.85),
+    0 0 14px rgba(255, 180, 84, 0.55),
+    3px 3px 0 rgba(0, 0, 0, 0.55);
+}
+
+/* The names were 11px in `--line` — the colour the hairlines are drawn in —
+   which put them under the contrast floor the rest of the page was raised to
+   in NAM-27. A floor name you cannot read is a floor name that is not there. */
+.rail-mark-name {
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  opacity: 0.55;
+  transition: opacity 200ms linear, color 200ms linear;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.rail-mark:hover .rail-mark-name { opacity: 0.85; }
+.rail-mark[aria-current="true"] .rail-mark-name { color: var(--glow); opacity: 1; }
