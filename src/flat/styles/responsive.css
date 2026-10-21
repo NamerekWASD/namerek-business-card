@@ -239,6 +239,14 @@
   .eg-log { display: none; }
 }
 
+/* NBC-112: a phone held sideways. The handset chain above shrinks the panel to
+   the floor, and at 320-390px of height the content ran 99-413px past its
+   frame. Here nothing yields: the panel keeps its content's height and the
+   floor scrolls inside its own section, as a short desktop window does. */
+@media (max-width: 900px) and (max-height: 500px) {
+  .panel { flex-shrink: 0; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .bld {
     scroll-snap-type: y proximity;

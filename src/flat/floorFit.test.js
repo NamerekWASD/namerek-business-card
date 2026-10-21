@@ -185,3 +185,21 @@ describe('the entrance on the smallest phone', () => {
     expect(declarationsFor('.eg-log', SHORT_HANDSET)).toMatch(/display:\s*none/);
   });
 });
+
+// NBC-112. A phone held sideways is a handset by width and a short desktop
+// window by height: 568x320 to 844x390. The yield chain above shrank every
+// panel to that height and the content ran 99-413px past its frame — tags over
+// the services copy, the plate under the floor's edge. The call was to stop
+// fitting there: the panel grows with what it holds and the floor scrolls
+// inside its own section, the way a 915x412 desktop window already did.
+const LANDSCAPE_HANDSET = block('@media (max-width: 900px) and (max-height: 500px)');
+
+describe('a floor on a phone held sideways', () => {
+  it('lets the panel keep its content’s height instead of shrinking to the floor', () => {
+    expect(declarationsFor('.panel', LANDSCAPE_HANDSET)).toMatch(/flex-shrink:\s*0/);
+  });
+
+  it('hides nothing to make a floor fit', () => {
+    expect(LANDSCAPE_HANDSET).not.toMatch(/display:\s*none/);
+  });
+});
