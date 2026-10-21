@@ -126,6 +126,78 @@ export function localized(base, i18n, locale) {
  */
 export const PROJECTS = [
   {
+    id: 'even-keel',
+    title: 'Even Keel',
+    url: null,
+    blurb: 'Ein Staffellauf für KI-Agenten: der Backlog läuft nach Abhängigkeiten, '
+      + 'jede Aufgabe in eigener Claude-Code-Sitzung und eigenem Worktree — ein Merge startet die nächste.',
+    blurbI18n: {
+      en: 'A relay race for AI coding agents: the backlog runs in dependency order, '
+        + 'each task in its own Claude Code session and git worktree, and a merge starts the next one.',
+      uk: 'Естафета для ШІ-агентів: беклог іде в порядку залежностей, кожна задача — '
+        + 'у власній сесії Claude Code і своєму git worktree, а мердж запускає наступну.',
+      ru: 'Эстафета для ИИ-агентов: бэклог идёт в порядке зависимостей, каждая задача — '
+        + 'в своей сессии Claude Code и своём git worktree, а мердж запускает следующую.',
+    },
+    stack: 'TYPESCRIPT · NODE · REACT',
+    release: { due: '2026-10' },
+    shots: [
+      {
+        src: '/projects/coming-soon.png', caption: 'Screenshots folgen',
+        captionI18n: { en: 'Screenshots coming soon', uk: 'Скриншоти згодом', ru: 'Скриншоты скоро' },
+      },
+    ],
+  },
+  {
+    id: 'paperless-ocr-cascade',
+    title: 'Paperless OCR Cascade',
+    url: 'https://github.com/NamerekWASD/PaperSorter',
+    blurb: 'Ein Fließband für Papier: jeder Scan läuft durch eine Texterkennung '
+      + 'in Stufen, wird eingeordnet, auf Fristen gelesen und beschriftet abgelegt.',
+    blurbI18n: {
+      en: 'A conveyor belt for paper: every scan runs through OCR in stages, gets '
+        + 'classified, checked against deadlines and filed under a label.',
+      uk: 'Конвеєр для паперу: кожен скан поетапно проходить розпізнавання тексту, '
+        + 'класифікується, перевіряється на дедлайни та підписаний архівується.',
+      ru: 'Конвейер для бумаги: каждый скан поэтапно проходит распознавание текста, '
+        + 'классифицируется, проверяется на сроки и архивируется с подписью.',
+    },
+    stack: 'PYTHON · FASTAPI · DOCKER',
+    release: { shipped: '2026-08' },
+    shots: [
+      {
+        src: '/projects/paperless-ocr-cascade/1.png', caption: 'Paperless webhook config',
+        captionI18n: { en: 'Paperless webhook config', uk: 'Налаштування webhook Paperless', ru: 'Настройка webhook Paperless' },
+      },
+      {
+        src: '/projects/paperless-ocr-cascade/2.png', caption: 'Logs',
+        captionI18n: { en: 'Logs', uk: 'Логи', ru: 'Логи' },
+      },
+    ],
+  },
+  {
+    id: 'coldbloom',
+    title: 'Coldbloom',
+    url: null,
+    blurb: 'Eine Sonde auf einem toten Planeten baut Kopien von sich selbst, und aus einer wird '
+      + 'ein Schwarm. Aufbaustrategie ohne Wellen und Quests: wohin er wächst, entscheidet der Spieler.',
+    blurbI18n: {
+      en: 'A lone probe on a dead planet builds copies of itself, and one becomes a swarm. '
+        + 'An automation strategy game with no waves and no quests: where it grows is up to the player.',
+      uk: 'Самотній зонд на мертвій планеті будує власні копії — і з одного виростає рій. '
+        + 'Стратегія автоматизації без хвиль і квестів: куди рости, вирішує гравець.',
+      ru: 'Одинокий зонд на мёртвой планете строит копии самого себя — и из одного вырастает рой. '
+        + 'Стратегия автоматизации без волн и квестов: куда расти, решает игрок.',
+    },
+    stack: 'UNITY · DOTS · C#',
+    shots: [
+      {
+        src: '/projects/coming-soon.png', caption: 'Screenshots folgen',
+        captionI18n: { en: 'Screenshots coming soon', uk: 'Скриншоти згодом', ru: 'Скриншоты скоро' },
+      },
+    ],
+  },
+  {
     id: 'game-store',
     title: 'Game Store',
     url: 'https://github.com/NamerekWASD/GameStore',
@@ -165,78 +237,6 @@ export const PROJECTS = [
       {
         src: '/projects/game-store/6.png', caption: 'Game managment page',
         captionI18n: { en: 'Game management page', uk: 'Сторінка керування іграми', ru: 'Страница управления играми' },
-      },
-    ],
-  },
-  {
-    id: 'paperless-ocr-cascade',
-    title: 'Paperless OCR Cascade',
-    url: 'https://github.com/NamerekWASD/PaperSorter',
-    blurb: 'Ein Fließband für Papier: jeder Scan läuft durch eine Texterkennung '
-      + 'in Stufen, wird eingeordnet, auf Fristen gelesen und beschriftet abgelegt.',
-    blurbI18n: {
-      en: 'A conveyor belt for paper: every scan runs through OCR in stages, gets '
-        + 'classified, checked against deadlines and filed under a label.',
-      uk: 'Конвеєр для паперу: кожен скан поетапно проходить розпізнавання тексту, '
-        + 'класифікується, перевіряється на дедлайни та підписаний архівується.',
-      ru: 'Конвейер для бумаги: каждый скан поэтапно проходит распознавание текста, '
-        + 'классифицируется, проверяется на сроки и архивируется с подписью.',
-    },
-    stack: 'PYTHON · FASTAPI · DOCKER',
-    release: { shipped: '2026-08' },
-    shots: [
-      {
-        src: '/projects/paperless-ocr-cascade/1.png', caption: 'Paperless webhook config',
-        captionI18n: { en: 'Paperless webhook config', uk: 'Налаштування webhook Paperless', ru: 'Настройка webhook Paperless' },
-      },
-      {
-        src: '/projects/paperless-ocr-cascade/2.png', caption: 'Logs',
-        captionI18n: { en: 'Logs', uk: 'Логи', ru: 'Логи' },
-      },
-    ],
-  },
-  {
-    id: 'even-keel',
-    title: 'Even Keel',
-    url: null,
-    blurb: 'Ein Staffellauf für KI-Agenten: der Backlog läuft nach Abhängigkeiten, '
-      + 'jede Aufgabe in eigener Claude-Code-Sitzung und eigenem Worktree — ein Merge startet die nächste.',
-    blurbI18n: {
-      en: 'A relay race for AI coding agents: the backlog runs in dependency order, '
-        + 'each task in its own Claude Code session and git worktree, and a merge starts the next one.',
-      uk: 'Естафета для ШІ-агентів: беклог іде в порядку залежностей, кожна задача — '
-        + 'у власній сесії Claude Code і своєму git worktree, а мердж запускає наступну.',
-      ru: 'Эстафета для ИИ-агентов: бэклог идёт в порядке зависимостей, каждая задача — '
-        + 'в своей сессии Claude Code и своём git worktree, а мердж запускает следующую.',
-    },
-    stack: 'TYPESCRIPT · NODE · REACT',
-    release: { due: '2026-10' },
-    shots: [
-      {
-        src: '/projects/coming-soon.png', caption: 'Screenshots folgen',
-        captionI18n: { en: 'Screenshots coming soon', uk: 'Скриншоти згодом', ru: 'Скриншоты скоро' },
-      },
-    ],
-  },
-  {
-    id: 'coldbloom',
-    title: 'Coldbloom',
-    url: null,
-    blurb: 'Eine Sonde auf einem toten Planeten baut Kopien von sich selbst, und aus einer wird '
-      + 'ein Schwarm. Aufbaustrategie ohne Wellen und Quests: wohin er wächst, entscheidet der Spieler.',
-    blurbI18n: {
-      en: 'A lone probe on a dead planet builds copies of itself, and one becomes a swarm. '
-        + 'An automation strategy game with no waves and no quests: where it grows is up to the player.',
-      uk: 'Самотній зонд на мертвій планеті будує власні копії — і з одного виростає рій. '
-        + 'Стратегія автоматизації без хвиль і квестів: куди рости, вирішує гравець.',
-      ru: 'Одинокий зонд на мёртвой планете строит копии самого себя — и из одного вырастает рой. '
-        + 'Стратегия автоматизации без волн и квестов: куда расти, решает игрок.',
-    },
-    stack: 'UNITY · DOTS · C#',
-    shots: [
-      {
-        src: '/projects/coming-soon.png', caption: 'Screenshots folgen',
-        captionI18n: { en: 'Screenshots coming soon', uk: 'Скриншоти згодом', ru: 'Скриншоты скоро' },
       },
     ],
   },

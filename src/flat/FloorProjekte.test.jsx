@@ -16,12 +16,23 @@
 // of the stylesheet rather than of the tree.
 
 import { describe, expect, it, afterEach } from 'vitest';
-import { cleanup, render } from '@testing-library/react';
+import { cleanup, fireEvent, render } from '@testing-library/react';
 import FloorProjekte from './FloorProjekte.jsx';
 import { SLIDES, localized, releaseStamp } from '../decks/projects.js';
 import { DEFAULT_LOCALE } from '../i18n/locale.js';
 
 afterEach(cleanup);
+
+// Not every project has a public source (NBC-104 put one without it first), so
+// the link's tests page the floor to the first slide that has one.
+function renderAtLinkedSlide() {
+  const target = SLIDES.findIndex((s) => s.url);
+  expect(target, 'no project in the archive has a source link').toBeGreaterThanOrEqual(0);
+  const view = render(<FloorProjekte />);
+  const next = view.container.querySelectorAll('.console button')[1];
+  for (let i = 0; i < target; i += 1) fireEvent.click(next);
+  return view;
+}
 
 describe('FloorProjekte', () => {
   it('shows the shot’s caption and its number on one small screen under the glass', () => {
@@ -40,7 +51,7 @@ describe('FloorProjekte', () => {
     // Prev, the counter, next — and the source link, which used to sit six
     // blocks further down the panel with the text between them re-sizing on
     // every press.
-    const { container } = render(<FloorProjekte />);
+    const { container } = renderAtLinkedSlide();
     const console_ = container.querySelector('.console');
     expect(console_.querySelectorAll('button').length).toBe(2);
     expect(console_.querySelector('.counter')).toBeTruthy();
@@ -50,12 +61,20 @@ describe('FloorProjekte', () => {
     expect(container.querySelectorAll('.panel a[href^="http"]').length).toBe(1);
   });
 
+  it.skipIf(SLIDES.every((s) => s.url))('shows no link at all for a project without a public source', () => {
+    const target = SLIDES.findIndex((s) => !s.url);
+    const { container } = render(<FloorProjekte />);
+    const next = container.querySelectorAll('.console button')[1];
+    for (let i = 0; i < target; i += 1) fireEvent.click(next);
+    expect(container.querySelector('.console a')).toBeNull();
+  });
+
   it('offers the source as a control, not a run of text', () => {
     // NBC-100: it was a `.field-value` inside a paragraph — the same treatment
     // the page gives plain copy — and a visitor read straight past it. It stays
     // the dark plate the despatch desk uses for its own addresses, which is
     // also what keeps it from reading as a third pager key beside NEXT.
-    const { container } = render(<FloorProjekte />);
+    const { container } = renderAtLinkedSlide();
     const link = container.querySelector('.console a[href^="http"]');
     expect(link.classList.contains('link-btn')).toBe(true);
     expect(link.classList.contains('field-value')).toBe(false);
