@@ -11,6 +11,7 @@
     "test:watch": "vitest",
     "test:webkit": "playwright test",
     "preview": "vite preview",
+    "og": "vite build && node scripts/og-image/shoot.mjs",
     "tone": "vitest run toneResponse -t \"the sweep\" --disable-console-intercept"
   },
   "dependencies": {

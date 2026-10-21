@@ -20,6 +20,7 @@ npm run build      # production build
 npm run preview    # serve the production build locally
 npm test           # run the test suite
 npm run lint        # lint
+npm run og          # rebuild the link preview, public/og-image.jpg
 ```
 
 ## Project layout

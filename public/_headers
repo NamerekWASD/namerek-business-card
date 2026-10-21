@@ -28,6 +28,11 @@
 /apple-touch-icon.png
   Cache-Control: public, max-age=86400
 
+# The link preview, rebuilt by `npm run og` under the same name. Crawlers keep
+# their own copy anyway; a day is for the visitor who opens it directly.
+/og-image.jpg
+  Cache-Control: public, max-age=86400
+
 # The one file that must never be held: it is what names every hashed asset
 # above, so a stale copy pins a visitor to a whole stale build.
 /index.html

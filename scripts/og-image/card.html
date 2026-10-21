@@ -1,0 +1,174 @@
+<!doctype html>
+<!--
+  NBC-114. The link preview, 1200x630; `shoot.mjs` fills it and takes the shot.
+  Some platforms crop it to a centred square (x 285-915), so the name and the
+  text sit in that square and the logo and the frame overhang it.
+-->
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Space+Mono:wght@400;700&family=Archivo+Black&display=block"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #1a120e;
+        --panel: #2c2015;
+        --ink: #ece1c8;
+        --muted: #d0b895;
+        --line: #5c4530;
+        --brass: #c2903f;
+        --brass-deep: #8b5e22;
+        --glow: #ffb454;
+        --cream: #e9dfc6;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+      }
+      html,
+      body {
+        width: 1200px;
+        height: 630px;
+        overflow: hidden;
+      }
+      body {
+        position: relative;
+        background:
+          radial-gradient(ellipse 70% 90% at 62% 50%, #3a2616 0%, transparent 70%),
+          linear-gradient(180deg, #22170f 0%, var(--bg) 100%);
+        color: var(--ink);
+        font-family: 'Inter', sans-serif;
+      }
+      .rule {
+        position: absolute;
+        left: 0;
+        right: 0;
+        height: 10px;
+        background: repeating-linear-gradient(135deg, var(--brass-deep) 0 14px, #1a120e 14px 28px);
+        opacity: 0.55;
+      }
+      .rule.top {
+        top: 0;
+      }
+      .rule.bottom {
+        bottom: 0;
+      }
+
+      .logo {
+        position: absolute;
+        left: 58px;
+        top: 50%;
+        width: 196px;
+        height: 196px;
+        transform: translateY(-50%);
+        border-radius: 50%;
+        background: var(--cream);
+        box-shadow:
+          0 0 0 5px var(--brass),
+          0 0 0 9px #1a120e,
+          0 0 0 11px var(--brass-deep),
+          0 18px 40px rgba(0, 0, 0, 0.6);
+        display: grid;
+        place-items: center;
+      }
+      .logo img {
+        width: 150px;
+        height: 150px;
+      }
+
+      .text {
+        position: absolute;
+        left: 300px;
+        top: 50%;
+        width: 360px;
+        transform: translateY(-50%);
+      }
+      .name {
+        font-family: 'Archivo Black', sans-serif;
+        font-size: 50px;
+        line-height: 1.02;
+        text-transform: uppercase;
+        color: var(--ink);
+        text-shadow: 0 0 22px rgba(255, 180, 84, 0.18);
+      }
+      .role {
+        margin-top: 18px;
+        font-family: 'Space Mono', monospace;
+        font-size: 17px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--glow);
+      }
+      .line {
+        margin-top: 18px;
+        padding-left: 14px;
+        border-left: 2px solid var(--line);
+        font-size: 19px;
+        line-height: 1.45;
+        color: var(--muted);
+      }
+
+      .frame {
+        position: absolute;
+        left: 676px;
+        top: 50%;
+        width: 500px;
+        transform: translateY(-50%);
+        padding: 9px;
+        background: linear-gradient(160deg, #3b2a1a, var(--panel));
+        border: 2px solid var(--brass-deep);
+        box-shadow:
+          0 30px 60px rgba(0, 0, 0, 0.7),
+          0 0 0 1px rgba(0, 0, 0, 0.6);
+      }
+      .frame img {
+        display: block;
+        width: 100%;
+        aspect-ratio: 4 / 3;
+        border: 1px solid #000;
+      }
+      .rivet {
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 35% 35%, #f0c878, var(--brass-deep));
+      }
+    </style>
+  </head>
+  <body>
+    <div class="rule top"></div>
+    <div class="logo"><img id="logo" alt="" /></div>
+    <div class="text">
+      <h1 class="name" id="name"></h1>
+      <p class="role" id="role"></p>
+      <p class="line" id="line"></p>
+    </div>
+    <div class="frame">
+      <img id="frame" alt="" />
+      <i class="rivet" style="left: 1px; top: 1px"></i>
+      <i class="rivet" style="right: 1px; top: 1px"></i>
+      <i class="rivet" style="left: 1px; bottom: 1px"></i>
+      <i class="rivet" style="right: 1px; bottom: 1px"></i>
+    </div>
+    <div class="rule bottom"></div>
+    <script>
+      const og = window.__og ?? {
+        name: 'John Doe',
+        role: 'Software Engineer',
+        line: 'One line about the work wanted.',
+        logo: '',
+        frame: '',
+      };
+      const [first, ...rest] = og.name.split(' ');
+      document.getElementById('name').append(first, document.createElement('br'), rest.join(' '));
+      document.getElementById('role').textContent = og.role;
+      document.getElementById('line').textContent = og.line;
+      document.getElementById('logo').src = og.logo;
+      document.getElementById('frame').src = og.frame;
+    </script>
+  </body>
+</html>
