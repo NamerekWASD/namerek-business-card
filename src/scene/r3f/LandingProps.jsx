@@ -29,6 +29,7 @@ import { lampGlow } from '../renderers/r3f/patterns.js';
 import usePilotLamps from '../renderers/r3f/pilotLamps.js';
 import { SCREEN_SIDE } from '../../lift/decks.js';
 import useReducedMotion from '../../motion/reduced.js';
+import { useSceneLocale } from '../../i18n/LocaleContext.jsx';
 
 // One identifying object per landing, so a floor is somewhere rather than a
 // number.
@@ -1944,6 +1945,10 @@ function useBeltMotion(rig, boxes, path, count, pitch, M, projectRef, onStamp, l
 
 function Conveyor({ M, x, floorY, z, ambient, leftEnd, live }) {
   const gallery = useFullscreenGallery();
+  // The stamp on the crates is a sentence, not a product name, so it follows
+  // the language the scene is painted in — and swaps behind the doors with the
+  // screens on the same wall, every box on the run at once (NBC-109).
+  const locale = useSceneLocale();
   const slide = SLIDES[gallery?.page ?? 0] ?? null;
   // Which *project*, not which frame. Six shots of one job must not change what
   // comes out of the wall.
@@ -2200,7 +2205,7 @@ function Conveyor({ M, x, floorY, z, ambient, leftEnd, live }) {
             M={M}
             mark={PROJECTS[p]?.title ?? ''}
             spec={PROJECTS[p]?.stack ?? ''}
-            when={PROJECTS[p] ? releaseStamp(PROJECTS[p].release, 'de') : ''}
+            when={PROJECTS[p] ? releaseStamp(PROJECTS[p].release, locale) : ''}
             ambient={ambient}
             strap={ironAt(2.1)}
             fade={fade}

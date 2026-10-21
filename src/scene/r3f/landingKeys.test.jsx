@@ -26,47 +26,17 @@
 // node is lent the handful of members they touch, off a real `Object3D` so the
 // arithmetic they do on it is the arithmetic they would do in the scene. It
 // draws nothing and proves nothing about the picture; it only gets the mount
-// past commit so the render that precedes it can be judged.
+// past commit so the render that precedes it can be judged. That loan lives in
+// `landingMount.testkit.js`.
 
 import { captureOwnerStack } from 'react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render } from '@testing-library/react';
-import { InstancedBufferAttribute, Object3D } from 'three';
 import LandingProps from './LandingProps.jsx';
 import { DECKS } from '../../lift/decks.js';
+import { lendObject3D } from './landingMount.testkit.js';
 
-/** The three.js side of a node, made once and kept on it. */
-function proxyFor(node) {
-  if (!node.__three) {
-    const o = new Object3D();
-    o.instanceMatrix = new InstancedBufferAttribute(new Float32Array(16 * 64), 16);
-    o.setMatrixAt = () => {};
-    o.material = { opacity: 1, color: { set: () => {} }, uniforms: {} };
-    o.count = 0;
-    node.__three = o;
-  }
-  return node.__three;
-}
-
-beforeAll(() => {
-  for (const key of [
-    'position', 'rotation', 'scale', 'visible', 'instanceMatrix', 'setMatrixAt',
-    'material', 'geometry', 'count', 'traverse', 'updateWorldMatrix', 'matrixWorld',
-    'getWorldPosition', 'quaternion', 'renderOrder', 'userData',
-  ]) {
-    Object.defineProperty(Element.prototype, key, {
-      configurable: true,
-      get() {
-        const three = proxyFor(this);
-        const member = three[key];
-        // A method read off the node still has to run against the `Object3D`:
-        // three walks `this.parent` and the node has none.
-        return typeof member === 'function' ? member.bind(three) : member;
-      },
-      set(v) { proxyFor(this)[key] = v; },
-    });
-  }
-});
+beforeAll(lendObject3D);
 
 beforeEach(() => {
   // jsdom has no 2d context, so every painted surface comes back null and the

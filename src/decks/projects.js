@@ -68,8 +68,9 @@ import { t } from '../i18n/strings.js';
 //                                      slip of a few days does not make it lie
 //   (no release)                       open
 //
-// The crate is a prop and stays German (`releaseStamp(r, 'de')`); the flat
-// card's batten is read as content and follows the visitor's locale.
+// The stamp follows the locale everywhere: on the crate in the scene it is
+// painted in the scene's locale (NBC-109 — a German stamp read as a language
+// switch that missed the boxes), on the flat card's batten in the visitor's.
 
 /**
  * @typedef {Partial<Record<'en' | 'uk' | 'ru', string>>} I18nSidecar
