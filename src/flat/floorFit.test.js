@@ -168,3 +168,20 @@ describe('the archive floor between two shots', () => {
     expect(declarationsFor('.crawl', REDUCED)).toMatch(/overflow-x:\s*auto/);
   });
 });
+
+// NBC-110. The entrance on the smallest phone, 320x568: the name ran 38px past
+// the panel's right edge, and the plate, the log and the sign ran 65-82px past
+// its bottom. The name is the one line that cannot wrap, so it follows the
+// width; the logbook is the part that yields to height, because the plate says
+// where things stand today and the log only how they got there.
+const SHORT_HANDSET = block('@media (max-width: 560px) and (max-height: 620px)');
+
+describe('the entrance on the smallest phone', () => {
+  it('sizes the name to the width it has, below the 38px floor if it must', () => {
+    expect(declarationsFor('.eg-name', CSS)).toMatch(/font-size:\s*min\(clamp\([^;]*100vw/);
+  });
+
+  it('gives up the logbook rather than push the floor past its viewport', () => {
+    expect(declarationsFor('.eg-log', SHORT_HANDSET)).toMatch(/display:\s*none/);
+  });
+});
