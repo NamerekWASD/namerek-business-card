@@ -128,23 +128,35 @@ export const PROJECTS = [
   {
     id: 'even-keel',
     title: 'Even Keel',
-    url: null,
-    blurb: 'Ein Staffellauf für KI-Agenten: der Backlog läuft nach Abhängigkeiten, '
-      + 'jede Aufgabe in eigener Claude-Code-Sitzung und eigenem Worktree — ein Merge startet die nächste.',
+    url: 'https://github.com/NamerekT/even-keel',
+    blurb: 'Ein Staffellauf für KI-Agenten: der Backlog läuft Aufgabe für Aufgabe nach Abhängigkeiten, '
+      + 'jede in eigener Claude-Code-Sitzung — in drei Wochen schloss die Kette 421 von 428 Aufgaben.',
     blurbI18n: {
-      en: 'A relay race for AI coding agents: the backlog runs in dependency order, '
-        + 'each task in its own Claude Code session and git worktree, and a merge starts the next one.',
-      uk: 'Естафета для ШІ-агентів: беклог іде в порядку залежностей, кожна задача — '
-        + 'у власній сесії Claude Code і своєму git worktree, а мердж запускає наступну.',
-      ru: 'Эстафета для ИИ-агентов: бэклог идёт в порядке зависимостей, каждая задача — '
-        + 'в своей сессии Claude Code и своём git worktree, а мердж запускает следующую.',
+      en: 'A relay race for AI coding agents: the backlog runs one task at a time in dependency order, '
+        + 'each in its own Claude Code session — in three weeks the chain closed 421 of 428 tasks.',
+      uk: 'Естафета для ШІ-агентів: беклог іде по одній задачі в порядку залежностей, '
+        + 'кожна — у власній сесії Claude Code; за три тижні ланцюжок закрив 421 із 428 задач.',
+      ru: 'Эстафета для ИИ-агентов: бэклог идёт по одной задаче в порядке зависимостей, '
+        + 'каждая — в своей сессии Claude Code; за три недели цепочка закрыла 421 из 428 задач.',
     },
     stack: 'TYPESCRIPT · NODE · REACT',
-    release: { due: '2026-10' },
+    release: { shipped: '2026-10' },
     shots: [
       {
-        src: '/projects/coming-soon.png', caption: 'Screenshots folgen',
-        captionI18n: { en: 'Screenshots coming soon', uk: 'Скриншоти згодом', ru: 'Скриншоты скоро' },
+        src: '/projects/even-keel/chain.png', caption: 'Die Kette eines Projekts',
+        captionI18n: { en: "A project's chain", uk: 'Ланцюжок проєкту', ru: 'Цепочка проекта' },
+      },
+      {
+        src: '/projects/even-keel/question.png', caption: 'Rückfrage des Agenten im Chat',
+        captionI18n: { en: 'The agent asks a question in chat', uk: 'Питання агента в чаті', ru: 'Вопрос агента в чате' },
+      },
+      {
+        src: '/projects/even-keel/limit.png', caption: 'Warten aufs Limit, Cache warm',
+        captionI18n: { en: 'Waiting out a limit, cache warm', uk: 'Чекає ліміт, кеш теплий', ru: 'Ждёт лимит, кэш тёплый' },
+      },
+      {
+        src: '/projects/even-keel/stats.png', caption: 'Statistikseite',
+        captionI18n: { en: 'Stats page', uk: 'Сторінка статистики', ru: 'Страница статистики' },
       },
     ],
   },
