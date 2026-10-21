@@ -41,7 +41,6 @@
     min-width: var(--plate-min);
     text-align: center;
   }
-  .rail-mark:not([aria-current="true"]) .enamel { opacity: 0.32; }
   /* Both centred on the shaft rather than carrying the desktop's 2px bias:
      the sign is centred here too, and the car only disappears behind it if
      the two share a centre line. */
@@ -202,7 +201,7 @@
   }
 
   .enamel--lg { font-size: 12px; padding: 9px 15px; letter-spacing: 0.18em; }
-  .stencil--sm { font-size: 9px; }
+  .stencil--sm { font-size: 10px; }
   .eg-grid { grid-template-columns: 1fr; }
   /* NBC-106: the plate, the log and the sign stack, and at 360x635 the stack
      ran 47px past the floor's own plate (which shrinks, so `scrollHeight`
@@ -218,6 +217,12 @@
   .eg-plate .eg-rows dd { margin-bottom: 3px; }
   .instrument-board { grid-template-columns: repeat(2, 1fr); gap: 6px; }
   .dial { max-width: 104px; }
+  /* NBC-107 set the tags at 11px; the longest of them is the column's minimum,
+     and at 360px it pushed the board past the panel. Tighter, not smaller. */
+  .tech { letter-spacing: 0.06em; padding: 6px 7px 5px; }
+  /* Same trade for the overlines: at 11px with the desktop's tracking the
+     entrance's ran under the floor badge in the corner. */
+  .label { letter-spacing: 0.12em; }
 }
 
 /* NBC-106: a window this short is out of room on the entrance for the same

@@ -11,13 +11,14 @@ const MEASURE = 'min(340px, calc(100% - 24px))';
 
 // The marking above each block is a German stencil in every language, like
 // every other prop in the building; the rows under it are the card's copy.
+// NBC-107: at 55% alpha the marking made 3.3:1 against the lit plate.
 const MARK = {
-  fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: 2.5, textTransform: 'uppercase',
-  color: 'rgba(226,192,132,0.55)', textShadow: '0 1px 0 rgba(0,0,0,0.7)', margin: 0,
+  fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: 2.5, textTransform: 'uppercase',
+  color: 'rgba(226,192,132,0.85)', textShadow: '0 1px 0 rgba(0,0,0,0.7)', margin: 0,
 };
 
 const KEY = {
-  fontFamily: 'var(--mono)', fontSize: 9.5, letterSpacing: 1.2, textTransform: 'uppercase',
+  fontFamily: 'var(--mono)', fontSize: 10.5, letterSpacing: 1.2, textTransform: 'uppercase',
   color: 'var(--muted)', margin: '0.4rem 0 0',
 };
 

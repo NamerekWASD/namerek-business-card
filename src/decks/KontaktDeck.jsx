@@ -21,7 +21,7 @@ function KontaktDeck() {
           LinkedIn
         </a>
       </div>
-      <p style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--muted)', marginTop: '2rem', letterSpacing: 1 }}>
+      <p style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--muted)', marginTop: '2rem', letterSpacing: 1 }}>
         {`${pick(PERSON.city)} — ${pick(PERSON.availability)}`.toUpperCase()}
       </p>
     </div>

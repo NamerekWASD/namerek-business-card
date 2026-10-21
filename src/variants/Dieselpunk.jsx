@@ -343,13 +343,15 @@ export default function Dieselpunk() {
         </div>
       </div>
       {/* Quiet, and deliberately so — this is an escape hatch, not a call to
-          action. NAM-48's other half is `FloorKontakt`'s link back here. */}
+          action. NAM-48's other half is `FloorKontakt`'s link back here.
+          Quiet is not unreadable, though: at half opacity it made 3.3:1, and
+          the visitor who needs it is the one the scene is failing (NBC-107). */}
       <a
         href="?flat"
         style={{
           position: 'absolute', right: 14, bottom: 10, zIndex: LAYERS.selector,
-          fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em',
-          color: 'var(--muted)', textDecoration: 'none', opacity: 0.5,
+          fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: '0.14em',
+          color: 'var(--muted)', textDecoration: 'none', opacity: 0.75,
           textTransform: 'uppercase',
         }}
       >

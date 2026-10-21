@@ -7,14 +7,16 @@
   gap: 16px;
   flex-wrap: wrap;
 }
+/* NBC-107: the stamp is read, not just seen — "Accepted", the desk takes
+   enquiries — so it is inked in a vermilion that clears 4.5:1 on the steel.
+   The enamel red it used to borrow made 1.7:1. */
 .stamp {
-  border: 2px solid var(--enamel-red);
-  color: var(--enamel-red);
+  border: 2px solid #e8735a;
+  color: #e8735a;
   padding: 6px 10px;
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.22em;
   transform: rotate(-4deg);
-  opacity: 0.85;
 }
 
 .field {

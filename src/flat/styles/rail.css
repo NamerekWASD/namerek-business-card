@@ -16,9 +16,9 @@
 }
 
 .rail-title {
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.34em;
-  color: var(--brass-deep);
+  color: var(--brass);
   text-transform: uppercase;
   text-align: center;
 }
@@ -176,15 +176,17 @@
 
 /* The names were 11px in `--line` — the colour the hairlines are drawn in —
    which put them under the contrast floor the rest of the page was raised to
-   in NAM-27. A floor name you cannot read is a floor name that is not there. */
+   in NAM-27. A floor name you cannot read is a floor name that is not there.
+   NBC-107 found the same at 55% opacity, 3.7:1; the current floor still
+   stands out by its colour, not by the others fading. */
 .rail-mark-name {
   font-size: 12px;
   letter-spacing: 0.1em;
   color: var(--muted);
-  opacity: 0.55;
+  opacity: 0.8;
   transition: opacity 200ms linear, color 200ms linear;
   text-transform: uppercase;
   white-space: nowrap;
 }
-.rail-mark:hover .rail-mark-name { opacity: 0.85; }
+.rail-mark:hover .rail-mark-name { opacity: 1; }
 .rail-mark[aria-current="true"] .rail-mark-name { color: var(--glow); opacity: 1; }

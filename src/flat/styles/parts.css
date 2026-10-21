@@ -94,13 +94,14 @@
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
 }
 .stencil--brass { color: var(--brass); }
-.stencil--sm { font-size: 10px; }
+/* `.stencil--sm` is small on a handset only: at 10px a thin monospace with
+   this tracking stopped reading on a laptop (NBC-107). See `responsive.css`. */
 
 .label {
   font-family: var(--mono);
   text-transform: uppercase;
   letter-spacing: 0.2em;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
 }
 
