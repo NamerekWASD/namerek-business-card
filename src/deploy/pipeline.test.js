@@ -44,6 +44,14 @@ describe('the pipeline calls things that exist', () => {
     expect(webkit).toBeGreaterThan(steps.indexOf('npm run build'));
     expect(webkit).toBeLessThan(steps.indexOf('pages deploy'));
   });
+
+  it('only a version tag deploys, a push to main is only checked', () => {
+    expect(steps).toMatch(/^\s+tags: \['v\*'\]$/m);
+    const deploy = steps.slice(steps.indexOf('- name: Deploy'));
+    const gate = deploy.match(/^\s+if: (.+)$/m)?.[1] ?? '';
+    expect(gate).toContain("startsWith(github.ref, 'refs/tags/v')");
+    expect(gate).not.toContain('refs/heads/main');
+  });
 });
 
 describe('the install is reproducible', () => {

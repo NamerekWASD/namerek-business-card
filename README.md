@@ -33,9 +33,15 @@ npm run lint        # lint
 
 The site is static — there is no backend and nothing to run on a server — so it
 is published to [Cloudflare Pages](https://pages.cloudflare.com/) from
-`.github/workflows/ci.yml`. Every push to `main` is linted, tested and built
-first; only a build that survives all three is deployed. Pull requests run
-everything except the deploy.
+`.github/workflows/ci.yml`. Every push to `main` and every pull request is
+linted, tested and built, but not deployed. A release is a version tag:
+
+```sh
+git tag v1.2.0
+git push origin v1.2.0
+```
+
+The tag runs the same checks, and only a build that survives them is deployed.
 
 Caching and security headers live in `public/_headers`, which Cloudflare reads
 and does not serve.
