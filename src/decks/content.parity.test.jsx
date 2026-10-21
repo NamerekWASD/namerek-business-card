@@ -15,7 +15,9 @@ import StartDeck from './StartDeck.jsx';
 import KontaktDeck from './KontaktDeck.jsx';
 import FloorStart from '../flat/FloorStart.jsx';
 import FloorKontakt from '../flat/FloorKontakt.jsx';
-import { BRIEF, LOG, PERSON } from './content.js';
+import LeistungenDeck from './LeistungenDeck.jsx';
+import FloorLeistungen from '../flat/FloorLeistungen.jsx';
+import { BRIEF, LOG, PERSON, WRITINGS } from './content.js';
 import { LOCALES, KEY, pick } from '../i18n/locale.js';
 import { LocaleProvider } from '../i18n/LocaleContext.jsx';
 
@@ -86,6 +88,29 @@ describe('the same language on both pages, for all four locales', () => {
         for (const entry of LOG) {
           expect(screen.getByText(entry.year)).toBeDefined();
           expect(screen.getByText(pick(entry.text, id))).toBeDefined();
+        }
+        cleanup();
+        localStorage.clear();
+      }
+    });
+
+    // NBC-108: the published texts hang under the skills on both pages, every
+    // one a link to where it was published, its gist in the reader's language —
+    // printed on the flat card, on the link's title in the scene, where the
+    // band above the workbench holds one line.
+    it(`lists the same texts in ${id} on both pages`, () => {
+      for (const [Page, gistOf] of [
+        [LeistungenDeck, (link) => link.getAttribute('title')],
+        [FloorLeistungen, (link) => link.closest('li').textContent],
+      ]) {
+        withLocale(id, <Page />);
+        for (const text of WRITINGS) {
+          const link = screen.getByRole('link', { name: text.title });
+          expect(link.getAttribute('href')).toBe(text.url);
+          expect(link.getAttribute('target')).toBe('_blank');
+          expect(link.getAttribute('lang')).toBe(text.lang);
+          expect(gistOf(link)).toContain(pick(text.gist, id));
+          expect(screen.getByText(text.date).getAttribute('datetime')).toBe(text.date);
         }
         cleanup();
         localStorage.clear();

@@ -1,4 +1,4 @@
-import { SKILL_GROUPS } from '../decks/content.js';
+import { SKILL_GROUPS, WRITINGS } from '../decks/content.js';
 import { DECKS } from '../lift/decks.js';
 import { FLOORS } from './floors.js';
 import Floor from './Floor.jsx';
@@ -52,31 +52,55 @@ function FloorLeistungen() {
       <p className="label floor-label">1. Untergeschoss</p>
       <h2 style={{ fontSize: 'clamp(20px, 4.0vw, 44px)', marginTop: 8 }}>{pick(DECKS[1].label)}</h2>
       <div className="panel" style={{ marginTop: 'clamp(14px, 2.4vh, 28px)' }}>
-        <div className="panel-body instrument-board">
-          {SKILL_GROUPS.map((group, i) => {
-            const face = INSTRUMENTS[i] ?? FALLBACK;
-            return (
-              <div className="instrument" key={group.tech}>
-                <Dial needle={face.needle} unit={face.unit} />
-                <h3 style={{ margin: 0 }}>
-                  <span className="enamel">{pick(group.label).toUpperCase()}</span>
-                </h3>
-                <ul className="tech-list">
-                  {group.tech.split('·').map((tech) => {
-                    const tilt = TILT[tag++ % TILT.length];
-                    return (
-                      <li className="tech" key={tech} style={{ '--tilt': `${tilt}deg` }}>
-                        {tech.trim().toUpperCase()}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            );
-          })}
+        <div className="panel-body">
+          <div className="instrument-board">
+            {SKILL_GROUPS.map((group, i) => {
+              const face = INSTRUMENTS[i] ?? FALLBACK;
+              return (
+                <div className="instrument" key={group.tech}>
+                  <Dial needle={face.needle} unit={face.unit} />
+                  <h3 style={{ margin: 0 }}>
+                    <span className="enamel">{pick(group.label).toUpperCase()}</span>
+                  </h3>
+                  <ul className="tech-list">
+                    {group.tech.split('·').map((tech) => {
+                      const tilt = TILT[tag++ % TILT.length];
+                      return (
+                        <li className="tech" key={tech} style={{ '--tilt': `${tilt}deg` }}>
+                          {tech.trim().toUpperCase()}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              );
+            })}
+          </div>
+          {/* NBC-108: what the board claims, shown — a register of published
+              texts, one card per entry, so a single text is a finished card
+              rather than the first row of an empty table. */}
+          <section className="writings">
+            <p className="stencil stencil--sm">Schriften</p>
+            <ul className="writings-list">
+              {WRITINGS.map((text) => (
+                <li className="writing" key={text.url}>
+                  <a className="writing-title" href={text.url} target="_blank" rel="noreferrer noopener" lang={text.lang}>
+                    {text.title}
+                    <span aria-hidden="true"> ↗</span>
+                  </a>
+                  <p className="writing-gist">{pick(text.gist)}</p>
+                  <p className="writing-stamp">
+                    {text.venue}
+                    {' · '}
+                    <time dateTime={text.date}>{text.date}</time>
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </section>
         </div>
       </div>
-      <p className="stencil stencil--sm" style={{ marginTop: 12 }}>
+      <p className="stencil stencil--sm dial-note" style={{ marginTop: 12 }}>
         {t('floorLeistungen.disclaimer')}
       </p>
       {/* Last, and not first: the arrival lights this floor's parts in the

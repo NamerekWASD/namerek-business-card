@@ -59,11 +59,13 @@ describe('small print on the flat card', () => {
     ['.stamp', 'var(--panel)'],
     ['.label', 'var(--panel)'],
     ['.tech', 'var(--panel)'],
+    ['.writing-gist', 'var(--panel)'],
+    ['.writing-stamp', 'var(--panel)'],
   ])('%s clears 4.5:1', (selector, background) => {
     expect(contrast(selector, background)).toBeGreaterThanOrEqual(4.5);
   });
 
-  it.each(['.rail-title', '.stamp', '.label', '.tech', '.stencil'])(
+  it.each(['.rail-title', '.stamp', '.label', '.tech', '.stencil', '.writing-gist', '.writing-stamp'])(
     '%s is set no smaller than 11px',
     (selector) => {
       expect(parseFloat(prop(rule(selector), 'font-size'))).toBeGreaterThanOrEqual(11);

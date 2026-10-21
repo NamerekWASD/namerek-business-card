@@ -130,6 +130,31 @@ export const LOG = [
   },
 ];
 
+/**
+ * NBC-108: published texts — proof of the skills listed beside them, so they
+ * hang under the skills on 1. UG rather than on a floor of their own. Newest
+ * first; a new text is one more entry here and nothing else. Published only:
+ * a draft is not linked.
+ *
+ * `title` is the text's own, in the language it was written in (`lang`), so
+ * it does not translate; `gist` is the one line saying what it is about.
+ */
+export const WRITINGS = [
+  {
+    title: 'Ten agents at once is the wrong unit: running a backlog one task at a time on a Claude subscription',
+    lang: 'en',
+    gist: {
+      de: 'Warum Even Keel den Backlog eines Trackers Aufgabe für Aufgabe durch Claude Code schickt — mit Zahlen aus drei Wochen.',
+      en: 'Why Even Keel runs a tracker’s backlog through Claude Code one task at a time — with three weeks of numbers.',
+      uk: 'Чому Even Keel проганяє беклог трекера через Claude Code по одній задачі — з цифрами за три тижні.',
+      ru: 'Почему Even Keel прогоняет бэклог трекера через Claude Code по одной задаче — с цифрами за три недели.',
+    },
+    venue: 'GitHub',
+    date: '2026-10-21',
+    url: 'https://github.com/NamerekT/even-keel/blob/main/docs/posts/sequential-by-design.md',
+  },
+];
+
 export const SKILL_GROUPS = [
   { label: { de: 'Backend', en: 'Backend', uk: 'Бекенд', ru: 'Бэкенд' }, tech: 'ASP.NET Core · EF Core' },
   { label: { de: 'Frontend', en: 'Frontend', uk: 'Фронтенд', ru: 'Фронтенд' }, tech: 'React · TypeScript' },

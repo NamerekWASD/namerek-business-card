@@ -16,9 +16,12 @@
 
 /* The gauge is round now (NBC-64), so it no longer needs a square's worth of
    width to show the same face. */
+/* NBC-108: the writings under the board made the floor taller than a laptop's
+   window, so the face yields to the window's height, as it does on a phone. */
 .dial {
   width: 100%;
-  max-width: 172px;
+  max-width: clamp(96px, calc(100vh - 560px), 172px);
+  max-width: clamp(96px, calc(100dvh - 560px), 172px);
   height: auto;
   display: block;
 }
@@ -80,4 +83,55 @@
     inset 0 1px 0 rgba(255, 220, 170, 0.16),
     inset 0 -1px 0 rgba(0, 0, 0, 0.65),
     0 3px 5px rgba(0, 0, 0, 0.5);
+}
+
+/* ---------- 1. UG writings (NBC-108) ---------- */
+
+/* Under the board, ruled off it the way the entrance's logbook is ruled off
+   its plate: a brass line, no panel of its own. Each text is a card that
+   stands complete alone; more of them fill the row before they wrap. */
+.writings {
+  margin-top: clamp(14px, 2.2vh, 26px);
+  padding-top: clamp(10px, 1.6vh, 18px);
+  border-top: 1px dashed rgba(212, 172, 104, 0.35);
+}
+
+.writings-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+  gap: 12px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.writing {
+  padding: 2px 0 2px 14px;
+  border-left: 2px solid rgba(212, 172, 104, 0.35);
+}
+
+.writing-title {
+  display: block;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--ink);
+  text-decoration: none;
+}
+.writing-title:hover { color: var(--glow); }
+
+.writing-gist {
+  margin: 5px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.writing-stamp {
+  margin: 5px 0 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--brass);
 }

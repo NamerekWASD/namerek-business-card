@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { LOCALES } from '../i18n/locale.js';
-import { BRIEF, LOG, PERSON, SKILL_GROUPS } from './content.js';
+import { BRIEF, LOG, PERSON, SKILL_GROUPS, WRITINGS } from './content.js';
 
 const ids = LOCALES.map((l) => l.id);
 
@@ -58,6 +58,25 @@ describe('the nameplate and the logbook, in all four languages', () => {
   it('keeps the logbook in order, oldest first', () => {
     const years = LOG.map((e) => Number(e.year));
     expect(years).toEqual([...years].sort((a, b) => a - b));
+  });
+});
+
+describe('WRITINGS, the published texts', () => {
+  it('links only published texts, each with every field a row needs', () => {
+    expect(WRITINGS.length).toBeGreaterThan(0);
+    for (const text of WRITINGS) {
+      expect(typeof text.title, 'title').toBe('string');
+      expect(text.lang, `${text.title} lang`).toMatch(/^[a-z]{2}$/);
+      expectFullLocale(text.gist, `${text.title} gist`);
+      expect(typeof text.venue, `${text.title} venue`).toBe('string');
+      expect(text.date, `${text.title} date`).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(text.url, `${text.title} url`).toMatch(/^https:\/\//);
+    }
+  });
+
+  it('keeps the newest text on top', () => {
+    const dates = WRITINGS.map((t) => t.date);
+    expect(dates).toEqual([...dates].sort().reverse());
   });
 });
 

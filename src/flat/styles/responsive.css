@@ -59,6 +59,12 @@
   /* The lamp in the car's window, kept in proportion to the smaller car. */
   .rail-car::after { inset: 6px 5px; }
   .instrument-board { grid-template-columns: repeat(2, 1fr); }
+  /* NBC-108: two rows of dials now, so each gives up half a pixel per pixel
+     of window the writings need. */
+  .dial {
+    max-width: clamp(64px, calc(50vh - 300px), 172px);
+    max-width: clamp(64px, calc(50dvh - 300px), 172px);
+  }
   .crt-grid,
   .eg-grid { grid-template-columns: 1fr; }
   .eg-grid { grid-template-columns: 1fr auto; }
@@ -226,10 +232,12 @@
      needle and unit are presentation, not content (see `FloorLeistungen`), so
      a smaller face loses nothing a reader learns. Below a 640px window each
      dial gives up half a pixel per pixel of height, so the two rows hand back
-     what the window lost, down to a 56px face. */
+     what the window lost, down to a 56px face.
+     NBC-108: the writings under the board took another ~70px, so each of the
+     two rows hands back 36px more, and the face may go down to 48px. */
   .dial {
-    max-width: clamp(56px, calc(50vh - 216px), 104px);
-    max-width: clamp(56px, calc(50dvh - 216px), 104px);
+    max-width: clamp(48px, calc(50vh - 252px), 104px);
+    max-width: clamp(48px, calc(50dvh - 252px), 104px);
   }
   /* NBC-107 set the tags at 11px; the longest of them is the column's minimum,
      and at 360px it pushed the board past the panel. Tighter, not smaller. */
@@ -237,6 +245,20 @@
   /* Same trade for the overlines: at 11px with the desktop's tracking the
      entrance's ran under the floor badge in the corner. */
   .label { letter-spacing: 0.12em; }
+  /* NBC-108: the writings ran 109-264px past the panel on a portrait phone,
+     whose board had already given up everything it could. The gist yields
+     (below), and the title keeps two lines; the link carries the whole of it. */
+  .writings { margin-top: 10px; padding-top: 8px; }
+  .writings-list { margin-top: 4px; gap: 8px; }
+  .writing-title {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    font-size: 12px;
+  }
+  .writing-stamp { margin-top: 3px; }
 }
 
 /* NBC-106: a window this short is out of room on the entrance for the same
@@ -262,6 +284,22 @@
 }
 @media (max-width: 560px) and (max-height: 600px) {
   .form-sub { display: none; }
+}
+
+/* NBC-108: with the writings under the board, 1. UG still ran past its panel
+   below a 720px window. The note under the panel goes — it explains the dials,
+   which are presentation, and says nothing about the work. */
+@media (max-width: 560px) and (max-height: 720px) {
+  .dial-note { display: none; }
+}
+
+/* NBC-108: the first thing 1. UG gives up for its writings is each text's
+   gist — the title already says what the text is. Always on a phone; on a
+   tablet or a laptop once the window is too short for the two-row or one-row
+   board above it. Not on a phone held sideways: that floor scrolls instead
+   and hides nothing (NBC-112). */
+@media (max-width: 560px), (max-width: 900px) and (min-height: 501px) and (max-height: 940px), (min-width: 901px) and (max-height: 620px) {
+  .writing-gist { display: none; }
 }
 
 /* NBC-113: at 320px the corner tag stands over the last 18-31px of the
