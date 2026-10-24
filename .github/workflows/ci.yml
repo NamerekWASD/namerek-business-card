@@ -62,7 +62,8 @@ jobs:
 
       # Pull requests and pushes to main get everything above and stop here.
       # Only a version tag is published, and only after the steps that could
-      # have caught it.
+      # have caught it. A tag checks out a detached HEAD, so the branch is named
+      # explicitly: wrangler would read it as "HEAD" and publish a preview.
       - name: Deploy to Cloudflare Pages
         id: deploy
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
@@ -70,4 +71,4 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist --project-name=namerek-business-card
+          command: pages deploy dist --project-name=namerek-business-card --branch=main

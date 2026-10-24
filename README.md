@@ -42,7 +42,8 @@ git tag v1.2.0
 git push origin v1.2.0
 ```
 
-The tag runs the same checks, and only a build that survives them is deployed.
+The tag runs the same checks, and only a build that survives them is deployed,
+as the production deployment of `main`.
 
 Caching and security headers live in `public/_headers`, which Cloudflare reads
 and does not serve.

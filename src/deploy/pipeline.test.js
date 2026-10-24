@@ -52,6 +52,15 @@ describe('the pipeline calls things that exist', () => {
     expect(gate).toContain("startsWith(github.ref, 'refs/tags/v')");
     expect(gate).not.toContain('refs/heads/main');
   });
+
+  it('a tag deploys to production, not to a preview', () => {
+    // A tag checks out a detached HEAD, so without `--branch` wrangler reads
+    // the branch as "HEAD" and Cloudflare files the deploy as a preview.
+    const deploy = steps.slice(steps.indexOf('- name: Deploy'));
+    const command = deploy.match(/^\s+command: (.+)$/m)?.[1] ?? '';
+    expect(command).toContain('pages deploy');
+    expect(command).toMatch(/--branch=main\b/);
+  });
 });
 
 describe('the install is reproducible', () => {
