@@ -43,6 +43,11 @@ ${needleKeyframes('boot-needle')}
 }
 `;
 
+// Where the dial's centre sits, in percent of the screen's height. Low, not
+// centred: in the middle it read as a web spinner, and in the fade it landed
+// on the logo painted across the closed doors.
+const DIAL_Y = 64;
+
 const pct = (v, of) => `${(v / of) * 100}%`;
 const layer = { position: 'absolute', inset: 0 };
 
@@ -147,13 +152,14 @@ export default function BootScreen({ screen }) {
         className="boot-hum"
         style={{
           ...layer,
-          background: 'radial-gradient(ellipse 38vmax 30vmax at 50% 44%, rgba(255,170,80,0.16), rgba(255,130,50,0.05) 50%, rgba(0,0,0,0) 100%)',
+          background: `radial-gradient(ellipse 38vmax 30vmax at 50% ${DIAL_Y - 3}%, rgba(255,170,80,0.16), rgba(255,130,50,0.05) 50%, rgba(0,0,0,0) 100%)`,
         }}
       />
       <div
         style={{
-          position: 'absolute', left: '50%', top: '47%', transform: 'translate(-50%, -50%)',
-          width: 'clamp(280px, 30vw, 440px)', aspectRatio: `${VIEW_W} / ${VIEW_H}`,
+          position: 'absolute', left: '50%', top: `${DIAL_Y}%`, transform: 'translate(-50%, -50%)',
+          // Capped by height too, so a phone held sideways keeps the lamps on screen.
+          width: 'clamp(220px, min(30vw, 58vh), 440px)', aspectRatio: `${VIEW_W} / ${VIEW_H}`,
         }}
       >
         <DialFace lamps={BOOT_LAMPS} />
