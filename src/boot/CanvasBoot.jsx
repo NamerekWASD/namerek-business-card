@@ -70,7 +70,7 @@ export default function CanvasBoot({ name, onSettle, again = false }) {
   // scene means the frame a floor's doors part. Measured on 2026-09-03: two
   // programs, 79 ms and 186 ms, on the first EG → 2. OG trip and never again.
   //
-  // `again` is the boot's spin — every job in, the gears freewheeling, the black
+  // `again` is the boot's arrival — every job in, the needle coming home, the black
   // rectangle still up and `warm` still holding every landing visible. It is the
   // last moment at which this is free.
   useEffect(() => {

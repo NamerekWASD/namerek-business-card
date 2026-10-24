@@ -46,11 +46,11 @@ export default function Dieselpunk() {
   const tr = useT();
   // Nothing is shown until the scene is genuinely ready to be shown — every
   // tile decoded, every shader compiled, every canvas drawn at least once. The
-  // boot screen holds a black rectangle with a pair of gears on it in the
+  // boot screen holds a black rectangle with a floor indicator on it in the
   // meantime, and `boot/plan.js` is the register of what "ready" means.
   //
-  // The arrival then plays in one continuous movement: the gears drop the
-  // ratchet and run away (`spin`), the black fades (`fade`), and the intro
+  // The arrival then plays in one continuous movement: the needle drops back
+  // to the ground floor (`arrive`), the black fades (`fade`), and the intro
   // clock starts on that same transition — so the lamps strike and hunt while
   // the fade is still finishing, and the leaves shudder just as it clears. The
   // clock is autoplayed from `fade`, not from `done`, precisely so those two
@@ -79,9 +79,9 @@ export default function Dieselpunk() {
 
   const boot = useBoot();
   const booted = boot.phase === 'fade' || boot.phase === 'done';
-  // Every job has reported and the gears are freewheeling: the last half-second
+  // Every job has reported and the needle is coming home: the last half-second
   // in which the scene can be drawn at nobody's expense. See `CanvasBoot`.
-  const settling = boot.phase === 'spin';
+  const settling = boot.phase === 'arrive';
   // NBC-25. Nothing in this scene may move at a visitor who has asked it not
   // to. The intro is the first thing that would — a shudder and a flicker,
   // played before anyone has touched anything — so it is handed its own end

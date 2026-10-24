@@ -86,8 +86,12 @@ describe('Dieselpunk', () => {
     for (const el of container.querySelectorAll('*')) {
       expect(el.style.filter || 'none').not.toMatch(/url\(/);
     }
-    // and no filter definitions left mounted for one to point at
-    expect(container.querySelector('filter')).toBeNull();
+    // and no filter definitions left mounted for one to point at — bar the boot
+    // screen's artwork, which is static, sits over nothing that moves, and
+    // leaves the DOM once the boot is done
+    for (const f of container.querySelectorAll('filter')) {
+      expect(f.closest('[data-boot="screen"]')).not.toBeNull();
+    }
   });
 
   it('survives a resize, which rebuilds every dimension in the scene', () => {

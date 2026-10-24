@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { DEBUG_PANEL } from '../scene/effects/quality.js';
 import {
-  BOOT_JOBS, BOOT_MIN_MS, FADE_MS, SPIN_MS, fractionDone,
+  BOOT_JOBS, BOOT_MIN_MS, FADE_MS, ARRIVE_MS, fractionDone,
 } from './plan.js';
 
 // The state machine behind the boot screen. Four phases and three transitions,
@@ -9,11 +9,10 @@ import {
 // two of those transitions are timers and one is a race — none of which belong
 // in a component that also lays out a lift shaft.
 //
-// The progress *figure* is deliberately not React state. It changes on every
-// frame, and putting it through a `setState` would re-render the whole scene
-// sixty times a second to move a gear that is drawn in an SVG nobody else can
-// see. So the fraction lives on a mutable object, `BootScreen` reads it in its
-// own animation frame and writes transforms straight to the DOM, and React only
+// The progress *figure* is deliberately not React state: putting it through a
+// `setState` would re-render the whole scene to switch on a lamp nobody else
+// can see. So the fraction lives on a mutable object, `BootScreen` reads it
+// when it gets a frame and writes the lamps straight to the DOM, and React only
 // hears about the phase changes — of which there are three, ever.
 
 /** Nothing may hold the screen longer than this, whatever it is waiting for. */
@@ -22,14 +21,14 @@ export const BOOT_MAX_MS = 8000;
 const now = () => (typeof performance === 'undefined' ? Date.now() : performance.now());
 
 /**
- * @typedef {'loading' | 'spin' | 'fade' | 'done'} BootPhase
+ * @typedef {'loading' | 'arrive' | 'fade' | 'done'} BootPhase
  */
 
 /**
  * @returns {{
  *   phase: BootPhase,
  *   settle: (name: string) => void,
- *   screen: { fraction: number, phase: BootPhase, spinStart: number, t0: number },
+ *   screen: { fraction: number, phase: BootPhase, t0: number },
  * }}
  */
 export default function useBoot() {
@@ -45,11 +44,10 @@ export default function useBoot() {
   const held = useRef(typeof location !== 'undefined' && location.search.includes('boot'));
   // What `BootScreen` reads every frame. One object, mutated in place, never
   // replaced — a fresh one would be a new prop and would re-render the screen.
-  const screen = useRef({ fraction: 0, phase: /** @type {BootPhase} */ ('loading'), spinStart: 0, t0: now() });
+  const screen = useRef({ fraction: 0, phase: /** @type {BootPhase} */ ('loading'), t0: now() });
 
   const enter = useCallback((next) => {
     screen.current.phase = next;
-    if (next === 'spin') screen.current.spinStart = now();
     setPhase(next);
   }, []);
 
@@ -70,7 +68,7 @@ export default function useBoot() {
     return () => { live = false; };
   }, [settle]);
 
-  // The spin begins when every job has reported *and* the screen has had its
+  // The arrival begins when every job has reported *and* the screen has had its
   // minimum time. Polled rather than pushed because the two conditions finish
   // in either order, and a poll on a 60ms tick is a great deal less code than
   // a second timer racing the first.
@@ -80,8 +78,7 @@ export default function useBoot() {
       if (held.current) return;
       // A link opened in a background tab is the case this whole feature exists
       // for and the one it would otherwise miss completely. `requestAnimationFrame`
-      // does not run in a hidden document, so the gears would not turn and the
-      // intro clock would not advance — but these timers *do* run, so the screen
+      // does not run in a hidden document, so the intro clock would not advance — but these timers *do* run, so the screen
       // would march through its phases to an empty room and the visitor would
       // arrive at a lit shaft with the doors already open, having been shown
       // none of it.
@@ -97,12 +94,12 @@ export default function useBoot() {
       const all = screen.current.fraction >= 1;
       // The escape hatch. A lost WebGL context, a canvas that never draws, a
       // font that never resolves — none of them should leave a visitor looking
-      // at a black rectangle with a gear on it. The scene behind has been
+      // at a black rectangle with a dial on it. The scene behind has been
       // drawing this whole time; going in early is always better than not
       // going in.
       if ((all && elapsed >= BOOT_MIN_MS) || elapsed >= BOOT_MAX_MS) {
         screen.current.fraction = 1;
-        enter('spin');
+        enter('arrive');
       }
     };
     const id = setInterval(tick, 60);
@@ -111,8 +108,8 @@ export default function useBoot() {
   }, [phase, enter]);
 
   useEffect(() => {
-    if (phase !== 'spin') return undefined;
-    const id = setTimeout(() => enter('fade'), SPIN_MS);
+    if (phase !== 'arrive') return undefined;
+    const id = setTimeout(() => enter('fade'), ARRIVE_MS);
     return () => clearTimeout(id);
   }, [phase, enter]);
 
@@ -126,8 +123,8 @@ export default function useBoot() {
   // states rather than a harness trying to catch them mid-flight. Debug builds
   // only — it is a lever on the first thing a visitor sees.
   //
-  //   window.__boot.hold()            // freeze on the gears
-  //   window.__boot.fraction = 0.4    // put the ratchet where you want it
+  //   window.__boot.hold()            // stay on the dial
+  //   window.__boot.fraction = 0.4    // light the lamps that much work earns
   //   window.__boot.release()         // let it finish
   //   window.__boot.replay()          // from the top, without a reload
   useEffect(() => {

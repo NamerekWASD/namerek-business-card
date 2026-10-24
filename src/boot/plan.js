@@ -35,17 +35,17 @@ export const BOOT_JOBS = {
 // How long the screen is guaranteed to be up. A warm reload finishes every job
 // in under a tenth of a second, and a black screen that appears and vanishes
 // inside two frames does not read as a loading screen — it reads as a flash of
-// something broken. The gears need long enough to be seen turning.
+// something broken. The needle needs long enough to be seen travelling.
 export const BOOT_MIN_MS = 900;
 
-// The victory lap: the gears drop the ratchet and spin freely. Nothing is being
-// waited for here — every job has reported — which is the point. The GPU is
-// still finishing the uploads the compile scheduled, and half a second of
-// something deliberate is a better cover for that than half a second of a bar
-// sitting at 100%.
-export const SPIN_MS = 520;
+// The arrival: every job has reported, the needle drops back to the ground
+// floor and settles there. Nothing is being waited for any more, which is the
+// point. The GPU is still finishing the uploads the compile scheduled, and half
+// a second of something deliberate is a better cover for that than half a
+// second of a full row of lamps doing nothing.
+export const ARRIVE_MS = 520;
 
-/** The gears fading out, and the scene coming up behind them. */
+/** The indicator fading out, and the scene coming up behind it. */
 export const FADE_MS = 420;
 
 /**
@@ -63,42 +63,22 @@ export function fractionDone(settled, jobs = BOOT_JOBS) {
   return Math.min(1, done / total);
 }
 
-/**
- * A floor under the displayed progress that rises on its own.
- *
- * Five jobs means five steps, and five steps over a two-second wait is a gear
- * that stands still for four hundred milliseconds at a time — indistinguishable,
- * to the person watching, from a page that has hung. This creeps underneath the
- * real figure so there is always motion.
- *
- * It tops out at 0.55 and approaches it asymptotically, so it can never claim
- * more than half the work on its own and can never reach the end by itself.
- * That is the whole difference between a progress bar with a bit of give in it
- * and one that lies: this one cannot finish, only the jobs can.
- *
- * @param {number} elapsed milliseconds since boot began
- * @returns {number} 0–0.55
- */
-export function idleCreep(elapsed) {
-  return 0.55 * (1 - Math.pow(2, -elapsed / 1400));
-}
+/** The row of lamps under the floor indicator. */
+export const BOOT_LAMPS = 5;
 
 /**
- * One frame of an exponential approach — the displayed figure chasing the real
- * one rather than snapping to it.
+ * How many of the lamps the reported work has earned.
  *
- * Framed as a half-life rather than a per-frame fraction on purpose: a plain
- * `shown += (target - shown) * 0.1` is a different speed at 30fps and at 144,
- * and the machines that most need this screen are the ones running it slowest.
+ * Progress is shown in whole lamps and nothing in between, because a lamp is
+ * switched on from script and script only runs between the long tasks the boot
+ * is made of. A step that lands late still reads as a step; a smooth bar that
+ * lands late reads as a hang.
  *
- * @param {number} shown where the needle is
- * @param {number} target where the work says it should be
- * @param {number} dt milliseconds since the last frame
- * @param {number} [halfLife] milliseconds to close half the remaining gap
- * @returns {number}
+ * @param {number} fraction 0–1, from `fractionDone`
+ * @param {number} [count] lamps in the row
+ * @returns {number} 0–count
  */
-export function chase(shown, target, dt, halfLife = 220) {
-  if (target <= shown) return shown; // monotonic: a job cannot un-finish
-  const k = 1 - Math.pow(2, -dt / halfLife);
-  return shown + (target - shown) * k;
+export function litLamps(fraction, count = BOOT_LAMPS) {
+  const lit = Math.floor(fraction * count + 1e-9);
+  return Math.min(count, Math.max(0, lit));
 }

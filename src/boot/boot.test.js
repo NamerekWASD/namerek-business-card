@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BOOT_JOBS, chase, fractionDone, idleCreep } from './plan.js';
-import {
-  DRIVER_TEETH, IDLER_PHASE, IDLER_TEETH, TEETH_OVER_BOOT,
-  gearPath, idlerAngle, ratchetAngle, spinAngle, takeUp,
-} from './gears.js';
+import { BOOT_JOBS, BOOT_LAMPS, fractionDone, litLamps } from './plan.js';
 import { introDim } from '../lift/intro.js';
 
 // The boot screen is the first thing anybody sees and the one part of this app
@@ -29,103 +25,32 @@ describe('the progress figure', () => {
 
   it('ignores a name it does not know rather than throwing', () => {
     // `settle` is called from inside two canvases and a warm-up, and a typo
-    // there should cost a step on a gear, not the whole first impression.
+    // there should cost a lamp, not the whole first impression.
     expect(fractionDone(['fonts', 'nonsense'])).toBe(fractionDone(['fonts']));
   });
-
-  it('never lets the creep finish the job on its own', () => {
-    // A progress bar that can reach the end without the work being done is the
-    // exact lie this screen exists to stop telling.
-    expect(idleCreep(0)).toBe(0);
-    expect(idleCreep(60_000)).toBeLessThan(0.56);
-    expect(idleCreep(1000)).toBeGreaterThan(idleCreep(500));
-  });
 });
 
-describe('the needle chasing the work', () => {
-  it('closes half the gap in one half-life, whatever the frame rate', () => {
-    // Two 8ms frames on a fast machine must land in the same place as one 16ms
-    // frame on a slow one, or the gear is a different animation per machine.
-    const oneStep = chase(0, 1, 16, 220);
-    const twoSteps = chase(chase(0, 1, 8, 220), 1, 8, 220);
-    expect(twoSteps).toBeCloseTo(oneStep, 6);
+describe('the job lamps', () => {
+  it('are all dark before anything reports and all lit when everything has', () => {
+    expect(litLamps(0)).toBe(0);
+    expect(litLamps(1)).toBe(BOOT_LAMPS);
   });
 
-  it('never runs backwards when the target does not move', () => {
-    expect(chase(0.8, 0.5, 16)).toBe(0.8);
-  });
-});
-
-describe('the gears', () => {
-  it('advances tooth over tooth without ever giving one back', () => {
-    // The property is *not* a monotonic angle — the ring-down after each strike
-    // is a genuine backward flick, and that flick is the whole character of the
-    // thing. What must never happen is a tooth being surrendered: whatever the
-    // wobble does inside an interval, the next interval starts further on than
-    // the last one did.
-    const tooth = (i) => ratchetAngle(i / TEETH_OVER_BOOT);
-    for (let i = 1; i <= TEETH_OVER_BOOT; i += 1) {
-      expect(tooth(i)).toBeGreaterThan(tooth(i - 1));
-    }
+  it('never light the last lamp before the work is done', () => {
+    // The last lamp is the promise that the doors are about to open.
+    expect(litLamps(0.999)).toBeLessThan(BOOT_LAMPS);
   });
 
-  it('keeps the flick small enough to read as a mechanism, not a stutter', () => {
-    // A wobble approaching a whole tooth stops looking like a ratchet settling
-    // and starts looking like the animation skipping.
-    const step = (Math.PI * 2) / DRIVER_TEETH;
-    let peak = 0;
-    let back = 0;
-    for (let s = 0; s <= 1; s += 1 / 2048) {
-      const a = ratchetAngle(s);
-      back = Math.max(back, peak - a);
-      peak = Math.max(peak, a);
-    }
-    expect(back).toBeGreaterThan(0); // there is a flick at all
-    expect(back).toBeLessThan(step * 0.25);
+  it('survive the float sums the weights come out as', () => {
+    // 0.1 + 0.2 + 0.1 is 0.4000000000000001 or 0.39999999999999997 depending
+    // on the order the jobs reported in, and either one is two lamps.
+    expect(litLamps(0.39999999999999997)).toBe(2);
+    expect(litLamps(0.4000000000000001)).toBe(2);
   });
 
-  it('walks the whole way round more than once over a load', () => {
-    expect(ratchetAngle(1)).toBeCloseTo((TEETH_OVER_BOOT * Math.PI * 2) / DRIVER_TEETH, 5);
-    expect(ratchetAngle(1)).toBeGreaterThan(Math.PI * 2);
-  });
-
-  it('takes a tooth up fast and then settles', () => {
-    expect(takeUp(0)).toBe(0);
-    // most of the travel is done a third of the way through the interval
-    expect(takeUp(0.32)).toBeGreaterThan(0.9);
-    expect(takeUp(1)).toBeCloseTo(1, 5);
-  });
-
-  it('meshes: the idler turns the other way, faster by the tooth ratio', () => {
-    // The phase offset is a constant, so it cancels out of any *difference* —
-    // which is the right thing to assert here. The ratio is what keeps the two
-    // wheels meshed once they start meshed; the phase is only what makes the
-    // start position the right one.
-    const a = idlerAngle(1.0);
-    const b = idlerAngle(2.0);
-    expect(b - a).toBeCloseTo(-(DRIVER_TEETH / IDLER_TEETH), 6);
-    expect(b).toBeLessThan(a); // driver forwards means idler backwards
-  });
-
-  it('starts the idler a fraction of a tooth off, so the two do not collide', () => {
-    // Nought here draws two wheels sunk into each other. It has to be some
-    // fraction of the idler's own pitch, and never a whole one.
-    expect(IDLER_PHASE).toBeGreaterThan(0);
-    expect(IDLER_PHASE).toBeLessThan((Math.PI * 2) / IDLER_TEETH);
-  });
-
-  it('spools the free spin up rather than starting at full speed', () => {
-    const early = spinAngle(100, 520) - spinAngle(0, 520);
-    const late = spinAngle(520, 520) - spinAngle(420, 520);
-    expect(late).toBeGreaterThan(early);
-    expect(spinAngle(0, 520)).toBe(0);
-  });
-
-  it('draws four points per tooth and closes the path', () => {
-    const d = gearPath(12, 54, 43);
-    expect(d.startsWith('M')).toBe(true);
-    expect(d.endsWith('Z')).toBe(true);
-    expect(d.split('L')).toHaveLength(12 * 4);
+  it('stay within the row whatever they are handed', () => {
+    expect(litLamps(-1)).toBe(0);
+    expect(litLamps(7)).toBe(BOOT_LAMPS);
   });
 });
 
