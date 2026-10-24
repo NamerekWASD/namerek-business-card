@@ -71,6 +71,12 @@ describe('the floor indicator', () => {
     expect(needle.style.transform).toBe(`rotate(${HOME_DEG}deg)`);
   });
 
+  it('puts the dial out first and holds the black before the scene shows', () => {
+    const { container } = render(<BootScreen screen={screen({ phase: 'dark' })} />);
+    expect(container.firstChild.style.opacity).toBe('1');
+    expect(container.querySelector('[data-boot="dial"]').style.opacity).toBe('0');
+  });
+
   it('gets out of the way once it fades', () => {
     const s = screen({ phase: 'fade' });
     const { container } = render(<BootScreen screen={s} />);

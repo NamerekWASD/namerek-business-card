@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { DEBUG_PANEL } from '../scene/effects/quality.js';
 import {
-  BOOT_JOBS, BOOT_MIN_MS, FADE_MS, ARRIVE_MS, fractionDone,
+  BOOT_JOBS, BOOT_MIN_MS, FADE_MS, ARRIVE_MS, DARK_MS, fractionDone,
 } from './plan.js';
 
 // The state machine behind the boot screen. Four phases and three transitions,
@@ -21,7 +21,7 @@ export const BOOT_MAX_MS = 8000;
 const now = () => (typeof performance === 'undefined' ? Date.now() : performance.now());
 
 /**
- * @typedef {'loading' | 'arrive' | 'fade' | 'done'} BootPhase
+ * @typedef {'loading' | 'arrive' | 'dark' | 'fade' | 'done'} BootPhase
  */
 
 /**
@@ -109,7 +109,13 @@ export default function useBoot() {
 
   useEffect(() => {
     if (phase !== 'arrive') return undefined;
-    const id = setTimeout(() => enter('fade'), ARRIVE_MS);
+    const id = setTimeout(() => enter('dark'), ARRIVE_MS);
+    return () => clearTimeout(id);
+  }, [phase, enter]);
+
+  useEffect(() => {
+    if (phase !== 'dark') return undefined;
+    const id = setTimeout(() => enter('fade'), DARK_MS);
     return () => clearTimeout(id);
   }, [phase, enter]);
 

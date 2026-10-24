@@ -50,7 +50,8 @@ export default function Dieselpunk() {
   // meantime, and `boot/plan.js` is the register of what "ready" means.
   //
   // The arrival then plays in one continuous movement: the needle drops back
-  // to the ground floor (`arrive`), the black fades (`fade`), and the intro
+  // to the ground floor (`arrive`), the dial goes out and leaves plain black
+  // (`dark`), the black fades (`fade`), and the intro
   // clock starts on that same transition — so the lamps strike and hunt while
   // the fade is still finishing, and the leaves shudder just as it clears. The
   // clock is autoplayed from `fade`, not from `done`, precisely so those two

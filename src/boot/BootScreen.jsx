@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { LAYERS } from '../scene/layers.js';
-import { ARRIVE_MS, BOOT_LAMPS, FADE_MS, litLamps } from './plan.js';
+import {
+  ARRIVE_MS, BOOT_LAMPS, DARK_FADE_MS, FADE_MS, litLamps,
+} from './plan.js';
 import {
   HOME_DEG, LAMP_Y, LENS_R, PX, PY, RIDE_MS, VIEW_H, VIEW_W, lampX, needleKeyframes,
 } from './dial.js';
@@ -89,6 +91,7 @@ export default function BootScreen({ screen }) {
   const { phase } = screen;
   const arrived = phase !== 'loading';
   const gone = phase === 'fade' || phase === 'done';
+  const dark = gone || phase === 'dark';
 
   // The needle's motion is handed to the browser once per phase and then left
   // alone. Arriving takes the angle the ride had reached and swings home from
@@ -149,29 +152,34 @@ export default function BootScreen({ screen }) {
     >
       <style>{BOOT_CSS}</style>
       <div
-        className="boot-hum"
-        style={{
-          ...layer,
-          background: `radial-gradient(ellipse 38vmax 30vmax at 50% ${DIAL_Y - 3}%, rgba(255,170,80,0.16), rgba(255,130,50,0.05) 50%, rgba(0,0,0,0) 100%)`,
-        }}
-      />
-      <div
-        style={{
-          position: 'absolute', left: '50%', top: `${DIAL_Y}%`, transform: 'translate(-50%, -50%)',
-          // Capped by height too, so a phone held sideways keeps the lamps on screen.
-          width: 'clamp(220px, min(30vw, 58vh), 440px)', aspectRatio: `${VIEW_W} / ${VIEW_H}`,
-        }}
+        data-boot="dial"
+        style={{ ...layer, opacity: dark ? 0 : 1, transition: `opacity ${DARK_FADE_MS}ms ease-in` }}
       >
-        <DialFace lamps={BOOT_LAMPS} />
         <div
-          ref={needleRef}
-          data-boot="needle"
-          style={{ ...layer, transformOrigin: `${pct(PX, VIEW_W)} ${pct(PY, VIEW_H)}`, willChange: 'transform' }}
+          className="boot-hum"
+          style={{
+            ...layer,
+            background: `radial-gradient(ellipse 38vmax 30vmax at 50% ${DIAL_Y - 3}%, rgba(255,170,80,0.16), rgba(255,130,50,0.05) 50%, rgba(0,0,0,0) 100%)`,
+          }}
+        />
+        <div
+          style={{
+            position: 'absolute', left: '50%', top: `${DIAL_Y}%`, transform: 'translate(-50%, -50%)',
+            // Capped by height too, so a phone held sideways keeps the lamps on screen.
+            width: 'clamp(220px, min(30vw, 58vh), 440px)', aspectRatio: `${VIEW_W} / ${VIEW_H}`,
+          }}
         >
-          <DialNeedle />
+          <DialFace lamps={BOOT_LAMPS} />
+          <div
+            ref={needleRef}
+            data-boot="needle"
+            style={{ ...layer, transformOrigin: `${pct(PX, VIEW_W)} ${pct(PY, VIEW_H)}`, willChange: 'transform' }}
+          >
+            <DialNeedle />
+          </div>
+          <DialGlass />
+          {Array.from({ length: BOOT_LAMPS }, (_, i) => <Lamp key={i} x={lampX(i, BOOT_LAMPS)} />)}
         </div>
-        <DialGlass />
-        {Array.from({ length: BOOT_LAMPS }, (_, i) => <Lamp key={i} x={lampX(i, BOOT_LAMPS)} />)}
       </div>
     </div>
   );

@@ -45,7 +45,12 @@ export const BOOT_MIN_MS = 900;
 // second of a full row of lamps doing nothing.
 export const ARRIVE_MS = 520;
 
-/** The indicator fading out, and the scene coming up behind it. */
+// The indicator going out on its own, then a beat of plain black, so the lift
+// comes up out of darkness rather than through the dial.
+export const DARK_FADE_MS = 320;
+export const DARK_MS = 460;
+
+/** The black fading out, and the scene coming up behind it. */
 export const FADE_MS = 420;
 
 /**
